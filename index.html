@@ -47,6 +47,7 @@
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="i-nfc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M8.5 7a7 7 0 0 1 0 10"/><path d="M12 4.5a10.5 10.5 0 0 1 0 15"/><path d="M15.5 2.5a13.5 13.5 0 0 1 0 19" opacity=".0"/></g></symbol>
   <symbol id="i-wallet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="13.5" rx="3"/><path d="M3.5 10h17"/><path d="M7 6V5a1.5 1.5 0 0 1 1.5-1.5h7A1.5 1.5 0 0 1 17 5v1"/><path d="m10 13.5 1.5 1.5 2.5-2.5" stroke-linecap="round"/></g></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 3 10.5l7 2.5 2.5 7L21 3ZM10 13l5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
   <symbol id="i-gift" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5v6.5a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-6.5M12 8.5v12"/><path d="M12 8.5S10.8 4 8.5 4a2.2 2.2 0 0 0 0 4.5H12Zm0 0S13.2 4 15.5 4a2.2 2.2 0 0 1 0 4.5H12Z"/></g></symbol>
   <symbol id="i-team" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M17.5 14.4c2 .8 3.5 2.9 3.5 5.6"/></g></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></g></symbol>
@@ -363,51 +364,21 @@
     <div class="notify__copy">
       <div data-reveal>
         <p class="eyebrow">Notifications</p>
-        <h2 class="h2" id="notify-title">Un message. <span class="notify__accent">Tous vos clients.</span></h2>
-        <p class="lead">Nouveauté, happy hour, fermeture exceptionnelle : envoyez une notification à tous les clients qui ont votre carte Taply. Elle s'affiche directement sur l'écran de leur téléphone.</p>
+        <h2 class="h2" id="notify-title">Restez en contact <br class="br-md">avec <span class="accent">vos clients.</span></h2>
+        <p class="lead">Envoyez facilement des notifications à vos clients depuis votre espace Taply. Annoncez vos nouveautés, vos offres spéciales ou rappelez-leur leurs récompenses disponibles.</p>
       </div>
-
-      <ol class="notify__steps">
-        <li data-reveal style="--i:0"><span class="notify__num" aria-hidden="true">1</span><div><h3>Écrivez</h3><p>Quelques mots depuis l'application commerçant.</p></div></li>
-        <li data-reveal style="--i:1"><span class="notify__num" aria-hidden="true">2</span><div><h3>Envoyez</h3><p>À tous les porteurs de votre carte, en un geste.</p></div></li>
-        <li data-reveal style="--i:2"><span class="notify__num" aria-hidden="true">3</span><div><h3>Ils passent vous voir</h3><p>Le message arrive sur leur écran de verrouillage.</p></div></li>
-      </ol>
-
-      <a class="btn btn--dark btn--lg notify__cta" data-reveal style="--i:3" href="#demo">Voir l'application commerçant <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <ul class="feature-list feature-list--lime">
+        <li data-reveal style="--i:0"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-send"/></svg></span><div><h3>Promotions et offres spéciales</h3><p>Informez vos clients en temps réel.</p></div></li>
+        <li data-reveal style="--i:1"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-gift"/></svg></span><div><h3>Nouveautés et événements</h3><p>Remplissez votre établissement plus facilement.</p></div></li>
+        <li data-reveal style="--i:2"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-team"/></svg></span><div><h3>Clients ciblés</h3><p>Envoyez des messages à tous vos clients ou seulement aux plus fidèles.</p></div></li>
+        <li data-reveal style="--i:3"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-bars"/></svg></span><div><h3>Des résultats concrets</h3><p>Suivez l'ouverture de vos notifications et leur impact sur vos visites.</p></div></li>
+      </ul>
     </div>
 
-    <!-- Démonstration visuelle (décorative) : l'app commerçant envoie, l'iPhone reçoit -->
-    <div class="notify__stage" data-reveal="stage" aria-hidden="true">
-      <div class="phone phone--lock">
-        <div class="phone__screen lock">
-          <div class="phone__status"><span></span><span class="phone__island"></span><span class="phone__sig"></span></div>
-          <p class="lock__date">Samedi 4 octobre</p>
-          <p class="lock__time">9:41</p>
-          <ul class="lock__stack">
-            <li class="notif" style="--d:1.75s">
-              <span class="notif__icon"><span class="logo logo--on-deep">T<svg class="logo__tick" viewBox="0 0 10 16"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></span></span>
-              <span class="notif__body"><span class="notif__head"><strong>Le Comptoir</strong><small>maintenant</small></span>Croissants tout chauds jusqu'à 10 h. On vous garde le vôtre ?</span>
-            </li>
-            <li class="notif" style="--d:.6s">
-              <span class="notif__icon"><span class="logo logo--on-deep">T<svg class="logo__tick" viewBox="0 0 10 16"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></span></span>
-              <span class="notif__body"><span class="notif__head"><strong>Le Comptoir</strong><small>il y a 2 j</small></span>Plus qu'une visite avant votre café offert.</span>
-            </li>
-          </ul>
-          <span class="lock__bar"></span>
-        </div>
-      </div>
-
-      <div class="composer">
-        <p class="composer__title">Nouvelle notification</p>
-        <p class="composer__to"><span>À</span> Tous les porteurs de carte <em>248</em></p>
-        <p class="composer__msg">Croissants tout chauds jusqu'à 10 h. On vous garde le vôtre ?<span class="composer__caret"></span></p>
-        <div class="composer__foot">
-          <span class="composer__chip">Nouveauté</span><span class="composer__chip">Horaires</span>
-          <span class="composer__send">Envoyer <svg><use href="#i-arrow"/></svg></span>
-        </div>
-        <p class="composer__sent"><svg><use href="#i-check"/></svg> Envoyée à 248 clients</p>
-      </div>
-    </div>
+    <!-- IMAGE : config.js → images.notifications -->
+    <figure class="media media--r notify__media" data-img="notifications" data-alt="Sur un ordinateur, l'espace Taply permet d'envoyer une notification « -20 % sur toutes les pâtisseries ce week-end ! » ; elle s'affiche sur l'écran verrouillé d'un iPhone" data-reveal="media">
+      <span class="ph ph--warm" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — espace Taply + iPhone<small>images/notifications.webp</small></span></span></span>
+    </figure>
   </div>
 </section>
 

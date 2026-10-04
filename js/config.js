@@ -14,6 +14,7 @@ window.TAPLY_CONFIG = {
     step1:       "images/step-1.webp",   // 16:9 — le client tape le badge
     step2:       "images/step-2.webp",   // 16:9 — la carte dans le Wallet
     step3:       "images/step-3.webp",   // 16:9 — la carte physique / récompense
+    notifications: "images/notifications.webp",   // espace Taply (ordinateur) + iPhone notifié
     benefits:    "images/benefits.webp",   // 16:9 — comptoir ensoleillé, fleurs & croissants (recadré en portrait sur desktop)
     walletPhone: "images/wallet-iphone.webp",   // iPhone détouré (fond transparent) — section Apple Wallet
     walletQr:    "",   // ex. "images/qr-exemple.png"  — QR code vers une carte d'exemple
