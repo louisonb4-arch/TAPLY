@@ -135,8 +135,8 @@
       const update = () => {
         raf = 0;
         const r = scrub.getBoundingClientRect();
-        // 0 quand le haut de l'iPhone entre par le bas de l'écran, 1 quand il atteint 18 % du haut
-        const start = innerHeight, end = innerHeight * .18;
+        // 0 quand le haut de l'iPhone atteint 88 % de l'écran, 1 quand il atteint 8 % du haut
+        const start = innerHeight * .88, end = innerHeight * .08;
         const t = Math.min(1, Math.max(0, (start - r.top) / (start - end)));
         section.style.setProperty('--p', easeOut(t).toFixed(4));
       };
