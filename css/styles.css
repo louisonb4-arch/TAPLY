@@ -558,6 +558,19 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 }
 .wallet__shot { display: none; width: 18em; aspect-ratio: 628 / 1235; background: transparent; overflow: visible; }
 .wallet__shot > img { object-fit: contain; }
+/* Animation au scroll : --p va de 0 (section qui entre) à 1 (iPhone posé), piloté par main.js */
+.wallet { --p: 1; }
+.wallet__shot, .wallet__device .phone {
+  transform:
+    translateY(calc((1 - var(--p)) * 38%))
+    rotate(calc((1 - var(--p)) * -9deg))
+    scale(calc(.86 + var(--p) * .14));
+  opacity: calc(.15 + var(--p) * .85);
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+.wallet__glow { opacity: calc(.25 + var(--p) * .75); transform: scale(calc(.75 + var(--p) * .25)); }
+.js .wallet { --p: 0; }
 .has-wallet-phone .wallet__shot { display: block; }
 .has-wallet-phone .wallet__device .phone { display: none; }
 .phone--big { box-shadow: var(--sh-phone), 0 0 0 1px rgba(127,219,76,.3); }

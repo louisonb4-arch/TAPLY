@@ -124,6 +124,29 @@
     reveals.forEach(el => io.observe(el));
   }
 
+  /* ---- iPhone Wallet : apparition pilotée par le scroll ------------- */
+  const scrub = $('[data-scrub]');
+  if (scrub) {
+    const section = scrub.closest('section');
+    if (reduceMotion) section.style.setProperty('--p', 1);
+    else {
+      const easeOut = t => 1 - Math.pow(1 - t, 3);
+      let raf = 0;
+      const update = () => {
+        raf = 0;
+        const r = scrub.getBoundingClientRect();
+        // 0 quand le haut de l'iPhone entre par le bas de l'écran, 1 quand il atteint 18 % du haut
+        const start = innerHeight, end = innerHeight * .18;
+        const t = Math.min(1, Math.max(0, (start - r.top) / (start - end)));
+        section.style.setProperty('--p', easeOut(t).toFixed(4));
+      };
+      const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+      addEventListener('scroll', onScroll, { passive: true });
+      addEventListener('resize', onScroll);
+      update();
+    }
+  }
+
   /* ---- Carte "Comment ça marche" : se remplit étape par étape ----------- */
   const howCard = $('[data-how-card]');
   if (howCard && 'IntersectionObserver' in window) {
