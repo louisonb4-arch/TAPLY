@@ -11,12 +11,13 @@ window.TAPLY_CONFIG = {
     hero:        "",   // ex. "images/hero.jpg"        — mobile/tablette (<1024px) : 1200×1800 portrait, sujet en bas
     heroDesktop: "images/hero-desktop.webp", // ≥1024px — 16:9, sujets (présentoir + téléphone) au centre-droit ; idéalement 2400px de large
     constat:     "",   // ex. "images/constat.jpg"     — 1800×1200, sacs kraft + ardoise
-    step1:       "",   // ex. "images/step-1.jpg"      — 1600×1100, le client tape le badge
-    step2:       "",   // ex. "images/step-2.jpg"      — 1600×1100, la carte dans le Wallet
-    step3:       "",   // ex. "images/step-3.jpg"      — 1600×1100, la récompense
+    step1:       "images/step-1.webp",   // 16:9 — le client tape le badge
+    step2:       "images/step-2.webp",   // 16:9 — la carte dans le Wallet
+    step3:       "images/step-3.webp",   // 16:9 — la carte physique / récompense
     benefits:    "",   // ex. "images/benefits.jpg"    — 1400×1800 (portrait), intérieur boulangerie-café
     testimonial: "",   // ex. "images/temoin.jpg"      — 400×400, portrait du commerçant
-    walletQr:    ""    // ex. "images/qr-exemple.png"  — QR code vers une carte d'exemple
+    walletQr:    "",   // ex. "images/qr-exemple.png"  — QR code vers une carte d'exemple
+    avatar1: "", avatar2: "", avatar3: "", avatar4: ""   // portraits ronds du hero (preuve sociale), 160×160
   },
 
   /* Téléphone construit en code dans le hero.

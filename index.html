@@ -76,14 +76,14 @@
     </a>
 
     <nav class="nav__links" aria-label="Navigation principale">
-      <a href="#fonctionnement">Fonctionnement</a>
-      <a href="#avantages">Avantages</a>
+      <a href="#fonctionnement">Fonctionnalités</a>
+      <a href="#avantages">Commerçants</a>
       <a href="#tarifs">Tarifs</a>
       <a href="#faq">FAQ</a>
     </nav>
 
     <a class="btn btn--light btn--sm nav__cta" href="#demo">
-      Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg>
+      Commencer <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg>
     </a>
 
     <button class="burger" type="button" aria-expanded="false" aria-controls="menu" data-menu-open>
@@ -102,8 +102,8 @@
     </button>
   </div>
   <nav class="menu__links container" aria-label="Navigation mobile">
-    <a href="#fonctionnement" style="--i:0">Fonctionnement</a>
-    <a href="#avantages" style="--i:1">Avantages</a>
+    <a href="#fonctionnement" style="--i:0">Fonctionnalités</a>
+    <a href="#avantages" style="--i:1">Commerçants</a>
     <a href="#tarifs" style="--i:2">Tarifs</a>
     <a href="#faq" style="--i:3">FAQ</a>
   </nav>
@@ -129,7 +129,7 @@
   </figure>
   <!-- IMAGE DESKTOP (≥1024px) : config.js → images.heroDesktop.
        Calée à droite du texte ; le téléphone en code est masqué car la photo le montre déjà. -->
-  <figure class="media media--hero-desktop" data-img="heroDesktop" data-media="(min-width: 1024px)" data-flag="has-hero-photo" data-alt="Au comptoir d'un café, un client tient son téléphone près du présentoir Taply : « Visite ajoutée ! »" data-eager></figure>
+  <figure class="media media--hero-desktop" data-img="heroDesktop" data-media="(min-width: 1024px)" data-flag="has-hero-photo" data-var="--hero-photo" data-alt="Au comptoir d'un café, un client tient son téléphone près du présentoir Taply : « Visite ajoutée ! »" data-eager></figure>
   <div class="hero__shade" aria-hidden="true"></div>
 
   <div class="hero__inner container">
@@ -140,7 +140,7 @@
         <span class="line intro" style="--d:.2s">qui reviennent.</span>
         <span class="line intro accent" style="--d:.28s">Simplement.</span>
       </h1>
-      <p class="hero__lead intro" style="--d:.4s">Taply transforme chaque visite en récompense. Une carte de fidélité sans application, rangée dans le Wallet de vos clients, pensée pour les commerces de proximité.</p>
+      <p class="hero__lead intro" style="--d:.4s">Taply transforme chaque visite en récompense. Une solution de fidélité simple, moderne et sans application pour les commerces de proximité.</p>
       <div class="hero__actions intro" style="--d:.5s">
         <a class="btn btn--light btn--lg" href="#demo">Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
         <a class="play" href="#fonctionnement" data-video-open>
@@ -173,15 +173,27 @@
     </div>
 
     <ul class="hero__features" aria-label="En bref">
-      <li class="intro" style="--d:.55s"><svg aria-hidden="true"><use href="#i-nfc"/></svg><span><strong>Tap NFC</strong> en une seconde</span></li>
-      <li class="intro" style="--d:.62s"><svg aria-hidden="true"><use href="#i-wallet"/></svg><span><strong>Suivi automatique</strong> dans Apple Wallet</span></li>
+      <li class="intro" style="--d:.55s"><svg aria-hidden="true"><use href="#i-nfc"/></svg><span><strong>Tap NFC</strong> en 1 seconde</span></li>
+      <li class="intro" style="--d:.62s"><svg aria-hidden="true"><use href="#i-wallet"/></svg><span><strong>Suivi automatique</strong> sur Apple Wallet</span></li>
       <li class="intro" style="--d:.69s"><svg aria-hidden="true"><use href="#i-gift"/></svg><span><strong>Récompenses personnalisées</strong> selon votre commerce</span></li>
       <li class="intro" style="--d:.76s"><svg aria-hidden="true"><use href="#i-team"/></svg><span><strong>Simple pour vos équipes</strong> aucune formation nécessaire</span></li>
     </ul>
 
     <div class="hero__foot intro" style="--d:.7s">
-      <p class="hero__types">Cafés, boulangeries, restaurants, salons, boutiques…</p>
-      <p class="hero__note">Des commerces plus vivants,<br>des quartiers plus forts.</p>
+      <div class="hero__proof">
+        <!-- PREUVE SOCIALE — À CONFIRMER : chiffre réel + portraits (config.js → images.avatar1…4) -->
+        <div class="proof-row">
+          <ul class="avatars" aria-hidden="true">
+            <li><figure class="media" data-img="avatar1" data-alt=""><span class="ph ph--avatar"></span></figure></li>
+            <li><figure class="media" data-img="avatar2" data-alt=""><span class="ph ph--avatar"></span></figure></li>
+            <li><figure class="media" data-img="avatar3" data-alt=""><span class="ph ph--avatar"></span></figure></li>
+            <li><figure class="media" data-img="avatar4" data-alt=""><span class="ph ph--avatar"></span></figure></li>
+          </ul>
+          <p><strong>+ 250 commerces</strong><br>nous font déjà confiance.</p>
+        </div>
+        <p class="hero__types">Cafés, boulangeries, restaurants, salons, boutiques…</p>
+      </div>
+      <p class="hero__note"><span>Des commerces</span><span>plus vivants,</span><span>des quartiers</span><span>plus forts.</span></p>
     </div>
   </div>
 </section>
@@ -247,27 +259,27 @@
     <ol class="steps">
       <li class="step" data-step="1" data-reveal>
         <!-- IMAGE : config.js → images.step1 -->
-        <figure class="media media--r step__media" data-img="step1" data-alt="Un client approche son téléphone du badge NFC Taply posé sur le comptoir">
+        <figure class="media media--r step__media" data-img="step1" data-alt="Un client tient son téléphone près du badge NFC Taply posé sur le comptoir : « Visite ajoutée ! »">
           <span class="ph ph--warm" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — le client tape le badge<small>images/step-1.jpg · 1600×1100</small></span></span></span>
         </figure>
         <span class="step__num" aria-hidden="true">1</span>
-        <div class="step__body"><h3 class="h3">Le client tape</h3><p>Il approche son téléphone du badge NFC posé sur votre comptoir.</p></div>
+        <div class="step__body"><h3 class="h3">Le client tape</h3><p>Il approche son téléphone du badge NFC.</p></div>
       </li>
       <li class="step" data-step="2" data-reveal>
         <!-- IMAGE : config.js → images.step2 -->
-        <figure class="media media--r step__media" data-img="step2" data-alt="Carte de fidélité Taply affichée dans le Wallet d'un téléphone, à côté d'une tasse de café">
+        <figure class="media media--r step__media" data-img="step2" data-alt="Carte de fidélité Taply du commerce Le Comptoir dans le Wallet d'un téléphone, quatre visites validées">
           <span class="ph ph--cream" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — la carte dans le Wallet<small>images/step-2.jpg · 1600×1100</small></span></span></span>
         </figure>
         <span class="step__num" aria-hidden="true">2</span>
-        <div class="step__body"><h3 class="h3">La visite s'enregistre</h3><p>Automatiquement, dans son Wallet. Rien à scanner, rien à tamponner.</p></div>
+        <div class="step__body"><h3 class="h3">La visite s'enregistre</h3><p>Automatiquement dans son Wallet.</p></div>
       </li>
       <li class="step" data-step="3" data-reveal>
         <!-- IMAGE : config.js → images.step3 -->
-        <figure class="media media--r step__media" data-img="step3" data-alt="Carte Taply du commerce Le Comptoir, quatre visites validées sur cinq">
+        <figure class="media media--r step__media" data-img="step3" data-alt="Carte physique Taply Le Comptoir posée sur un comptoir en bois : 5 visites = 1 café offert">
           <span class="ph ph--green" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — la récompense<small>images/step-3.jpg · 1600×1100</small></span></span></span>
         </figure>
         <span class="step__num" aria-hidden="true">3</span>
-        <div class="step__body"><h3 class="h3">Il cumule des avantages</h3><p>Et revient plus souvent. La récompense se débloque toute seule.</p></div>
+        <div class="step__body"><h3 class="h3">Il cumule des avantages</h3><p>Et revient plus souvent !</p></div>
       </li>
     </ol>
   </div>

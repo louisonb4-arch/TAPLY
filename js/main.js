@@ -31,6 +31,8 @@
     img.addEventListener('load', () => {
       fig.classList.add('is-loaded');
       if (fig.dataset.flag) document.documentElement.classList.add(fig.dataset.flag);
+      // data-var : expose l'image en variable CSS sur la section (ex. fond flouté du hero)
+      if (fig.dataset.var) fig.parentElement.style.setProperty(fig.dataset.var, `url("${new URL(src, location.href).href}")`);
     }, { once: true });
     img.addEventListener('error', () => console.warn(`[Taply] Image introuvable : ${src}`), { once: true });
     img.src = src;
