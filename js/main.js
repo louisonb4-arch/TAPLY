@@ -15,19 +15,28 @@
   $$('[data-year]').forEach(el => { el.textContent = new Date().getFullYear(); });
 
   /* ---- Images : remplace les placeholders selon config.js -------------- */
-  $$('[data-img]').forEach(fig => {
+  const loadMedia = fig => {
     const src = CONFIG.images && CONFIG.images[fig.dataset.img];
-    if (!src) return;
+    if (!src || fig.querySelector('img')) return;
+    // data-media : ne charge l'image que si la media query correspond (ex. desktop)
+    if (fig.dataset.media) {
+      const mq = matchMedia(fig.dataset.media);
+      if (!mq.matches) { mq.addEventListener('change', () => loadMedia(fig), { once: true }); return; }
+    }
     const img = new Image();
     img.alt = fig.dataset.alt || '';
     img.decoding = 'async';
     if (!fig.hasAttribute('data-eager')) img.loading = 'lazy';
     else img.fetchPriority = 'high';
-    img.addEventListener('load', () => fig.classList.add('is-loaded'), { once: true });
+    img.addEventListener('load', () => {
+      fig.classList.add('is-loaded');
+      if (fig.dataset.flag) document.documentElement.classList.add(fig.dataset.flag);
+    }, { once: true });
     img.addEventListener('error', () => console.warn(`[Taply] Image introuvable : ${src}`), { once: true });
     img.src = src;
     fig.prepend(img);
-  });
+  };
+  $$('[data-img]').forEach(loadMedia);
 
   if (CONFIG.heroDevice === false) document.documentElement.classList.add('html-device-off');
 

@@ -366,6 +366,7 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 }
 .media--hero { position: absolute; inset: 0; z-index: -2; background: #0B0806; }
 .media--hero .ph__tag { display: none; }
+.media--hero-desktop { display: none; }
 .hero__shade {
   position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background:
@@ -842,6 +843,29 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
     padding-top: calc(5.25rem + 3rem); padding-bottom: 3rem;
   }
   .hero__copy { align-self: center; }
+
+  /* Photo hero desktop : calée à droite du texte, fondue à gauche */
+  .media--hero-desktop {
+    display: block; position: absolute; z-index: -2;
+    top: 0; bottom: 0; right: 0; left: clamp(0px, 20vw, 26rem);
+    background: transparent;
+  }
+  .media--hero-desktop > img { object-position: 8% 50%; }
+  .media--hero-desktop::after {
+    content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background:
+      linear-gradient(90deg, var(--hero-ground) 0%, rgba(8, 6, 4, 0) 24%),
+      linear-gradient(0deg, rgba(8, 6, 4, .55) 0%, transparent 28%);
+  }
+  .has-hero-photo .hero { --hero-ground: #080604; background: var(--hero-ground); }
+  .has-hero-photo .media--hero,
+  .has-hero-photo .hero__device,
+  .has-hero-photo .hero__features { display: none; }
+  .has-hero-photo .hero__shade {
+    background:
+      linear-gradient(90deg, rgba(8, 6, 4, .92) 0%, rgba(8, 6, 4, .7) 28%, rgba(8, 6, 4, .18) 46%, transparent 60%),
+      linear-gradient(180deg, rgba(8, 6, 4, .6) 0%, transparent 20%, transparent 78%, rgba(8, 6, 4, .5) 100%);
+  }
   .hero__title { font-size: clamp(3.6rem, 5.5vw, 5.6rem); }
   .hero__title .line { white-space: nowrap; }
   .hero__lead { max-width: 36ch; }
@@ -930,6 +954,17 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   .accordion { grid-area: list; margin-top: 2.5rem; }
   .faq__more { grid-area: more; margin-top: 2.5rem; text-align: center; }
   .faq__cta { display: inline-flex; grid-area: cta; margin-top: 1.5rem; width: 100%; }
+}
+
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  /* Écran étroit : la photo est cadrée sur le téléphone, le présentoir passe sous le dégradé */
+  .media--hero-desktop { left: 0; }
+  .media--hero-desktop > img { object-position: 30% 50%; }
+  .has-hero-photo .hero__shade {
+    background:
+      linear-gradient(90deg, rgba(8, 6, 4, .95) 0%, rgba(8, 6, 4, .9) 42%, rgba(8, 6, 4, .4) 57%, transparent 67%),
+      linear-gradient(180deg, rgba(8, 6, 4, .6) 0%, transparent 20%, transparent 78%, rgba(8, 6, 4, .5) 100%);
+  }
 }
 
 @media (min-width: 1280px) {
