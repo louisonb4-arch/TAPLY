@@ -1001,23 +1001,18 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   .hero__features svg { width: 2.1rem; height: 2.1rem; color: var(--c-white); }
   .hero__foot { grid-column: 1 / -1; max-width: none; }
 
-  /* Composition « maquette » : téléphone au centre, avantages à droite, ambiance floutée à gauche */
+  /* Composition « maquette » : téléphone au centre, avantages à droite, fond sombre uni à gauche */
   .media--hero-desktop {
     left: auto; right: -2vw; width: auto; aspect-ratio: 867 / 941;
-    /* fondu large sur le bord gauche, sauf autour du téléphone (ellipse opaque) */
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 32%), radial-gradient(ellipse 21% 34% at 18% 63%, #000 70%, transparent 100%);
-            mask-image: linear-gradient(90deg, transparent 0, #000 32%), radial-gradient(ellipse 21% 34% at 18% 63%, #000 70%, transparent 100%);
+    /* fondu court sur le bord gauche (sauf autour du téléphone), fond uni derrière */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 26%), radial-gradient(ellipse 18% 33% at 14% 63%, #000 72%, transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 26%), radial-gradient(ellipse 18% 33% at 14% 63%, #000 72%, transparent 100%);
   }
   .media--hero-desktop > img { object-position: 100% 50%; }
   .media--hero-desktop::after {
     background:
       linear-gradient(270deg, rgba(8, 6, 4, .88) 0%, rgba(8, 6, 4, .72) 26%, rgba(8, 6, 4, .25) 40%, transparent 50%),
       linear-gradient(0deg, rgba(8, 6, 4, .55) 0%, transparent 28%);
-  }
-  .has-hero-photo .hero::before {
-    content: ""; position: absolute; inset: -60px; z-index: -3;
-    background: var(--hero-photo) 0% 45% / cover no-repeat;
-    filter: blur(22px) brightness(.62) saturate(1.15);
   }
   .has-hero-photo .hero__shade {
     background:
