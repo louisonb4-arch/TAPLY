@@ -476,6 +476,11 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 
 /* 9. SECTIONS ------------------------------------------------------------ */
 
+/* — Panneaux sombres : posés sur le fond clair, coins arrondis, en retrait des bords — */
+.wallet, .faq { margin-inline: var(--panel-inset); border-radius: var(--r-panel); }
+.hero { border-radius: 0 0 var(--r-panel) var(--r-panel); }
+.footer { margin-inline: var(--panel-inset); border-radius: var(--r-panel) var(--r-panel) 0 0; }
+
 /* — Constat — */
 .constat__head { display: grid; gap: 0; }
 .constat__head .lead { max-width: 38ch; }
