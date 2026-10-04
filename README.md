@@ -19,3 +19,11 @@ Tout est dans `css/tokens.css` (couleurs, typo, espacements, rayons, ombres, mou
 - Compatibilité téléphones (FAQ), prix du badge au-delà des 50 premiers
 - Pages légales : champs `[…]` surlignés en vert
 - Formulaires : `formEndpoint` / `newsletterEndpoint` dans config.js (sinon envoi simulé)
+
+## Espace commerçant (prototype)
+- `connexion.html` : page de connexion (lien « Connexion » dans la nav du site). **Aucune authentification réelle** : n'importe quel identifiant ouvre la démo.
+- `dashboard/` : tableau de bord (Accueil, Clients, fiche client, Récompenses, Nouvelle récompense, Notifications, Statistiques, Paramètres, Mon établissement, Ma carte, Intégrations).
+  - Données de démo (Roll in Love, chiffres fictifs) : `dashboard/data.js` — à remplacer par l'API.
+  - Les modifications faites dans la démo sont gardées dans le navigateur (localStorage) ; « Réinitialiser la démo » dans Paramètres.
+  - Couleurs du commerce connecté : variables `--brand*` en haut de `dashboard/dashboard.css`.
+  - Non indexé (`noindex`).
