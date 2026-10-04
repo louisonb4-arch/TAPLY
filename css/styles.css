@@ -432,6 +432,7 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .constat__head .lead { max-width: 38ch; }
 .constat__stage { position: relative; margin-top: var(--sp-7); }
 .constat__media { aspect-ratio: 16 / 11; }
+.constat__media > img { object-position: 45% 50%; }
 .pains { display: grid; gap: 1.6rem; margin-top: var(--sp-7); }
 .pains li { display: grid; grid-template-columns: 3.25rem 1fr; gap: 1.1rem; align-items: start; }
 .pains__icon { display: grid; place-items: center; width: 3.25rem; height: 3.25rem; }
@@ -891,10 +892,11 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   /* Constat */
   .constat__head { grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); column-gap: 4rem; align-items: end; }
   .constat__head .lead { margin-top: 0; justify-self: end; }
-  .constat__media { aspect-ratio: 21 / 9; }
-  .constat { padding-bottom: calc(var(--section) + 4rem); }
+  .constat__media { aspect-ratio: 2 / 1; }
+  .constat__media > img { object-position: 50% 58%; }
+  .constat { padding-bottom: calc(var(--section) + 9rem); }
   .pains {
-    position: absolute; right: clamp(1.5rem, 3vw, 3rem); bottom: -5rem; width: min(27rem, 40%);
+    position: absolute; left: clamp(1.5rem, 3vw, 3rem); bottom: -10rem; width: min(27rem, 40%);
     grid-template-columns: 1fr; gap: 1.5rem; margin: 0;
     padding: 2.25rem; border-radius: var(--r-lg);
     background: var(--c-white); box-shadow: var(--sh-card);

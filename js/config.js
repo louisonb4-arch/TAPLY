@@ -10,7 +10,7 @@ window.TAPLY_CONFIG = {
   images: {
     hero:        "",   // ex. "images/hero.jpg"        — mobile/tablette (<1024px) : 1200×1800 portrait, sujet en bas
     heroDesktop: "images/hero-desktop.webp", // ≥1024px — 16:9, sujets (présentoir + téléphone) au centre-droit ; idéalement 2400px de large
-    constat:     "",   // ex. "images/constat.jpg"     — 1800×1200, sacs kraft + ardoise
+    constat:     "images/constat.webp",   // 4:3 — comptoir, sac kraft, cliente qui repart
     step1:       "images/step-1.webp",   // 16:9 — le client tape le badge
     step2:       "images/step-2.webp",   // 16:9 — la carte dans le Wallet
     step3:       "images/step-3.webp",   // 16:9 — la carte physique / récompense
