@@ -520,6 +520,7 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .feature-list li:hover .feature-list__icon { background: var(--c-lime-soft); transform: rotate(-6deg) scale(1.05); }
 .feature-list h3 { font-size: 1.125rem; }
 .benefits__media { aspect-ratio: 4 / 3.4; }
+.benefits__media > img { object-position: 68% 50%; }
 .benefits__media::before {
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: linear-gradient(0deg, rgba(5,8,6,.78) 0%, rgba(5,8,6,.2) 55%, transparent 80%);
@@ -934,6 +935,7 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   /* Avantages */
   .benefits__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(3rem, 6vw, 7rem); align-items: center; }
   .benefits__media { aspect-ratio: 4 / 5; }
+  .benefits__media > img { object-position: 80% 50%; }
   .corner-disc { right: -8%; top: 8%; width: 30%; }
 
   /* Preuves */

@@ -14,7 +14,7 @@ window.TAPLY_CONFIG = {
     step1:       "images/step-1.webp",   // 16:9 — le client tape le badge
     step2:       "images/step-2.webp",   // 16:9 — la carte dans le Wallet
     step3:       "images/step-3.webp",   // 16:9 — la carte physique / récompense
-    benefits:    "",   // ex. "images/benefits.jpg"    — 1400×1800 (portrait), intérieur boulangerie-café
+    benefits:    "images/benefits.webp",   // 16:9 — comptoir ensoleillé, fleurs & croissants (recadré en portrait sur desktop)
     testimonial: "",   // ex. "images/temoin.jpg"      — 400×400, portrait du commerçant
     walletQr:    "",   // ex. "images/qr-exemple.png"  — QR code vers une carte d'exemple
     avatar1: "", avatar2: "", avatar3: "", avatar4: ""   // portraits ronds du hero (preuve sociale), 160×160
