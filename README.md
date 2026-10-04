@@ -15,7 +15,7 @@ Tout est dans `css/tokens.css` (couleurs, typo, espacements, rayons, ombres, mou
 
 ## À confirmer avant mise en ligne
 - Domaine (canonical / og:url), e-mail `contact@taply.fr`, URLs réseaux sociaux
-- Témoignage (section Preuves) : texte + nom temporaires
+- Section Notifications : chiffre « 248 » et messages = exemples fictifs (commerce « Le Comptoir »)
 - Compatibilité téléphones (FAQ), prix du badge au-delà des 50 premiers
 - Pages légales : champs `[…]` surlignés en vert
 - Formulaires : `formEndpoint` / `newsletterEndpoint` dans config.js (sinon envoi simulé)

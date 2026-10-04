@@ -357,28 +357,57 @@
   </div>
 </section>
 
-<!-- ================================== PREUVES ================================== -->
-<section class="section proof" id="preuves" aria-labelledby="proof-title">
-  <div class="container">
-    <h2 class="proof__title" id="proof-title" data-reveal>Le geste le plus simple <br class="br-md">du comptoir.</h2>
+<!-- =============================== NOTIFICATIONS =============================== -->
+<section class="section notify" id="notifications" aria-labelledby="notify-title">
+  <div class="container notify__grid">
+    <div class="notify__copy">
+      <div data-reveal>
+        <p class="eyebrow">Notifications</p>
+        <h2 class="h2" id="notify-title">Un message. <span class="notify__accent">Tous vos clients.</span></h2>
+        <p class="lead">Nouveauté, happy hour, fermeture exceptionnelle : envoyez une notification à tous les clients qui ont votre carte Taply. Elle s'affiche directement sur l'écran de leur téléphone.</p>
+      </div>
 
-    <dl class="facts">
-      <div data-reveal style="--i:0"><dt>1 s</dt><dd>pour enregistrer une visite</dd></div>
-      <div data-reveal style="--i:1"><dt>0</dt><dd>application à télécharger</dd></div>
-      <div data-reveal style="--i:2"><dt>0</dt><dd>compte à créer</dd></div>
-      <div data-reveal style="--i:3"><dt>0</dt><dd>engagement</dd></div>
-    </dl>
+      <ol class="notify__steps">
+        <li data-reveal style="--i:0"><span class="notify__num" aria-hidden="true">1</span><div><h3>Écrivez</h3><p>Quelques mots depuis l'application commerçant.</p></div></li>
+        <li data-reveal style="--i:1"><span class="notify__num" aria-hidden="true">2</span><div><h3>Envoyez</h3><p>À tous les porteurs de votre carte, en un geste.</p></div></li>
+        <li data-reveal style="--i:2"><span class="notify__num" aria-hidden="true">3</span><div><h3>Ils passent vous voir</h3><p>Le message arrive sur leur écran de verrouillage.</p></div></li>
+      </ol>
 
-    <!-- TÉMOIGNAGE : contenu temporaire à remplacer par un vrai retour client -->
-    <figure class="quote" data-reveal>
-      <figure class="media quote__avatar" data-img="testimonial" data-alt="Portrait du commerçant">
-        <span class="ph ph--avatar" aria-hidden="true"><svg><use href="#i-camera"/></svg></span>
-      </figure>
-      <blockquote>
-        <p>Ici, le témoignage d'un commerçant Taply : ce qui a changé au comptoir, en une ou deux phrases sincères.</p>
-      </blockquote>
-      <figcaption><strong>Prénom Nom</strong><span>Commerce · Ville</span></figcaption>
-    </figure>
+      <a class="btn btn--dark btn--lg notify__cta" data-reveal style="--i:3" href="#demo">Voir l'application commerçant <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+
+    <!-- Démonstration visuelle (décorative) : l'app commerçant envoie, l'iPhone reçoit -->
+    <div class="notify__stage" data-reveal="stage" aria-hidden="true">
+      <div class="phone phone--lock">
+        <div class="phone__screen lock">
+          <div class="phone__status"><span></span><span class="phone__island"></span><span class="phone__sig"></span></div>
+          <p class="lock__date">Samedi 4 octobre</p>
+          <p class="lock__time">9:41</p>
+          <ul class="lock__stack">
+            <li class="notif" style="--d:1.75s">
+              <span class="notif__icon"><span class="logo logo--on-deep">T<svg class="logo__tick" viewBox="0 0 10 16"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></span></span>
+              <span class="notif__body"><span class="notif__head"><strong>Le Comptoir</strong><small>maintenant</small></span>Croissants tout chauds jusqu'à 10 h. On vous garde le vôtre ?</span>
+            </li>
+            <li class="notif" style="--d:.6s">
+              <span class="notif__icon"><span class="logo logo--on-deep">T<svg class="logo__tick" viewBox="0 0 10 16"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></span></span>
+              <span class="notif__body"><span class="notif__head"><strong>Le Comptoir</strong><small>il y a 2 j</small></span>Plus qu'une visite avant votre café offert.</span>
+            </li>
+          </ul>
+          <span class="lock__bar"></span>
+        </div>
+      </div>
+
+      <div class="composer">
+        <p class="composer__title">Nouvelle notification</p>
+        <p class="composer__to"><span>À</span> Tous les porteurs de carte <em>248</em></p>
+        <p class="composer__msg">Croissants tout chauds jusqu'à 10 h. On vous garde le vôtre ?<span class="composer__caret"></span></p>
+        <div class="composer__foot">
+          <span class="composer__chip">Nouveauté</span><span class="composer__chip">Horaires</span>
+          <span class="composer__send">Envoyer <svg><use href="#i-arrow"/></svg></span>
+        </div>
+        <p class="composer__sent"><svg><use href="#i-check"/></svg> Envoyée à 248 clients</p>
+      </div>
+    </div>
   </div>
 </section>
 
