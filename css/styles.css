@@ -556,6 +556,10 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
           mask-image: linear-gradient(180deg, #000 72%, transparent 98%);
   margin-bottom: calc(var(--section) * -1);
 }
+.wallet__shot { display: none; width: 18em; aspect-ratio: 628 / 1235; background: transparent; overflow: visible; }
+.wallet__shot > img { object-fit: contain; }
+.has-wallet-phone .wallet__shot { display: block; }
+.has-wallet-phone .wallet__device .phone { display: none; }
 .phone--big { box-shadow: var(--sh-phone), 0 0 0 1px rgba(127,219,76,.3); }
 .phone--big .phone__screen { height: 31em; }
 .phone--big .lcard .dots i { width: 1.55em; height: 1.55em; }

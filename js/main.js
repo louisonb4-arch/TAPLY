@@ -26,7 +26,8 @@
     const img = new Image();
     img.alt = fig.dataset.alt || '';
     img.decoding = 'async';
-    if (!fig.hasAttribute('data-eager')) img.loading = 'lazy';
+    // pas de lazy si le cadre est masqué jusqu'au chargement (data-flag) : le navigateur ne le chargerait jamais
+    if (!fig.hasAttribute('data-eager') && !fig.dataset.flag) img.loading = 'lazy';
     else img.fetchPriority = 'high';
     img.addEventListener('load', () => {
       fig.classList.add('is-loaded');

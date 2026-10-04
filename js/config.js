@@ -16,6 +16,7 @@ window.TAPLY_CONFIG = {
     step3:       "images/step-3.webp",   // 16:9 — la carte physique / récompense
     benefits:    "images/benefits.webp",   // 16:9 — comptoir ensoleillé, fleurs & croissants (recadré en portrait sur desktop)
     testimonial: "",   // ex. "images/temoin.jpg"      — 400×400, portrait du commerçant
+    walletPhone: "images/wallet-iphone.webp",   // iPhone détouré (fond transparent) — section Apple Wallet
     walletQr:    "",   // ex. "images/qr-exemple.png"  — QR code vers une carte d'exemple
     avatar1: "", avatar2: "", avatar3: "", avatar4: ""   // portraits ronds du hero (preuve sociale), 160×160
   },
