@@ -403,6 +403,55 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 }
 .html-device-off .hero__device { display: none; }
 
+/* Photo hero mobile (<1024px) : présentoir + téléphone en bas, texte en haut */
+@media (max-width: 1023.98px) {
+  .has-hero-photo-m .hero__device { display: none; }
+  .media--hero > img { object-position: 50% 100%; }
+  .has-hero-photo-m .hero__shade {
+    background: linear-gradient(180deg, rgba(5, 8, 6, .82) 0%, rgba(5, 8, 6, .55) 40%, transparent 62%, transparent 80%, rgba(5, 8, 6, .55) 100%);
+  }
+  /* tablette : photo en couverture, hero assez haut pour dégager le sujet */
+  .has-hero-photo-m .hero { min-height: max(100svh, 76rem); display: flex; flex-direction: column; }
+  .has-hero-photo-m .hero__inner { flex: 1; grid-template-rows: auto 1fr auto; }
+  .has-hero-photo-m .hero__foot { align-self: end; }
+}
+@media (max-width: 639.98px) {
+  /* Téléphone : calque exact de la maquette mobile (941×1672).
+     Toutes les cotes sont en vw = px maquette / 9.41, donc identiques sur tout écran. */
+  :root { --gutter: 7.45vw; }
+  .has-hero-photo-m .hero { aspect-ratio: 941 / 1672; min-height: 0; display: block; background: #0A0806; }
+  .has-hero-photo-m .media--hero { inset: 0; }
+  .has-hero-photo-m .hero__shade {
+    background: linear-gradient(180deg, rgba(5, 8, 6, .55) 0%, rgba(5, 8, 6, .35) 40%, transparent 58%, transparent 82%, rgba(5, 8, 6, .5) 100%);
+  }
+  .has-hero-photo-m .hero__inner {
+    position: absolute; inset: 0; width: auto; margin: 0;
+    display: flex; flex-direction: column;
+    padding: 21vw 7.45vw 9.1vw;
+  }
+  .has-hero-photo-m .hero .pill {
+    min-height: 0; height: 5.85vw; padding: 0 3.1vw; gap: 1.6vw;
+    font-size: 1.95vw; letter-spacing: .19em;
+  }
+  .has-hero-photo-m .hero .pill__dot { width: 1.1vw; height: 1.1vw; box-shadow: none; }
+  .has-hero-photo-m .hero__title { margin-top: 2.7vw; font-size: 8.87vw; line-height: .935; }
+  .has-hero-photo-m .hero__lead { margin-top: 3.1vw; max-width: 48vw; font-size: 3.4vw; line-height: 1.27; color: rgba(255,255,255,.92); }
+  .has-hero-photo-m .hero__actions { flex-direction: column; align-items: flex-start; gap: 2.4vw; margin-top: 3.4vw; }
+  .has-hero-photo-m .hero__actions .btn {
+    flex: none; width: 47.3vw; max-width: none; min-height: 0; height: 8.9vw; padding: 0;
+    gap: 3.2vw; font-size: 2.95vw;
+  }
+  .has-hero-photo-m .hero__actions .btn__icon { width: 3.4vw; height: 3.4vw; }
+  .has-hero-photo-m .play { min-height: 0; gap: 2.8vw; font-size: 2.85vw; }
+  .has-hero-photo-m .play__btn { width: 8.5vw; height: 8.5vw; }
+  .has-hero-photo-m .play__btn svg { width: 3.2vw; height: 3.2vw; margin-left: .4vw; }
+  .has-hero-photo-m .hero__foot { margin-top: auto; align-self: stretch; }
+  .has-hero-photo-m .hero__note { max-width: 48vw; font-size: 3.45vw; line-height: 1.33; padding-bottom: 4.2vw; color: rgba(255,255,255,.95); }
+  .has-hero-photo-m .hero__note::after { width: 9.6vw; height: .6vw; }
+  .logo { font-size: 6.3vw; }
+  .burger__lines, .burger__lines::before, .burger__lines::after { width: 5.3vw; }
+}
+
 .hero__features { display: none; }
 .hero__foot { margin-top: 2rem; }
 .hero__types { display: none; }

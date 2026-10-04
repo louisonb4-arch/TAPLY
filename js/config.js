@@ -8,7 +8,7 @@
 
 window.TAPLY_CONFIG = {
   images: {
-    hero:        "",   // ex. "images/hero.jpg"        — mobile/tablette (<1024px) : 1200×1800 portrait, sujet en bas
+    hero:        "images/hero-mobile.webp",   // mobile/tablette (<1024px) — portrait 9:16, présentoir + téléphone en bas
     heroDesktop: "images/hero-desktop.webp", // ≥1024px — 16:9, sujets (présentoir + téléphone) au centre-droit ; idéalement 2400px de large
     constat:     "images/constat.webp",   // 4:3 — comptoir, sac kraft, cliente qui repart
     step1:       "images/step-1.webp",   // 16:9 — le client tape le badge
