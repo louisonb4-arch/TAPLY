@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Taply — La carte de fidélité NFC sans application</title>
+  <meta name="description" content="Taply transforme chaque visite en récompense : une carte de fidélité NFC sans application, rangée dans le Wallet de vos clients. Pour cafés, boulangeries, restaurants, salons et boutiques.">
+  <meta name="theme-color" content="#06110C">
+  <link rel="canonical" href="https://www.taply.fr/"><!-- À CONFIRMER : domaine définitif -->
+
+  <!-- Favicon (remplacer images/favicon.svg / apple-touch-icon.png par les fichiers définitifs) -->
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+
+  <!-- Open Graph / réseaux sociaux (image 1200×630 à déposer : images/og.jpg) -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:site_name" content="Taply">
+  <meta property="og:title" content="Taply — Des clients qui reviennent. Simplement.">
+  <meta property="og:description" content="La carte de fidélité NFC sans application pour les commerces de proximité.">
+  <meta property="og:url" content="https://www.taply.fr/">
+  <meta property="og:image" content="https://www.taply.fr/images/og.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <script>document.documentElement.classList.add('js');</script>
+  <script src="js/config.js" defer></script>
+  <script src="js/main.js" defer></script>
+</head>
+<body>
+
+<!-- ================= Sprite d'icônes (réutilisées via <use href="#i-…">) ================= -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a.8.8 0 0 0 1.2.7l10.4-6.5a.8.8 0 0 0 0-1.4L9.2 4.8A.8.8 0 0 0 8 5.5Z" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-nfc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M8.5 7a7 7 0 0 1 0 10"/><path d="M12 4.5a10.5 10.5 0 0 1 0 15"/><path d="M15.5 2.5a13.5 13.5 0 0 1 0 19" opacity=".0"/></g></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3.5" y="6" width="17" height="13.5" rx="3"/><path d="M3.5 10h17"/><path d="M7 6V5a1.5 1.5 0 0 1 1.5-1.5h7A1.5 1.5 0 0 1 17 5v1"/><path d="m10 13.5 1.5 1.5 2.5-2.5" stroke-linecap="round"/></g></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5v6.5a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-6.5M12 8.5v12"/><path d="M12 8.5S10.8 4 8.5 4a2.2 2.2 0 0 0 0 4.5H12Zm0 0S13.2 4 15.5 4a2.2 2.2 0 0 1 0 4.5H12Z"/></g></symbol>
+  <symbol id="i-team" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M17.5 14.4c2 .8 3.5 2.9 3.5 5.6"/></g></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></g></symbol>
+  <symbol id="i-heartbreak" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-8-4.6-8-10.3A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.7C20 15.4 12 20 12 20Z"/><path d="m12 7-1.5 4 3 1.5L12 16" stroke-linecap="round"/></g></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="13" width="4" height="7" rx="1"/><rect x="10" y="8.5" width="4" height="11.5" rx="1"/><rect x="16.5" y="4" width="4" height="16" rx="1"/></g></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-8-4.6-8-10.3A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8 2.7C20 15.4 12 20 12 20Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></g></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.5 18.5s-7-4-7-9A4 4 0 0 1 10.5 7a4 4 0 0 1 7 2.5c0 .6-.1 1.2-.3 1.7"/><circle cx="16.5" cy="16" r="3"/><path d="m18.7 18.2 2.3 2.3" stroke-linecap="round"/></g></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 7V6a4 4 0 0 1 8 0v1"/><rect x="4.5" y="7" width="15" height="14" rx="3"/><circle cx="12" cy="13.5" r="2"/><path d="M12 11.5V9" stroke-linecap="round"/></g></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15Z"/><path d="M10 21h4"/></g></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="10" r="2.6"/><path d="M7.5 17.5c.8-2 2.5-3 4.5-3s3.7 1 4.5 3" stroke-linecap="round"/></g></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></g></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 21s-6.5-5.7-6.5-11a6.5 6.5 0 0 1 13 0c0 5.3-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/></g></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6L16.5 7h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5Z"/><circle cx="12" cy="12.5" r="3.3"/></g></symbol>
+  <symbol id="i-instagram" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r=".6" fill="currentColor"/></g></symbol>
+  <symbol id="i-linkedin" viewBox="0 0 24 24"><path d="M6.5 9.5v8M6.5 6.5v.01M10.5 17.5v-4.6c0-1.9 1.3-3.4 3-3.4s3 1.2 3 3.4v4.6M10.5 9.5v8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-tiktok" viewBox="0 0 24 24"><path d="M14 3.5v11.2a3.8 3.8 0 1 1-3.8-3.8M14 3.5c.4 2.6 2.4 4.6 5 4.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<a class="skip-link" href="#contenu">Aller au contenu</a>
+
+<!-- ================================ NAVIGATION ================================ -->
+<header class="nav" data-nav>
+  <div class="nav__inner container">
+    <a class="logo" href="#accueil" aria-label="Taply — retour à l'accueil">
+      Taply<svg class="logo__tick" viewBox="0 0 10 16" aria-hidden="true"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg>
+    </a>
+
+    <nav class="nav__links" aria-label="Navigation principale">
+      <a href="#fonctionnement">Fonctionnement</a>
+      <a href="#avantages">Avantages</a>
+      <a href="#tarifs">Tarifs</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <a class="btn btn--light btn--sm nav__cta" href="#demo">
+      Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg>
+    </a>
+
+    <button class="burger" type="button" aria-expanded="false" aria-controls="menu" data-menu-open>
+      <span class="burger__lines" aria-hidden="true"></span>
+      <span class="sr-only">Ouvrir le menu</span>
+    </button>
+  </div>
+</header>
+
+<!-- Menu mobile -->
+<div class="menu" id="menu" role="dialog" aria-modal="true" aria-label="Menu" hidden data-menu>
+  <div class="menu__top container">
+    <span class="logo logo--on-deep" aria-hidden="true">Taply<svg class="logo__tick" viewBox="0 0 10 16"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></span>
+    <button class="icon-btn" type="button" data-menu-close>
+      <svg aria-hidden="true"><use href="#i-close"/></svg><span class="sr-only">Fermer le menu</span>
+    </button>
+  </div>
+  <nav class="menu__links container" aria-label="Navigation mobile">
+    <a href="#fonctionnement" style="--i:0">Fonctionnement</a>
+    <a href="#avantages" style="--i:1">Avantages</a>
+    <a href="#tarifs" style="--i:2">Tarifs</a>
+    <a href="#faq" style="--i:3">FAQ</a>
+  </nav>
+  <div class="menu__foot container">
+    <a class="btn btn--lime btn--block" href="#demo">Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    <div class="menu__card" aria-hidden="true">
+      <span class="dots dots--sm"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
+      <span>Encore une visite et c'est offert.</span>
+    </div>
+  </div>
+</div>
+
+<main id="contenu">
+
+<!-- ================================== HERO ================================== -->
+<section class="hero" id="accueil" aria-labelledby="hero-title">
+  <!-- IMAGE : config.js → images.hero -->
+  <figure class="media media--hero" data-img="hero" data-alt="Comptoir d'un café de quartier, un client approche son téléphone du badge Taply" data-eager>
+    <span class="ph ph--dark" aria-hidden="true">
+      <span class="ph__bokeh"></span>
+      <span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo hero — ambiance comptoir<small>images/hero.jpg · 2400×1600</small></span></span>
+    </span>
+  </figure>
+  <div class="hero__shade" aria-hidden="true"></div>
+
+  <div class="hero__inner container">
+    <div class="hero__copy">
+      <p class="pill intro" style="--d:.05s"><span class="pill__dot" aria-hidden="true"></span>Fidélisation NFC</p>
+      <h1 class="hero__title" id="hero-title">
+        <span class="line intro" style="--d:.12s">Des clients</span>
+        <span class="line intro" style="--d:.2s">qui reviennent.</span>
+        <span class="line intro accent" style="--d:.28s">Simplement.</span>
+      </h1>
+      <p class="hero__lead intro" style="--d:.4s">Taply transforme chaque visite en récompense. Une carte de fidélité sans application, rangée dans le Wallet de vos clients, pensée pour les commerces de proximité.</p>
+      <div class="hero__actions intro" style="--d:.5s">
+        <a class="btn btn--light btn--lg" href="#demo">Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="play" href="#fonctionnement" data-video-open>
+          <span class="play__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
+          Voir comment ça marche
+        </a>
+      </div>
+    </div>
+
+    <!-- Téléphone construit en code : désactivable via config.js → heroDevice -->
+    <div class="hero__device intro intro--rise" style="--d:.35s" aria-hidden="true">
+      <div class="phone phone--tilt">
+        <div class="phone__screen">
+          <div class="phone__status"><span>9:41</span><span class="phone__island"></span><span class="phone__sig"></span></div>
+          <p class="phone__app">Wallet</p>
+          <div class="lcard">
+            <span class="logo logo--on-deep logo--sm">Taply<svg class="logo__tick" viewBox="0 0 10 16"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></span>
+            <span class="dots dots--fill"><i></i><i></i><i></i><i></i><i class="empty"></i></span>
+            <span class="lcard__name">Le Comptoir</span>
+            <span class="lcard__rule">5 visites = 1 café offert</span>
+            <span class="lcard__corner"></span>
+          </div>
+          <div class="phone__done">
+            <span class="phone__check"><svg><use href="#i-check"/></svg></span>
+            <span>Visite ajoutée !</span>
+          </div>
+        </div>
+      </div>
+      <span class="tap-ring" aria-hidden="true"></span>
+    </div>
+
+    <ul class="hero__features" aria-label="En bref">
+      <li class="intro" style="--d:.55s"><svg aria-hidden="true"><use href="#i-nfc"/></svg><span><strong>Tap NFC</strong> en une seconde</span></li>
+      <li class="intro" style="--d:.62s"><svg aria-hidden="true"><use href="#i-wallet"/></svg><span><strong>Suivi automatique</strong> dans Apple Wallet</span></li>
+      <li class="intro" style="--d:.69s"><svg aria-hidden="true"><use href="#i-gift"/></svg><span><strong>Récompenses personnalisées</strong> selon votre commerce</span></li>
+      <li class="intro" style="--d:.76s"><svg aria-hidden="true"><use href="#i-team"/></svg><span><strong>Simple pour vos équipes</strong> aucune formation nécessaire</span></li>
+    </ul>
+
+    <div class="hero__foot intro" style="--d:.7s">
+      <p class="hero__types">Cafés, boulangeries, restaurants, salons, boutiques…</p>
+      <p class="hero__note">Des commerces plus vivants,<br>des quartiers plus forts.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================ LE CONSTAT ================================ -->
+<section class="section constat" id="constat" aria-labelledby="constat-title">
+  <div class="container">
+    <div class="constat__head">
+      <div data-reveal>
+        <p class="eyebrow">Le constat</p>
+        <h2 class="h2" id="constat-title">Trop de clients passent une fois. <span class="soft">Et ne reviennent pas.</span></h2>
+      </div>
+      <p class="lead" data-reveal style="--i:1">Les commerces indépendants méritent des outils simples et efficaces pour fidéliser leurs clients, sans complexité.</p>
+    </div>
+
+    <div class="constat__stage">
+      <!-- IMAGE : config.js → images.constat -->
+      <figure class="media media--r constat__media" data-img="constat" data-alt="Sacs kraft posés sur un comptoir de boulangerie, à côté d'une ardoise « Des habitudes font les plus belles histoires »" data-reveal="media">
+        <span class="ph ph--warm" aria-hidden="true">
+          <span class="ph__bokeh"></span>
+          <span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — comptoir, sacs kraft &amp; ardoise<small>images/constat.jpg · 1800×1200</small></span></span>
+        </span>
+      </figure>
+
+      <ul class="pains" data-reveal style="--i:1">
+        <li><span class="pains__icon" aria-hidden="true"><svg><use href="#i-x"/></svg></span><div><h3>Des clients occasionnels</h3><p>Beaucoup de passage, peu de retour.</p></div></li>
+        <li><span class="pains__icon" aria-hidden="true"><svg><use href="#i-heartbreak"/></svg></span><div><h3>Des solutions trop complexes</h3><p>Applications, comptes, mots de passe…</p></div></li>
+        <li><span class="pains__icon" aria-hidden="true"><svg><use href="#i-bars"/></svg></span><div><h3>Un potentiel inexploité</h3><p>Chaque visite peut devenir une habitude.</p></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== FONCTIONNEMENT ============================== -->
+<section class="section how" id="fonctionnement" aria-labelledby="how-title">
+  <div class="container how__grid">
+    <div class="how__aside">
+      <div class="how__sticky">
+        <div data-reveal>
+          <p class="eyebrow">Comment ça marche ?</p>
+          <h2 class="h2" id="how-title">Simple comme un <span class="accent">café</span>.</h2>
+          <p class="lead">Trois gestes, aucune application. Votre client tape, Taply s'occupe du reste.</p>
+        </div>
+
+        <!-- Carte qui se remplit au fil des étapes (desktop) -->
+        <div class="how__card" aria-hidden="true" data-how-card data-step="1">
+          <div class="lcard lcard--lg">
+            <span class="logo logo--on-deep logo--sm">Taply<svg class="logo__tick" viewBox="0 0 10 16"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></span>
+            <span class="lcard__badge" data-how-label>Tap</span>
+            <span class="dots dots--track"><i></i><i></i><i></i><i></i><i></i></span>
+            <span class="lcard__name">Le Comptoir</span>
+            <span class="lcard__rule">5 visites = 1 café offert</span>
+            <span class="lcard__corner"></span>
+          </div>
+        </div>
+
+        <button class="btn btn--dark how__video" type="button" data-video-open>
+          Voir la démo en vidéo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <ol class="steps">
+      <li class="step" data-step="1" data-reveal>
+        <!-- IMAGE : config.js → images.step1 -->
+        <figure class="media media--r step__media" data-img="step1" data-alt="Un client approche son téléphone du badge NFC Taply posé sur le comptoir">
+          <span class="ph ph--warm" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — le client tape le badge<small>images/step-1.jpg · 1600×1100</small></span></span></span>
+        </figure>
+        <span class="step__num" aria-hidden="true">1</span>
+        <div class="step__body"><h3 class="h3">Le client tape</h3><p>Il approche son téléphone du badge NFC posé sur votre comptoir.</p></div>
+      </li>
+      <li class="step" data-step="2" data-reveal>
+        <!-- IMAGE : config.js → images.step2 -->
+        <figure class="media media--r step__media" data-img="step2" data-alt="Carte de fidélité Taply affichée dans le Wallet d'un téléphone, à côté d'une tasse de café">
+          <span class="ph ph--cream" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — la carte dans le Wallet<small>images/step-2.jpg · 1600×1100</small></span></span></span>
+        </figure>
+        <span class="step__num" aria-hidden="true">2</span>
+        <div class="step__body"><h3 class="h3">La visite s'enregistre</h3><p>Automatiquement, dans son Wallet. Rien à scanner, rien à tamponner.</p></div>
+      </li>
+      <li class="step" data-step="3" data-reveal>
+        <!-- IMAGE : config.js → images.step3 -->
+        <figure class="media media--r step__media" data-img="step3" data-alt="Carte Taply du commerce Le Comptoir, quatre visites validées sur cinq">
+          <span class="ph ph--green" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — la récompense<small>images/step-3.jpg · 1600×1100</small></span></span></span>
+        </figure>
+        <span class="step__num" aria-hidden="true">3</span>
+        <div class="step__body"><h3 class="h3">Il cumule des avantages</h3><p>Et revient plus souvent. La récompense se débloque toute seule.</p></div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================================ APPLE WALLET ================================ -->
+<section class="section wallet on-deep" id="wallet" aria-labelledby="wallet-title">
+  <div class="wallet__glow" aria-hidden="true"></div>
+  <div class="container wallet__grid">
+    <div class="wallet__copy" data-reveal>
+      <p class="pill pill--deep">Sur Apple Wallet</p>
+      <h2 class="h2" id="wallet-title">Toujours <span class="accent">avec eux.</span></h2>
+      <p class="lead">La carte de fidélité s'ajoute directement dans Apple Wallet. Pas d'app à télécharger, pas de compte à créer.</p>
+
+      <ul class="wallet__feats">
+        <li><svg aria-hidden="true"><use href="#i-wallet"/></svg><span>Toujours accessible</span></li>
+        <li><svg aria-hidden="true"><use href="#i-bell"/></svg><span>Notifications optionnelles</span></li>
+        <li><svg aria-hidden="true"><use href="#i-palette"/></svg><span>Design à votre image</span></li>
+      </ul>
+
+      <a class="btn btn--light btn--lg wallet__cta" href="#demo">Voir un exemple de carte <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+
+    <div class="wallet__device" data-reveal="rise" aria-hidden="true">
+      <div class="phone phone--big">
+        <div class="phone__screen">
+          <div class="phone__status"><span>9:41</span><span class="phone__island"></span><span class="phone__sig"></span></div>
+          <div class="phone__bar"><p class="phone__app">Wallet</p><span class="phone__plus"><svg><use href="#i-plus"/></svg></span></div>
+          <div class="lcard">
+            <span class="logo logo--on-deep logo--sm">Taply<svg class="logo__tick" viewBox="0 0 10 16"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></span>
+            <span class="lcard__kind">Fidélité</span>
+            <span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
+            <span class="lcard__name">Le Comptoir</span>
+            <span class="lcard__rule">5 visites = 1 café offert</span>
+            <span class="lcard__corner"></span>
+          </div>
+          <div class="phone__qr">
+            <!-- IMAGE : config.js → images.walletQr (QR code d'exemple réel) -->
+            <figure class="media qr" data-img="walletQr" data-alt="QR code vers une carte Taply d'exemple">
+              <span class="qr__ph"></span>
+            </figure>
+            <span>Scannez pour voir un exemple</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================= AVANTAGES ================================= -->
+<section class="section benefits" id="avantages" aria-labelledby="benefits-title">
+  <div class="container benefits__grid">
+    <div class="benefits__copy">
+      <div data-reveal>
+        <p class="eyebrow">Pourquoi Taply ?</p>
+        <h2 class="h2" id="benefits-title">Plus qu'un outil, <br class="br-md">un <span class="accent">vrai levier</span>.</h2>
+      </div>
+      <ul class="feature-list">
+        <li data-reveal style="--i:0"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-heart"/></svg></span><div><h3>Plus de clients fidèles</h3><p>Augmentez la fréquence de visite.</p></div></li>
+        <li data-reveal style="--i:1"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-sun"/></svg></span><div><h3>Une expérience moderne</h3><p>Rapide, fluide, sans friction.</p></div></li>
+        <li data-reveal style="--i:2"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-spark"/></svg></span><div><h3>Une image de marque renforcée</h3><p>Montrez que vous innovez.</p></div></li>
+        <li data-reveal style="--i:3"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-bars"/></svg></span><div><h3>Des données utiles</h3><p>Suivez vos visites et vos performances.</p></div></li>
+        <li data-reveal style="--i:4"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-store"/></svg></span><div><h3>Adapté à tous les commerces</h3><p>Cafés, boulangeries, restaurants, salons, boutiques…</p></div></li>
+      </ul>
+    </div>
+
+    <!-- IMAGE : config.js → images.benefits -->
+    <figure class="media media--r benefits__media" data-img="benefits" data-alt="Intérieur chaleureux d'une boulangerie-café, croissants sur le comptoir" data-reveal="media">
+      <span class="ph ph--dark" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — intérieur boulangerie-café<small>images/benefits.jpg · 1400×1800</small></span></span></span>
+      <figcaption class="benefits__caption">Des gestes simples qui créent de grandes habitudes.</figcaption>
+      <span class="corner-disc" aria-hidden="true"></span>
+    </figure>
+  </div>
+</section>
+
+<!-- ================================== PREUVES ================================== -->
+<section class="section proof" id="preuves" aria-labelledby="proof-title">
+  <div class="container">
+    <h2 class="proof__title" id="proof-title" data-reveal>Le geste le plus simple <br class="br-md">du comptoir.</h2>
+
+    <dl class="facts">
+      <div data-reveal style="--i:0"><dt>1 s</dt><dd>pour enregistrer une visite</dd></div>
+      <div data-reveal style="--i:1"><dt>0</dt><dd>application à télécharger</dd></div>
+      <div data-reveal style="--i:2"><dt>0</dt><dd>compte à créer</dd></div>
+      <div data-reveal style="--i:3"><dt>0</dt><dd>engagement</dd></div>
+    </dl>
+
+    <!-- TÉMOIGNAGE : contenu temporaire à remplacer par un vrai retour client -->
+    <figure class="quote" data-reveal>
+      <figure class="media quote__avatar" data-img="testimonial" data-alt="Portrait du commerçant">
+        <span class="ph ph--avatar" aria-hidden="true"><svg><use href="#i-camera"/></svg></span>
+      </figure>
+      <blockquote>
+        <p>Ici, le témoignage d'un commerçant Taply : ce qui a changé au comptoir, en une ou deux phrases sincères.</p>
+      </blockquote>
+      <figcaption><strong>Prénom Nom</strong><span>Commerce · Ville</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================================== TARIFS ================================== -->
+<section class="section pricing" id="tarifs" aria-labelledby="pricing-title">
+  <span class="pricing__halo" aria-hidden="true"></span>
+  <div class="container pricing__grid">
+    <div class="pricing__copy" data-reveal>
+      <p class="pill pill--light">Tarifs</p>
+      <h2 class="h2" id="pricing-title">Une solution claire et <span class="accent">sans surprise</span>.</h2>
+      <p class="lead">Tout ce qu'il vous faut pour fidéliser vos clients.</p>
+      <p class="gift"><span class="gift__icon" aria-hidden="true"><svg><use href="#i-gift"/></svg></span><span>Installation du badge NFC : <strong>offerte</strong> pour les 50 premiers commerces.</span></p>
+    </div>
+
+    <div class="price-card" data-reveal="rise">
+      <p class="price"><span class="price__amount">20</span><span class="price__unit">€<span>/mois</span></span></p>
+      <p class="price__note">Par commerce, sans engagement.</p>
+      <ul class="checks">
+        <li>Application commerçant</li>
+        <li>Cartes Wallet personnalisées</li>
+        <li>Suivi des visites et statistiques</li>
+        <li>Support inclus</li>
+        <li>Sans engagement</li>
+      </ul>
+      <a class="btn btn--dark btn--lg btn--block" href="#demo">Commencer maintenant <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<!-- =================================== FAQ =================================== -->
+<section class="section faq on-deep" id="faq" aria-labelledby="faq-title">
+  <span class="faq__disc" aria-hidden="true"></span>
+  <div class="container faq__grid">
+    <div class="faq__head" data-reveal>
+      <p class="pill pill--deep"><span class="pill__dot" aria-hidden="true"></span>Questions fréquentes</p>
+      <h2 class="h2" id="faq-title">Vous avez <br>des <span class="accent">questions ?</span></h2>
+      <p class="faq__more">Vous ne trouvez pas la réponse ?<br>Écrivez-nous, on vous répond rapidement.</p>
+      <a class="btn btn--light btn--lg faq__cta" href="#demo">Nous contacter <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+
+    <div class="accordion" data-accordion data-reveal style="--i:1">
+      <div class="acc">
+        <h3><button type="button" class="acc__q" aria-expanded="false" aria-controls="faq-1" id="faq-1-q">Faut-il une application ?<svg aria-hidden="true"><use href="#i-chevron"/></svg></button></h3>
+        <div class="acc__a" id="faq-1" role="region" aria-labelledby="faq-1-q"><div><p>Non. Vos clients approchent leur téléphone du badge et la carte s'ajoute à leur Wallet : pas d'app à télécharger, pas de compte à créer. De votre côté, l'application commerçant vous permet de suivre visites et récompenses.</p></div></div>
+      </div>
+      <div class="acc">
+        <h3><button type="button" class="acc__q" aria-expanded="false" aria-controls="faq-2" id="faq-2-q">Quels téléphones sont compatibles ?<svg aria-hidden="true"><use href="#i-chevron"/></svg></button></h3>
+        <div class="acc__a" id="faq-2" role="region" aria-labelledby="faq-2-q"><div><p>La carte s'ajoute à Apple Wallet sur iPhone. La compatibilité détaillée selon les modèles vous est précisée lors de la démo.</p></div></div>
+      </div>
+      <div class="acc">
+        <h3><button type="button" class="acc__q" aria-expanded="false" aria-controls="faq-3" id="faq-3-q">Combien coûte le badge NFC ?<svg aria-hidden="true"><use href="#i-chevron"/></svg></button></h3>
+        <div class="acc__a" id="faq-3" role="region" aria-labelledby="faq-3-q"><div><p>L'installation du badge est offerte pour les 50 premiers commerces. Au-delà, le tarif vous est communiqué lors de la démo.</p></div></div>
+      </div>
+      <div class="acc">
+        <h3><button type="button" class="acc__q" aria-expanded="false" aria-controls="faq-4" id="faq-4-q">Puis-je personnaliser la carte ?<svg aria-hidden="true"><use href="#i-chevron"/></svg></button></h3>
+        <div class="acc__a" id="faq-4" role="region" aria-labelledby="faq-4-q"><div><p>Oui. Nom, couleurs, logo et récompense (par exemple « 5 visites = 1 café offert ») sont à l'image de votre commerce.</p></div></div>
+      </div>
+      <div class="acc">
+        <h3><button type="button" class="acc__q" aria-expanded="false" aria-controls="faq-5" id="faq-5-q">Est-ce adapté à mon commerce ?<svg aria-hidden="true"><use href="#i-chevron"/></svg></button></h3>
+        <div class="acc__a" id="faq-5" role="region" aria-labelledby="faq-5-q"><div><p>Cafés, boulangeries, restaurants, salons, boutiques : Taply convient à tout commerce où les clients ont l'habitude de revenir.</p></div></div>
+      </div>
+      <div class="acc">
+        <h3><button type="button" class="acc__q" aria-expanded="false" aria-controls="faq-6" id="faq-6-q">Comment se passe l'installation ?<svg aria-hidden="true"><use href="#i-chevron"/></svg></button></h3>
+        <div class="acc__a" id="faq-6" role="region" aria-labelledby="faq-6-q"><div><p>Le badge se pose sur votre comptoir et la carte est configurée avec vous. Votre équipe n'a rien à apprendre : le client tape, c'est tout.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== DEMANDE DE DÉMO ============================== -->
+<section class="section demo" id="demo" aria-labelledby="demo-title">
+  <div class="container demo__grid">
+    <div class="demo__copy" data-reveal>
+      <p class="eyebrow">Démo personnalisée</p>
+      <h2 class="h2" id="demo-title">Prêt à faire <span class="accent">revenir</span> vos clients ?</h2>
+      <p class="lead">Laissez-nous vos coordonnées : on vous montre Taply en conditions réelles, sur votre comptoir ou en visio.</p>
+      <ul class="checks checks--plain">
+        <li>Une démo adaptée à votre commerce</li>
+        <li>Sans engagement</li>
+        <li>Badge offert pour les 50 premiers commerces</li>
+      </ul>
+    </div>
+
+    <form class="form" data-form novalidate data-reveal="rise" style="--i:1">
+      <div class="form__row">
+        <div class="field">
+          <label for="f-name">Prénom et nom</label>
+          <input id="f-name" name="name" type="text" autocomplete="name" required>
+          <p class="field__err" id="f-name-err">Indiquez votre nom.</p>
+        </div>
+        <div class="field">
+          <label for="f-shop">Nom du commerce</label>
+          <input id="f-shop" name="shop" type="text" autocomplete="organization" required>
+          <p class="field__err" id="f-shop-err">Indiquez le nom de votre commerce.</p>
+        </div>
+      </div>
+      <div class="form__row">
+        <div class="field">
+          <label for="f-email">E-mail</label>
+          <input id="f-email" name="email" type="email" autocomplete="email" inputmode="email" required>
+          <p class="field__err" id="f-email-err">Indiquez un e-mail valide.</p>
+        </div>
+        <div class="field">
+          <label for="f-phone">Téléphone <span class="opt">(facultatif)</span></label>
+          <input id="f-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel">
+        </div>
+      </div>
+      <fieldset class="field chips">
+        <legend>Type de commerce</legend>
+        <label><input type="radio" name="type" value="cafe" checked><span>Café</span></label>
+        <label><input type="radio" name="type" value="boulangerie"><span>Boulangerie</span></label>
+        <label><input type="radio" name="type" value="restaurant"><span>Restaurant</span></label>
+        <label><input type="radio" name="type" value="salon"><span>Salon</span></label>
+        <label><input type="radio" name="type" value="boutique"><span>Boutique</span></label>
+        <label><input type="radio" name="type" value="autre"><span>Autre</span></label>
+      </fieldset>
+      <label class="consent">
+        <input type="checkbox" name="consent" required id="f-consent">
+        <span>J'accepte que Taply utilise ces informations pour me recontacter. <a href="confidentialite.html">Politique de confidentialité</a></span>
+      </label>
+      <p class="field__err field__err--consent" id="f-consent-err">Merci de cocher cette case pour envoyer votre demande.</p>
+      <button class="btn btn--dark btn--lg btn--block" type="submit">Envoyer ma demande <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+      <div class="form__done" role="status" aria-live="polite" hidden>
+        <span class="form__check" aria-hidden="true"><svg><use href="#i-check"/></svg></span>
+        <p><strong>Visite ajoutée !</strong> Merci, on revient vers vous très vite.</p>
+      </div>
+    </form>
+  </div>
+</section>
+
+</main>
+
+<!-- ================================== FOOTER ================================== -->
+<footer class="footer on-deep">
+  <span class="footer__disc" aria-hidden="true"></span>
+  <div class="container">
+    <div class="footer__top">
+      <p class="footer__claim">Des commerces plus vivants, <span class="accent">des quartiers plus forts.</span></p>
+      <form class="newsletter" data-newsletter novalidate>
+        <label for="nl-email">La lettre Taply — idées pour fidéliser, une fois par mois.</label>
+        <div class="newsletter__field">
+          <input id="nl-email" type="email" name="email" placeholder="votre@email.fr" autocomplete="email" required>
+          <button class="btn btn--lime" type="submit">S'inscrire</button>
+        </div>
+        <p class="newsletter__msg" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div class="footer__cols">
+      <div class="footer__brand">
+        <a class="logo logo--on-deep" href="#accueil" aria-label="Taply — retour en haut">Taply<svg class="logo__tick" viewBox="0 0 10 16" aria-hidden="true"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></a>
+        <p>La carte de fidélité NFC sans application, pour les commerces de proximité.</p>
+        <ul class="socials" aria-label="Réseaux sociaux">
+          <!-- À CONFIRMER : URLs des comptes -->
+          <li><a href="#" aria-label="Taply sur Instagram"><svg aria-hidden="true"><use href="#i-instagram"/></svg></a></li>
+          <li><a href="#" aria-label="Taply sur LinkedIn"><svg aria-hidden="true"><use href="#i-linkedin"/></svg></a></li>
+          <li><a href="#" aria-label="Taply sur TikTok"><svg aria-hidden="true"><use href="#i-tiktok"/></svg></a></li>
+        </ul>
+      </div>
+
+      <nav class="footer__nav" aria-label="Produit">
+        <h3>Produit</h3>
+        <ul>
+          <li><a href="#fonctionnement">Fonctionnement</a></li>
+          <li><a href="#wallet">Apple Wallet</a></li>
+          <li><a href="#avantages">Avantages</a></li>
+          <li><a href="#tarifs">Tarifs</a></li>
+        </ul>
+      </nav>
+      <nav class="footer__nav" aria-label="Aide">
+        <h3>Aide</h3>
+        <ul>
+          <li><a href="#faq">Questions fréquentes</a></li>
+          <li><a href="#demo">Demander une démo</a></li>
+          <li><a href="#" data-video-open>Voir la démo vidéo</a></li>
+        </ul>
+      </nav>
+      <div class="footer__nav">
+        <h3>Contact</h3>
+        <ul>
+          <!-- À CONFIRMER : adresse e-mail et localisation -->
+          <li><a href="mailto:contact@taply.fr"><svg aria-hidden="true"><use href="#i-mail"/></svg>contact@taply.fr</a></li>
+          <li><span><svg aria-hidden="true"><use href="#i-pin"/></svg>France</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer__bottom">
+      <p>© <span data-year>2026</span> Taply. Tous droits réservés.</p>
+      <ul class="footer__legal">
+        <li><a href="mentions-legales.html">Mentions légales</a></li>
+        <li><a href="cgv.html">CGV</a></li>
+        <li><a href="confidentialite.html">Confidentialité</a></li>
+        <li><a href="cookies.html">Cookies</a></li>
+        <li><button type="button" class="linklike" data-cookie-open>Préférences cookies</button></li>
+      </ul>
+    </div>
+  </div>
+  <p class="footer__word" aria-hidden="true">Taply<span>’</span></p>
+</footer>
+
+<!-- ================================ VIDÉO DÉMO ================================ -->
+<dialog class="modal" data-video aria-label="Vidéo de démonstration Taply">
+  <button class="icon-btn modal__close" type="button" data-video-close><svg aria-hidden="true"><use href="#i-close"/></svg><span class="sr-only">Fermer la vidéo</span></button>
+  <!-- VIDÉO : config.js → demoVideo / demoPoster -->
+  <div class="modal__frame" data-video-slot>
+    <div class="ph ph--dark ph--video">
+      <span class="ph__bokeh"></span>
+      <span class="play__btn play__btn--xl"><svg aria-hidden="true"><use href="#i-play"/></svg></span>
+      <span class="ph__tag"><svg aria-hidden="true"><use href="#i-camera"/></svg><span>Vidéo démo — 30 à 60 s<small>images/demo.mp4 · 16:9</small></span></span>
+    </div>
+  </div>
+</dialog>
+
+<!-- ================================== COOKIES ================================== -->
+<div class="cookie" data-cookie role="region" aria-label="Préférences cookies" hidden>
+  <div class="cookie__main">
+    <p><strong>Un cookie ? Sans sucre.</strong> On n'utilise que l'essentiel. La mesure d'audience n'est activée qu'avec votre accord. <a href="cookies.html">En savoir plus</a></p>
+    <div class="cookie__prefs" data-cookie-prefs hidden>
+      <label class="switch"><input type="checkbox" checked disabled><span></span>Essentiels — toujours actifs</label>
+      <label class="switch"><input type="checkbox" data-cookie-analytics><span></span>Mesure d'audience</label>
+    </div>
+  </div>
+  <div class="cookie__actions">
+    <button class="btn btn--ghost btn--sm" type="button" data-cookie-custom>Personnaliser</button>
+    <button class="btn btn--ghost btn--sm" type="button" data-cookie-refuse>Refuser</button>
+    <button class="btn btn--dark btn--sm" type="button" data-cookie-accept>Accepter</button>
+    <button class="btn btn--dark btn--sm" type="button" data-cookie-save hidden>Enregistrer</button>
+  </div>
+</div>
+
+</body>
+</html>

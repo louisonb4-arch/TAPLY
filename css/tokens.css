@@ -1,0 +1,90 @@
+/* ==========================================================================
+   TAPLY — Design tokens
+   Toute l'identité visuelle se règle ici : couleurs, typo, espacements,
+   rayons, ombres, mouvement. Ne pas coder de valeur "en dur" ailleurs.
+   ========================================================================== */
+
+:root {
+  /* ---- Couleurs : base ---------------------------------------------- */
+  --c-paper:        #F7F7F3;   /* fond clair principal (off-white des refs) */
+  --c-paper-2:      #EFF0EA;   /* surfaces secondaires, pastilles d'icônes */
+  --c-white:        #FFFFFF;
+  --c-line:         #E3E5DE;   /* filets, bordures légères */
+
+  --c-ink:          #0B1712;   /* texte principal, boutons sombres */
+  --c-ink-2:        #13241C;   /* carte Wallet, badge numéroté */
+  --c-muted:        #5E6560;   /* texte secondaire sur clair (5.5:1) */
+
+  --c-deep:         #06110C;   /* sections sombres (Wallet, FAQ, footer) */
+  --c-deep-2:       #0E1D16;   /* surfaces sur sombre (items FAQ) */
+  --c-deep-line:    rgba(255, 255, 255, .10);
+  --c-on-deep:      #F4F6F2;
+  --c-on-deep-muted:#A9B5AE;   /* 9:1 sur --c-deep */
+
+  /* ---- Couleurs : accent -------------------------------------------- */
+  --c-lime:         #7FDB4C;   /* vert signature — sur sombre & formes */
+  --c-lime-soft:    #E2F5D3;   /* pastilles check, halos clairs */
+  --c-lime-text:    #3F9A1E;   /* vert pour texte sur fond clair (3.3:1, titres) */
+
+  /* ---- Typographie --------------------------------------------------- */
+  --f-sans:   "Satoshi", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-script: "Caveat", "Bradley Hand", cursive;
+
+  --fs-display: clamp(2.2rem, .9rem + 6.6vw, 5.6rem);
+  --fs-h2:      clamp(2.25rem, 1.45rem + 3.4vw, 4.1rem);
+  --fs-h3:      clamp(1.25rem, 1.1rem + .5vw, 1.5rem);
+  --fs-lead:    clamp(1.0625rem, .98rem + .4vw, 1.3rem);
+  --fs-body:    1.0625rem;
+  --fs-small:   .9375rem;
+  --fs-xs:      .8125rem;
+  --fs-eyebrow: .78rem;
+
+  --lh-tight:  .98;
+  --lh-snug:   1.15;
+  --lh-body:   1.55;
+
+  --ls-display: -.035em;
+  --ls-h2:      -.03em;
+  --ls-eyebrow: .22em;
+
+  /* ---- Espacements --------------------------------------------------- */
+  --sp-1: .25rem;
+  --sp-2: .5rem;
+  --sp-3: .75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4rem;
+  --sp-9: 6rem;
+
+  --gutter:   clamp(1.25rem, .6rem + 3.2vw, 3.5rem);
+  --container: 82rem;          /* 1312px */
+  --section:  clamp(5rem, 3rem + 7vw, 10rem);
+
+  /* ---- Formes -------------------------------------------------------- */
+  --r-xs:   8px;
+  --r-sm:   14px;
+  --r-md:   20px;
+  --r-lg:   28px;              /* photos, cartes majeures */
+  --r-pill: 999px;
+
+  /* ---- Ombres -------------------------------------------------------- */
+  --sh-soft:  0 1px 2px rgba(11, 23, 18, .05), 0 14px 34px -16px rgba(11, 23, 18, .22);
+  --sh-card:  0 1px 2px rgba(11, 23, 18, .06), 0 30px 60px -28px rgba(11, 23, 18, .35);
+  --sh-phone: 0 2px 4px rgba(0, 0, 0, .25), 0 40px 80px -30px rgba(0, 0, 0, .65);
+  --glow-lime: 0 0 120px 10px rgba(127, 219, 76, .28);
+
+  /* ---- Mouvement ----------------------------------------------------- */
+  --ease-out:  cubic-bezier(.2, .7, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --t-fast: .2s;
+  --t-med:  .45s;
+  --t-slow: .9s;
+
+  /* ---- Couches ------------------------------------------------------- */
+  --z-nav: 50;
+  --z-menu: 60;
+  --z-modal: 80;
+  --z-cookie: 90;
+}
