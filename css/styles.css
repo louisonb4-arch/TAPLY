@@ -979,12 +979,6 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
     display: grid; gap: 2rem;
     font-size: var(--fs-small); line-height: 1.35;
   }
-  /* halo sombre derrière les avantages : lisibles quel que soit le fond photo */
-  .hero__features::before {
-    content: ""; position: absolute; z-index: -1; inset: -1rem -5rem -4rem -5rem;
-    background: radial-gradient(58% 60% at 50% 52%, rgba(8, 6, 4, .82) 55%, transparent 100%);
-    pointer-events: none;
-  }
   .hero__features li { display: grid; grid-template-columns: 2.5rem 1fr; gap: 1rem; align-items: start; color: rgba(255,255,255,.75); }
   .hero__features strong { display: block; font-weight: 500; color: var(--c-white); }
   .hero__features svg { width: 2.1rem; height: 2.1rem; color: var(--c-white); }
