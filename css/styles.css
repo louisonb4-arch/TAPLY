@@ -858,26 +858,24 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   }
   .hero__copy { align-self: center; }
 
-  /* Photo hero desktop : calée à droite du texte, fondue à gauche */
+  /* Photo hero desktop : plein cadre, telle quelle */
   .media--hero-desktop {
-    display: block; position: absolute; z-index: -2;
-    top: 0; bottom: 0; right: 0; left: clamp(0px, 20vw, 26rem);
+    display: block; position: absolute; z-index: -2; inset: 0;
     background: transparent;
   }
-  .media--hero-desktop > img { object-position: 8% 50%; }
+  .media--hero-desktop > img { object-position: 50% 50%; }
   .media--hero-desktop::after {
     content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
-    background:
-      linear-gradient(90deg, var(--hero-ground) 0%, rgba(8, 6, 4, 0) 24%),
-      linear-gradient(0deg, rgba(8, 6, 4, .55) 0%, transparent 28%);
+    background: linear-gradient(0deg, rgba(8, 6, 4, .45) 0%, transparent 25%);
   }
   .has-hero-photo .hero { --hero-ground: #080604; background: var(--hero-ground); }
   .has-hero-photo .media--hero,
   .has-hero-photo .hero__device { display: none; }
+  .has-hero-photo .hero__lead, .has-hero-photo .play, .has-hero-photo .proof-row p { text-shadow: 0 1px 12px rgba(0, 0, 0, .6); }
   .has-hero-photo .hero__shade {
     background:
-      linear-gradient(90deg, rgba(8, 6, 4, .92) 0%, rgba(8, 6, 4, .7) 28%, rgba(8, 6, 4, .18) 46%, transparent 60%),
-      linear-gradient(180deg, rgba(8, 6, 4, .6) 0%, transparent 20%, transparent 78%, rgba(8, 6, 4, .5) 100%);
+      linear-gradient(90deg, rgba(8, 6, 4, .88) 0%, rgba(8, 6, 4, .8) 32%, rgba(8, 6, 4, .5) 45%, rgba(8, 6, 4, .1) 58%, transparent 66%),
+      linear-gradient(180deg, rgba(8, 6, 4, .5) 0%, transparent 18%);
   }
   .hero__title { font-size: clamp(3.6rem, 5.5vw, 5.6rem); }
   .hero__title .line { white-space: nowrap; }
@@ -971,17 +969,6 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   .faq__cta { display: inline-flex; grid-area: cta; margin-top: 1.5rem; width: 100%; }
 }
 
-@media (min-width: 1024px) and (max-width: 1279.98px) {
-  /* Écran étroit : la photo est cadrée sur le téléphone, le présentoir passe sous le dégradé */
-  .media--hero-desktop { left: 0; }
-  .media--hero-desktop > img { object-position: 30% 50%; }
-  .has-hero-photo .hero__shade {
-    background:
-      linear-gradient(90deg, rgba(8, 6, 4, .95) 0%, rgba(8, 6, 4, .9) 42%, rgba(8, 6, 4, .4) 57%, transparent 67%),
-      linear-gradient(180deg, rgba(8, 6, 4, .6) 0%, transparent 20%, transparent 78%, rgba(8, 6, 4, .5) 100%);
-  }
-}
-
 @media (min-width: 1280px) {
   .hero__inner { grid-template-columns: minmax(0, 1.35fr) minmax(0, .7fr) minmax(16.5rem, .62fr); column-gap: 2.5rem; }
   .hero__features {
@@ -1001,24 +988,6 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   .hero__features svg { width: 2.1rem; height: 2.1rem; color: var(--c-white); }
   .hero__foot { grid-column: 1 / -1; max-width: none; }
 
-  /* Composition « maquette » : téléphone au centre, avantages à droite, fond sombre uni à gauche */
-  .media--hero-desktop {
-    left: auto; right: -2vw; width: auto; aspect-ratio: 867 / 941;
-    /* fondu court sur le bord gauche (sauf autour du téléphone), fond uni derrière */
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 26%), radial-gradient(ellipse 18% 33% at 14% 63%, #000 72%, transparent 100%);
-            mask-image: linear-gradient(90deg, transparent 0, #000 26%), radial-gradient(ellipse 18% 33% at 14% 63%, #000 72%, transparent 100%);
-  }
-  .media--hero-desktop > img { object-position: 100% 50%; }
-  .media--hero-desktop::after {
-    background:
-      linear-gradient(270deg, rgba(8, 6, 4, .88) 0%, rgba(8, 6, 4, .72) 26%, rgba(8, 6, 4, .25) 40%, transparent 50%),
-      linear-gradient(0deg, rgba(8, 6, 4, .55) 0%, transparent 28%);
-  }
-  .has-hero-photo .hero__shade {
-    background:
-      linear-gradient(90deg, rgba(8, 6, 4, .8) 0%, rgba(8, 6, 4, .5) 32%, rgba(8, 6, 4, .1) 48%, transparent 58%),
-      linear-gradient(180deg, rgba(8, 6, 4, .55) 0%, transparent 20%, transparent 75%, rgba(8, 6, 4, .55) 100%);
-  }
   .hero__note {
     display: block; padding: 0 0 1.1rem;
     font-family: var(--f-script); font-size: clamp(1.7rem, 1.9vw, 2.2rem); line-height: 1.12; color: rgba(255,255,255,.94);
@@ -1027,11 +996,6 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   .hero__note span { display: block; }
   .hero__note span + span::before { content: none; }
   .hero__note::after { left: -.5rem; width: 5.5rem; height: 3px; transform: rotate(-4deg); }
-}
-
-@media (min-width: 1280px) and (max-width: 1439.98px) {
-  .media--hero-desktop { right: -7vw; }
-  .hero__lead { max-width: 30ch; }
 }
 
 @media (min-width: 1600px) {
