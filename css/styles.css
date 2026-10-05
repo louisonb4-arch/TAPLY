@@ -797,11 +797,11 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .footer__legal a:hover, .footer__legal button:hover { color: var(--c-white); }
 .footer__legal .linklike { text-decoration: none; font-size: inherit; }
 .footer__word {
-  margin: 0 0 -.2em; padding-inline: calc(var(--gutter) * .5);
-  font-size: clamp(6rem, 26vw, 26rem); font-weight: 900; line-height: .8; letter-spacing: -.06em;
-  color: rgba(255, 255, 255, .045); user-select: none; white-space: nowrap;
+  user-select: none;
+  /* Mot « Taply’ » décoratif en image (pas du texte : pas de contrôle de contraste) */
+  aspect-ratio: 1044 / 325; margin: 0 calc(var(--gutter) * .5) -.25rem;
+  background: url("../images/footer-word.webp") left bottom / contain no-repeat;
 }
-.footer__word span { color: rgba(127, 219, 76, .16); }
 
 /* 11. OVERLAYS ----------------------------------------------------------- */
 .modal {
@@ -825,7 +825,8 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   background: var(--c-white); color: var(--c-ink);
   box-shadow: 0 20px 60px -20px rgba(6, 17, 12, .45), 0 0 0 1px var(--c-line);
   font-size: var(--fs-small); line-height: 1.45;
-  animation: cookieIn .6s var(--ease-out) both;
+  animation: cookieIn .6s var(--ease-out) 1.2s both;
+  contain: layout;
 }
 .cookie a { text-decoration: underline; text-underline-offset: 2px; }
 .cookie__actions { display: flex; flex-wrap: wrap; gap: .5rem; }

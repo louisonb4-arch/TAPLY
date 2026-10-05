@@ -28,14 +28,31 @@
   <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap">
+  <!-- Polices chargées sans bloquer l'affichage -->
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap" media="print" onload="this.media='all'">
+  <noscript>
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap">
+  </noscript>
+  <!-- Photo hero chargée en priorité (LCP) -->
+  <link rel="preload" as="image" href="images/hero-mobile-800.webp" media="(max-width: 1023.98px)" fetchpriority="high">
+  <link rel="preload" as="image" href="images/hero-desktop.webp" media="(min-width: 1024px)" fetchpriority="high">
 
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/styles.css">
 
-  <script>document.documentElement.classList.add('js');</script>
-  <script src="js/config.js" defer></script>
+  <script src="js/config.js"></script>
+  <script>
+    // Classes posées avant l'affichage (évite que la mise en page saute à l'arrivée des photos)
+    (function (d, c) {
+      d.classList.add('js');
+      var i = (c && c.images) || {}, m = function (q) { return window.matchMedia(q).matches; };
+      if (i.heroDesktop && m('(min-width: 1024px)')) d.classList.add('has-hero-photo');
+      if (i.hero && m('(max-width: 1023.98px)')) d.classList.add('has-hero-photo-m');
+      if (i.walletPhone) d.classList.add('has-wallet-phone');
+    })(document.documentElement, window.TAPLY_CONFIG);
+  </script>
   <script src="js/main.js" defer></script>
 </head>
 <body>
@@ -190,10 +207,10 @@
         <!-- PREUVE SOCIALE — À CONFIRMER : chiffre réel + portraits (config.js → images.avatar1…4) -->
         <div class="proof-row">
           <ul class="avatars" aria-hidden="true">
-            <li><figure class="media" data-img="avatar1" data-alt=""><span class="ph ph--avatar"></span></figure></li>
-            <li><figure class="media" data-img="avatar2" data-alt=""><span class="ph ph--avatar"></span></figure></li>
-            <li><figure class="media" data-img="avatar3" data-alt=""><span class="ph ph--avatar"></span></figure></li>
-            <li><figure class="media" data-img="avatar4" data-alt=""><span class="ph ph--avatar"></span></figure></li>
+            <li><figure class="media" data-img="avatar1" data-small="none" data-alt=""><span class="ph ph--avatar"></span></figure></li>
+            <li><figure class="media" data-img="avatar2" data-small="none" data-alt=""><span class="ph ph--avatar"></span></figure></li>
+            <li><figure class="media" data-img="avatar3" data-small="none" data-alt=""><span class="ph ph--avatar"></span></figure></li>
+            <li><figure class="media" data-img="avatar4" data-small="none" data-alt=""><span class="ph ph--avatar"></span></figure></li>
           </ul>
           <p><strong>+ 250 commerces</strong><br>nous font déjà confiance.</p>
         </div>
@@ -217,7 +234,7 @@
 
     <div class="constat__stage">
       <!-- IMAGE : config.js → images.constat -->
-      <figure class="media media--r constat__media" data-img="constat" data-alt="Comptoir ensoleillé d'une boulangerie-café : un sac kraft et un café à emporter, une cliente repart vers la rue" data-reveal="media">
+      <figure class="media media--r constat__media" data-img="constat" data-sizes="(min-width: 1024px) 90vw, 92vw" data-alt="Comptoir ensoleillé d'une boulangerie-café : un sac kraft et un café à emporter, une cliente repart vers la rue" data-reveal="media">
         <span class="ph ph--warm" aria-hidden="true">
           <span class="ph__bokeh"></span>
           <span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — comptoir, sacs kraft &amp; ardoise<small>images/constat.jpg · 1800×1200</small></span></span>
@@ -265,7 +282,7 @@
     <ol class="steps">
       <li class="step" data-step="1" data-reveal>
         <!-- IMAGE : config.js → images.step1 -->
-        <figure class="media media--r step__media" data-img="step1" data-alt="Un client tient son téléphone près du badge NFC Taply posé sur le comptoir : « Visite ajoutée ! »">
+        <figure class="media media--r step__media" data-img="step1" data-sizes="(min-width: 1024px) 50vw, 92vw" data-alt="Un client tient son téléphone près du badge NFC Taply posé sur le comptoir : « Visite ajoutée ! »">
           <span class="ph ph--warm" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — le client tape le badge<small>images/step-1.jpg · 1600×1100</small></span></span></span>
         </figure>
         <span class="step__num" aria-hidden="true">1</span>
@@ -273,7 +290,7 @@
       </li>
       <li class="step" data-step="2" data-reveal>
         <!-- IMAGE : config.js → images.step2 -->
-        <figure class="media media--r step__media" data-img="step2" data-alt="Carte de fidélité Taply du commerce Le Comptoir dans le Wallet d'un téléphone, quatre visites validées">
+        <figure class="media media--r step__media" data-img="step2" data-sizes="(min-width: 1024px) 50vw, 92vw" data-alt="Carte de fidélité Taply du commerce Le Comptoir dans le Wallet d'un téléphone, quatre visites validées">
           <span class="ph ph--cream" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — la carte dans le Wallet<small>images/step-2.jpg · 1600×1100</small></span></span></span>
         </figure>
         <span class="step__num" aria-hidden="true">2</span>
@@ -281,7 +298,7 @@
       </li>
       <li class="step" data-step="3" data-reveal>
         <!-- IMAGE : config.js → images.step3 -->
-        <figure class="media media--r step__media" data-img="step3" data-alt="Carte physique Taply Le Comptoir posée sur un comptoir en bois : 5 visites = 1 café offert">
+        <figure class="media media--r step__media" data-img="step3" data-sizes="(min-width: 1024px) 50vw, 92vw" data-alt="Carte physique Taply Le Comptoir posée sur un comptoir en bois : 5 visites = 1 café offert">
           <span class="ph ph--green" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — la récompense<small>images/step-3.jpg · 1600×1100</small></span></span></span>
         </figure>
         <span class="step__num" aria-hidden="true">3</span>
@@ -311,7 +328,7 @@
 
     <div class="wallet__device" data-scrub aria-hidden="true">
       <!-- IMAGE : config.js → images.walletPhone (iPhone détouré, PNG/WebP transparent). Remplace le téléphone en code une fois chargée. -->
-      <figure class="media wallet__shot" data-img="walletPhone" data-flag="has-wallet-phone" data-alt="iPhone affichant la carte de fidélité Taply du commerce Le Comptoir dans Apple Wallet"></figure>
+      <figure class="media wallet__shot" data-img="walletPhone" data-small="none" data-flag="has-wallet-phone" data-alt="iPhone affichant la carte de fidélité Taply du commerce Le Comptoir dans Apple Wallet"></figure>
       <div class="phone phone--big">
         <div class="phone__screen">
           <div class="phone__status"><span>9:41</span><span class="phone__island"></span><span class="phone__sig"></span></div>
@@ -326,7 +343,7 @@
           </div>
           <div class="phone__qr">
             <!-- IMAGE : config.js → images.walletQr (QR code d'exemple réel) -->
-            <figure class="media qr" data-img="walletQr" data-alt="QR code vers une carte Taply d'exemple">
+            <figure class="media qr" data-img="walletQr" data-small="none" data-alt="QR code vers une carte Taply d'exemple">
               <span class="qr__ph"></span>
             </figure>
             <span>Scannez pour voir un exemple</span>
@@ -355,7 +372,7 @@
     </div>
 
     <!-- IMAGE : config.js → images.benefits -->
-    <figure class="media media--r benefits__media" data-img="benefits" data-alt="Comptoir ensoleillé d'un café : bouquet de fleurs, cloche à pâtisseries et croissants dorés" data-reveal="media">
+    <figure class="media media--r benefits__media" data-img="benefits" data-sizes="(min-width: 1024px) 45vw, 92vw" data-alt="Comptoir ensoleillé d'un café : bouquet de fleurs, cloche à pâtisseries et croissants dorés" data-reveal="media">
       <span class="ph ph--dark" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — intérieur boulangerie-café<small>images/benefits.jpg · 1400×1800</small></span></span></span>
       <figcaption class="benefits__caption">Des gestes simples qui créent de grandes habitudes.</figcaption>
       <span class="corner-disc" aria-hidden="true"></span>
@@ -381,7 +398,7 @@
     </div>
 
     <!-- IMAGE : config.js → images.notifications -->
-    <figure class="media media--r notify__media" data-img="notifications" data-alt="Sur un ordinateur, l'espace Taply permet d'envoyer une notification « -20 % sur toutes les pâtisseries ce week-end ! » ; elle s'affiche sur l'écran verrouillé d'un iPhone" data-reveal="media">
+    <figure class="media media--r notify__media" data-img="notifications" data-sizes="(min-width: 1024px) 55vw, 92vw" data-alt="Sur un ordinateur, l'espace Taply permet d'envoyer une notification « -20 % sur toutes les pâtisseries ce week-end ! » ; elle s'affiche sur l'écran verrouillé d'un iPhone" data-reveal="media">
       <span class="ph ph--warm" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — espace Taply + iPhone<small>images/notifications.webp</small></span></span></span>
     </figure>
   </div>
@@ -588,7 +605,7 @@
       </ul>
     </div>
   </div>
-  <p class="footer__word" aria-hidden="true">Taply<span>’</span></p>
+  <div class="footer__word" aria-hidden="true"></div>
 </footer>
 
 <!-- ================================ VIDÉO DÉMO ================================ -->

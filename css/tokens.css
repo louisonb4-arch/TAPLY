@@ -4,6 +4,17 @@
    rayons, ombres, mouvement. Ne pas coder de valeur "en dur" ailleurs.
    ========================================================================== */
 
+/* Police de secours calée sur les métriques de Satoshi : pas de saut de mise
+   en page quand la vraie police arrive (chargement non bloquant). */
+@font-face {
+  font-family: "Satoshi Fallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
+  size-adjust: 99.2%;
+  ascent-override: 101%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+}
+
 :root {
   /* ---- Couleurs : base ---------------------------------------------- */
   --c-paper:        #F7F7F3;   /* fond clair principal (off-white des refs) */
@@ -27,7 +38,7 @@
   --c-lime-text:    #3F9A1E;   /* vert pour texte sur fond clair (3.3:1, titres) */
 
   /* ---- Typographie --------------------------------------------------- */
-  --f-sans:   "Satoshi", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-sans:   "Satoshi", "Satoshi Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --f-script: "Caveat", "Bradley Hand", cursive;
 
   --fs-display: clamp(2.2rem, .9rem + 6.6vw, 5.6rem);

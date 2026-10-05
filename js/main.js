@@ -36,6 +36,12 @@
       if (fig.dataset.var) fig.parentElement.style.setProperty(fig.dataset.var, `url("${new URL(src, location.href).href}")`);
     }, { once: true });
     img.addEventListener('error', () => console.warn(`[Taply] Image introuvable : ${src}`), { once: true });
+    // Version 800 px automatique pour les petits écrans (fichier « nom-800.webp » à côté de l'original)
+    const small = /\.webp$/.test(src) && !/-800\.webp$/.test(src) && fig.dataset.small !== 'none' ? src.replace(/\.webp$/, '-800.webp') : '';
+    if (small) {
+      img.srcset = `${small} 800w, ${src} 1672w`;
+      img.sizes = fig.dataset.sizes || '100vw';
+    }
     img.src = src;
     fig.prepend(img);
   };

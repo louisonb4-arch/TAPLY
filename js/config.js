@@ -2,13 +2,16 @@
    TAPLY — Configuration du contenu
    ---------------------------------------------------------------------------
    IMAGES : déposez vos fichiers dans /images puis renseignez leur chemin.
+   Performance : pour un fichier « photo.webp », ajoutez « photo-800.webp »
+   (800 px de large) : il sera servi aux petits écrans. Images sans version
+   800 → ajouter data-small="none" sur leur <figure> dans index.html.
    Laissé vide ("") → le placeholder reste affiché. Aucun autre fichier à
    modifier : le texte alternatif est déjà dans index.html (data-alt).
    ========================================================================== */
 
 window.TAPLY_CONFIG = {
   images: {
-    hero:        "images/hero-mobile.webp",   // mobile/tablette (<1024px) — portrait 9:16, présentoir + téléphone en bas
+    hero:        "images/hero-mobile-800.webp",   // mobile/tablette (<1024px) — portrait 9:16, présentoir + téléphone en bas
     heroDesktop: "images/hero-desktop.webp", // ≥1024px — 16:9, sujets (présentoir + téléphone) au centre-droit ; idéalement 2400px de large
     constat:     "images/constat.webp",   // 4:3 — comptoir, sac kraft, cliente qui repart
     step1:       "images/step-1.webp",   // 16:9 — le client tape le badge
