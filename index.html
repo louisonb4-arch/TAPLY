@@ -6,7 +6,7 @@
   <title>Taply — La carte de fidélité NFC sans application</title>
   <meta name="description" content="Taply transforme chaque visite en récompense : une carte de fidélité NFC sans application, rangée dans le Wallet de vos clients. Pour cafés, boulangeries, restaurants, salons et boutiques.">
   <meta name="theme-color" content="#06110C">
-  <link rel="canonical" href="https://www.taply.fr/"><!-- À CONFIRMER : domaine définitif -->
+  <link rel="canonical" href="https://taply-theta.vercel.app/"><!-- DOMAINE : remplacer taply-theta.vercel.app partout (ici, og:*, sitemap.xml, robots.txt) une fois le domaine définitif branché -->
 
   <!-- Favicon (remplacer images/favicon.svg / apple-touch-icon.png par les fichiers définitifs) -->
   <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
@@ -18,8 +18,11 @@
   <meta property="og:site_name" content="Taply">
   <meta property="og:title" content="Taply — Des clients qui reviennent. Simplement.">
   <meta property="og:description" content="La carte de fidélité NFC sans application pour les commerces de proximité.">
-  <meta property="og:url" content="https://www.taply.fr/">
-  <meta property="og:image" content="https://www.taply.fr/images/og.jpg">
+  <meta property="og:url" content="https://taply-theta.vercel.app/">
+  <meta property="og:image" content="https://taply-theta.vercel.app/images/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Taply — Des clients qui reviennent. Simplement.">
   <meta name="twitter:card" content="summary_large_image">
 
   <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
@@ -85,7 +88,7 @@
 
     <a class="nav__login" href="connexion.html">Connexion</a>
     <a class="btn btn--light btn--sm nav__cta" href="#demo">
-      Commencer <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg>
+      Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg>
     </a>
 
     <button class="burger" type="button" aria-expanded="false" aria-controls="menu" data-menu-open>
@@ -303,7 +306,7 @@
         <li><svg aria-hidden="true"><use href="#i-palette"/></svg><span>Design à votre image</span></li>
       </ul>
 
-      <a class="btn btn--light btn--lg wallet__cta" href="#demo">Voir un exemple de carte <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <a class="btn btn--light btn--lg wallet__cta" href="#demo">Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
 
     <div class="wallet__device" data-scrub aria-hidden="true">
@@ -405,7 +408,7 @@
         <li>Support inclus</li>
         <li>Sans engagement</li>
       </ul>
-      <a class="btn btn--dark btn--lg btn--block" href="#demo">Commencer maintenant <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <a class="btn btn--dark btn--lg btn--block" href="#demo">Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
   </div>
 </section>
@@ -418,7 +421,7 @@
       <p class="pill pill--deep"><span class="pill__dot" aria-hidden="true"></span>Questions fréquentes</p>
       <h2 class="h2" id="faq-title">Vous avez <br>des <span class="accent">questions ?</span></h2>
       <p class="faq__more">Vous ne trouvez pas la réponse ?<br>Écrivez-nous, on vous répond rapidement.</p>
-      <a class="btn btn--light btn--lg faq__cta" href="#demo">Nous contacter <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <a class="btn btn--light btn--lg faq__cta" href="#demo">Demander une démo <svg class="btn__icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
     </div>
 
     <div class="accordion" data-accordion data-reveal style="--i:1">
@@ -497,6 +500,8 @@
         <label><input type="radio" name="type" value="boutique"><span>Boutique</span></label>
         <label><input type="radio" name="type" value="autre"><span>Autre</span></label>
       </fieldset>
+<!-- Anti-spam : champ piège invisible (les robots le remplissent, les humains ne le voient pas) -->
+      <div class="hp" aria-hidden="true"><label for="f-gotcha">Ne pas remplir</label><input id="f-gotcha" name="_gotcha" type="text" tabindex="-1" autocomplete="off"></div>
       <label class="consent">
         <input type="checkbox" name="consent" required id="f-consent">
         <span>J'accepte que Taply utilise ces informations pour me recontacter. <a href="confidentialite.html">Politique de confidentialité</a></span>
@@ -521,6 +526,8 @@
       <p class="footer__claim">Des commerces plus vivants, <span class="accent">des quartiers plus forts.</span></p>
       <form class="newsletter" data-newsletter novalidate>
         <label for="nl-email">La lettre Taply — idées pour fidéliser, une fois par mois.</label>
+<!-- Anti-spam : champ piège invisible (les robots le remplissent, les humains ne le voient pas) -->
+        <div class="hp" aria-hidden="true"><label for="nl-gotcha">Ne pas remplir</label><input id="nl-gotcha" name="_gotcha" type="text" tabindex="-1" autocomplete="off"></div>
         <div class="newsletter__field">
           <input id="nl-email" type="email" name="email" placeholder="votre@email.fr" autocomplete="email" required>
           <button class="btn btn--lime" type="submit">S'inscrire</button>
@@ -574,6 +581,7 @@
       <ul class="footer__legal">
         <li><a href="mentions-legales.html">Mentions légales</a></li>
         <li><a href="cgv.html">CGV</a></li>
+        <li><a href="cgu.html">CGU</a></li>
         <li><a href="confidentialite.html">Confidentialité</a></li>
         <li><a href="cookies.html">Cookies</a></li>
         <li><button type="button" class="linklike" data-cookie-open>Préférences cookies</button></li>

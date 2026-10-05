@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Page introuvable — Taply</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/images/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 2rem 1.25rem; font-family: var(--f-sans); background: var(--c-deep); color: var(--c-on-deep); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    .wrap { position: relative; display: grid; justify-items: center; gap: 1.5rem; max-width: 34rem; text-align: center; }
+    .glow { position: fixed; z-index: -1; left: 50%; top: 55%; width: 60rem; aspect-ratio: 1; translate: -50% -50%; background: radial-gradient(circle, rgba(127, 219, 76, .18), transparent 60%); pointer-events: none; }
+    .logo { display: inline-flex; align-items: flex-start; font-size: 1.8rem; font-weight: 900; line-height: 1; letter-spacing: -.045em; color: #fff; text-decoration: none; }
+    .logo svg { width: .3em; height: .48em; margin: -.12em 0 0 .05em; color: var(--c-lime); }
+    .card { position: relative; overflow: hidden; display: grid; gap: .8rem; width: min(100%, 21rem); padding: 1.3rem 1.4rem; border-radius: 22px; text-align: left; background: radial-gradient(120% 90% at 100% 0%, #1B3328, var(--c-ink-2) 55%); box-shadow: 0 30px 60px -30px rgba(0,0,0,.7); }
+    .card::after { content: ""; position: absolute; right: -2rem; bottom: -2rem; width: 4.5rem; height: 4.5rem; border-radius: 50%; background: var(--c-lime); }
+    .dots { display: flex; gap: .5rem; }
+    .dots i { width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--c-lime); }
+    .dots i.miss { background: none; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.6); position: relative; }
+    .dots i.miss::after { content: "?"; position: absolute; inset: 0; display: grid; place-items: center; font-size: .9rem; font-weight: 700; }
+    .card small { font-size: .85rem; opacity: .75; }
+    h1 { margin: .5rem 0 0; font-size: clamp(2.4rem, 1.6rem + 3.5vw, 3.6rem); font-weight: 700; line-height: 1; letter-spacing: -.035em; }
+    h1 span { color: var(--c-lime); }
+    p { margin: 0; font-size: 1.1rem; line-height: 1.5; color: var(--c-on-deep-muted); }
+    .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: .5rem; }
+    .btn { display: inline-flex; align-items: center; gap: .6rem; min-height: 3.4rem; padding: 0 1.7rem; border-radius: 999px; font-weight: 500; text-decoration: none; transition: background-color .2s; }
+    .btn--light { background: #fff; color: var(--c-ink); }
+    .btn--light:hover { background: var(--c-lime); }
+    .btn--ghost { color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+    .btn--ghost:hover { background: rgba(255,255,255,.08); }
+    .btn svg { width: 1.1rem; height: 1.1rem; }
+    :focus-visible { outline: 2px solid var(--c-lime); outline-offset: 3px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="glow" aria-hidden="true"></div>
+  <main class="wrap">
+    <a class="logo" href="/" aria-label="Taply — accueil">Taply<svg viewBox="0 0 10 16" aria-hidden="true"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></a>
+    <div class="card" aria-hidden="true">
+      <span class="dots"><i></i><i></i><i></i><i></i><i class="miss"></i></span>
+      <strong>Erreur 404</strong>
+      <small>Cette visite n'a pas pu être enregistrée</small>
+    </div>
+    <h1>Cette page <span>n'existe pas.</span></h1>
+    <p>Le lien est peut-être ancien ou mal recopié. Revenez à l'accueil, on vous attend au comptoir.</p>
+    <div class="actions">
+      <a class="btn btn--light" href="/">Retour à l'accueil <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a class="btn btn--ghost" href="/#demo">Demander une démo</a>
+    </div>
+  </main>
+</body>
+</html>

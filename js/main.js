@@ -215,6 +215,14 @@
     modal.addEventListener('cancel', e => { e.preventDefault(); closeModal(); });
   }
 
+  /* ---- Anti-spam (complément du filtre serveur, ex. Formspree) -------- */
+  // Robot = champ piège rempli, ou envoi moins de 3 s après l'ouverture de la page.
+  const pageOpenedAt = Date.now();
+  const looksLikeBot = f => {
+    const trap = f.querySelector('[name="_gotcha"]');
+    return (trap && trap.value) || Date.now() - pageOpenedAt < 3000;
+  };
+
   /* ---- Formulaire de démo --------------------------------------------- */
   const form = $('[data-form]');
   if (form) {
@@ -248,7 +256,7 @@
       const btn = $('button[type="submit"]', form);
       btn.disabled = true;
       try {
-        if (CONFIG.formEndpoint) {
+        if (CONFIG.formEndpoint && !looksLikeBot(form)) {
           const res = await fetch(CONFIG.formEndpoint, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } });
           if (!res.ok) throw new Error(res.status);
         }
@@ -274,7 +282,7 @@
         input.focus();
         return;
       }
-      if (CONFIG.newsletterEndpoint) {
+      if (CONFIG.newsletterEndpoint && !looksLikeBot(nl)) {
         try { await fetch(CONFIG.newsletterEndpoint, { method: 'POST', body: new FormData(nl) }); }
         catch (_) { msg.textContent = 'Inscription impossible pour le moment.'; return; }
       }

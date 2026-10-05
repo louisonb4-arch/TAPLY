@@ -1,0 +1,7 @@
+# DOMAINE : remplacer taply-theta.vercel.app par le domaine définitif
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /connexion.html
+
+Sitemap: https://taply-theta.vercel.app/sitemap.xml

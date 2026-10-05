@@ -69,6 +69,8 @@
     .sep::before, .sep::after { content: ""; flex: 1; height: 1px; background: #E1E2DC; }
     @media (max-width: 479.98px) { .sep::before, .sep::after { display: none; } }
     .sep a { color: var(--c-ink); font-weight: 500; text-underline-offset: 3px; }
+    .terms { margin-top: 1rem; font-size: .82rem; color: var(--c-muted); text-align: center; }
+    .terms a { color: var(--c-ink); text-underline-offset: 2px; }
     .demo { margin-top: 2rem; padding: .9rem 1rem; border-radius: 14px; background: var(--c-paper-2); font-size: .85rem; color: var(--c-muted); line-height: 1.45; }
 
     @media (min-width: 900px) {
@@ -118,6 +120,7 @@
         <button class="btn" type="submit">Se connecter <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </form>
 
+      <p class="terms">En vous connectant, vous acceptez les <a href="cgu.html">conditions générales d'utilisation</a>.</p>
       <p class="sep">Pas encore de compte ? <a href="index.html#demo">Demander une démo</a></p>
       <!-- PROTOTYPE : aucune authentification réelle. À brancher sur le vrai service de connexion. -->
       <p class="demo">Version de démonstration : n'importe quel e-mail et mot de passe ouvrent l'espace d'exemple (Roll in Love). Rien n'est envoyé.</p>
