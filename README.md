@@ -13,6 +13,13 @@ HTML/CSS/JS vanilla, sans build. Aperçu local : `python3 -m http.server 4330` p
 ## Modifier l'identité
 Tout est dans `css/tokens.css` (couleurs, typo, espacements, rayons, ombres, mouvement).
 
+## En ligne
+- Production : https://taply-theta.vercel.app (Vercel, compte louisondu44000-7822) — redéployer : `npx vercel deploy --prod`
+- GitHub : https://github.com/louisonb4-arch/TAPLY
+- Lighthouse prod (2026-10-04) : mobile 92 / desktop 98 en performance, 100 en accessibilité, bonnes pratiques et SEO.
+- Domaine définitif : remplacer `taply-theta.vercel.app` dans index.html (canonical, og:*), sitemap.xml et robots.txt.
+- Images : chaque photo `x.webp` a une version `x-800.webp` servie aux petits écrans.
+
 ## À confirmer avant mise en ligne
 - Domaine (canonical / og:url), e-mail `contact@taply.fr`, URLs réseaux sociaux
 - Section Notifications : chiffre « 248 » et messages = exemples fictifs (commerce « Le Comptoir »)
