@@ -64,9 +64,9 @@ describe('supabase/migrations : invariants statiques d’ownership', () => {
     }
   });
 
-  it('exactement un GRANT taply_owner TO postgres, dans tout le dossier', () => {
+  it('exactement un GRANT taply_owner TO postgres (WITH SET TRUE, INHERIT FALSE), dans tout le dossier', () => {
     const all = [...bodies.values()].join('\n');
-    const matches = all.match(/grant\s+taply_owner\s+to\s+postgres\s*;/gi) ?? [];
+    const matches = all.match(/grant\s+taply_owner\s+to\s+postgres\s+with\s+set\s+true\s*,\s*inherit\s+false\s*;/gi) ?? [];
     expect(matches).toHaveLength(1);
   });
 
@@ -96,13 +96,32 @@ describe('supabase/migrations : invariants statiques d’ownership', () => {
 describe('supabase/migrations : pre-staging patch (lookup, idempotency, role determinism)', () => {
   const all = [...bodies.values()].join('\n');
 
-  it('taply_owner et taply_app réaffirment explicitement leurs attributs, NOREPLICATION inclus', () => {
-    expect(all).toMatch(
-      /alter\s+role\s+taply_owner\s+with\s+nologin\s+nosuperuser\s+nocreatedb\s+nocreaterole\s+nobypassrls\s+noreplication\s*;/i,
-    );
-    expect(all).toMatch(
-      /alter\s+role\s+taply_app\s+with\s+login\s+nosuperuser\s+nocreatedb\s+nocreaterole\s+nobypassrls\s+noreplication\s*;/i,
-    );
+  it('aucun ALTER ROLE taply_owner / taply_app — PostgreSQL refuse de nommer SUPERUSER/REPLICATION/BYPASSRLS dans un ALTER ROLE exécuté par un rôle CREATEROLE non-superuser (confirmé empiriquement, SQLSTATE 42501)', () => {
+    expect(all).not.toMatch(/alter\s+role\s+taply_owner\b/i);
+    expect(all).not.toMatch(/alter\s+role\s+taply_app\b/i);
+  });
+
+  it('CREATE ROLE taply_owner/taply_app ne nomme jamais explicitement SUPERUSER/REPLICATION/BYPASSRLS (même pas la forme NO-)', () => {
+    const forbidden = ['superuser', 'nosuperuser', 'replication', 'noreplication', 'bypassrls', 'nobypassrls'];
+    const createRoleBlocks = all.match(/create\s+role\s+taply_(?:owner|app)[^;]*;/gi) ?? [];
+    expect(createRoleBlocks.length).toBeGreaterThanOrEqual(2);
+    for (const stmt of createRoleBlocks) {
+      for (const word of forbidden) {
+        expect(stmt.toLowerCase(), stmt).not.toContain(word);
+      }
+    }
+  });
+
+  it('CREATE ROLE taply_owner/taply_app porte les attributs sûrs attendus (nologin/login + nocreatedb + nocreaterole)', () => {
+    expect(all).toMatch(/create\s+role\s+taply_owner\s+nologin\s+nocreatedb\s+nocreaterole\s*;/i);
+    expect(all).toMatch(/create\s+role\s+taply_app\s+login\s+nocreatedb\s+nocreaterole\s*;/i);
+  });
+
+  it('les rôles préexistants sont vérifiés via pg_roles, jamais réparés silencieusement — RAISE EXCEPTION sur divergence', () => {
+    expect(all).toMatch(/select\s+rolcanlogin\s*,\s*rolsuper\s*,\s*rolcreatedb\s*,\s*rolcreaterole\s*,\s*rolreplication\s*,\s*rolbypassrls\s+into\s+existing\s+from\s+pg_roles\s+where\s+rolname\s*=\s*'taply_owner'/i);
+    expect(all).toMatch(/select\s+rolcanlogin\s*,\s*rolsuper\s*,\s*rolcreatedb\s*,\s*rolcreaterole\s*,\s*rolreplication\s*,\s*rolbypassrls\s+into\s+existing\s+from\s+pg_roles\s+where\s+rolname\s*=\s*'taply_app'/i);
+    const raiseCount = (all.match(/raise\s+exception/gi) ?? []).length;
+    expect(raiseCount).toBe(2);
   });
 
   it('idempotency_requests : UPDATE limité aux colonnes status, response, updated_at (jamais la table entière)', () => {
