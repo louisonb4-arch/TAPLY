@@ -4,11 +4,13 @@
  * Le site statique n'est jamais servi par Hono : Vercel le sert directement
  * depuis la racine du dépôt (voir vercel.json, preset « Other »).
  *
- * Ordre des middlewares (phase 1) :
+ * Ordre des middlewares :
  *   contexte → requestId → journal de requête → en-têtes de sécurité
  *   → Cache-Control no-store → limite de corps → routes
- * Les contrôles Origin / session / autorisation / rate limit arrivent avec
- * l'auth (phase 3) ; aucune route mutante n'existe en phase 1.
+ * La défense Origin (CSRF) et la résolution de session sont scopées aux
+ * routes authentifiées par cookie elles-mêmes (voir
+ * backend/http/routes/auth.ts), pas un middleware global : les autres
+ * routes n'ont pas ce contrat et ne doivent pas en hériter par accident.
  */
 
 import { Hono } from 'hono';
@@ -19,6 +21,7 @@ import type { AppConfig } from '../core/config.js';
 import { AppError, isAppError, toErrorBody, type ErrorCode } from '../core/errors.js';
 import type { Logger } from '../core/logger.js';
 import { requestIdMiddleware } from './request-id.js';
+import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import type { AppEnvBindings } from './types.js';
 
@@ -100,6 +103,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnvBindings> {
   );
 
   app.route('/', healthRoutes);
+  app.route('/', authRoutes);
 
   app.notFound((c) => {
     const error = new AppError('NOT_FOUND');

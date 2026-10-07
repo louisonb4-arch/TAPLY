@@ -83,6 +83,68 @@ export const DEFAULT_DATABASE_CONNECTION_TIMEOUT_MS = 5_000;
  */
 const optionalConnectionTimeoutMs = z.coerce.number().int().min(100).max(60_000).optional();
 
+/**
+ * URL du projet Supabase (ex. https://xxxx.supabase.co). HTTPS obligatoire
+ * dès que présent — pas seulement en staging/production : il n'y a aucun
+ * scénario légitime où l'Auth Supabase tournerait en clair.
+ */
+const optionalSupabaseUrl = z
+  .string()
+  .trim()
+  .min(1)
+  .pipe(z.url({ protocol: /^https$/ }))
+  .transform((value) => value.replace(/\/+$/, ''))
+  .optional();
+
+/**
+ * Clé publishable Supabase — strictement le nouveau format
+ * `sb_publishable_...`. Rien d'autre n'est accepté.
+ *
+ * Un `service_role`/`anon` legacy est un JWT (`eyJ...`) — le rôle est encodé
+ * dans le payload, donc un test `includes('service_role')` sur la chaîne ne
+ * détecte PAS fiablement une clé service_role legacy réelle (le payload est
+ * base64, la sous-chaîne littérale n'y apparaît pas forcément telle quelle).
+ * Plutôt que de tenter de décoder/filtrer des JWT legacy, on n'accepte que
+ * le nouveau format `sb_publishable_...` et on rejette tout le reste,
+ * y compris tout JWT (`eyJ...`), legacy anon ou service_role. Cette
+ * nouvelle stack Taply 2026 n'a pas besoin de compatibilité legacy — le
+ * modèle de clés actuel de Supabase remplace anon/service_role par
+ * sb_publishable/sb_secret, et un service_role/secret contourne RLS :
+ * le préfixe est la seule garantie fiable.
+ */
+const optionalSupabasePublishableKey = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => value.startsWith('sb_publishable_'), 'doit être une clé publishable au nouveau format (sb_publishable_...)')
+  .optional();
+
+/**
+ * Origin exact attendu pour les requêtes mutantes (défense CSRF, voir
+ * backend/http/origin.ts). Doit être une origin pure — pas un chemin, pas
+ * de query — vérifié en comparant `new URL(value).origin` à la valeur
+ * fournie telle quelle.
+ */
+const optionalAppOrigin = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => {
+    try {
+      return new URL(value).origin === value;
+    } catch {
+      return false;
+    }
+  }, 'doit être une origin exacte (schéma://hôte[:port], sans chemin ni requête)')
+  .optional();
+
+const SESSION_SECONDS_MIN = 60;
+const SESSION_SECONDS_MAX = 2_592_000; // 30 jours — plafond de bon sens, jamais « illimité ».
+export const DEFAULT_SESSION_IDLE_SECONDS = 7_200; // 2 h
+export const DEFAULT_SESSION_ABSOLUTE_SECONDS = 43_200; // 12 h
+
+const optionalSessionSeconds = z.coerce.number().int().min(SESSION_SECONDS_MIN).max(SESSION_SECONDS_MAX).optional();
+
 const rawSchema = z.object({
   APP_ENV: z.enum(APP_ENVS).optional(),
   VERCEL_ENV: z.string().optional(),
@@ -96,6 +158,11 @@ const rawSchema = z.object({
   DATABASE_URL_APP: optionalPgUrl,
   DATABASE_CA_CERT: optionalCaCert,
   DATABASE_CONNECTION_TIMEOUT_MS: optionalConnectionTimeoutMs,
+  SUPABASE_URL: optionalSupabaseUrl,
+  SUPABASE_PUBLISHABLE_KEY: optionalSupabasePublishableKey,
+  APP_ORIGIN: optionalAppOrigin,
+  SESSION_IDLE_SECONDS: optionalSessionSeconds,
+  SESSION_ABSOLUTE_SECONDS: optionalSessionSeconds,
 });
 
 export interface AppConfig {
@@ -117,6 +184,17 @@ export interface AppConfig {
     readonly caCert: string | undefined;
     /** Toujours résolu (défaut sûr si absent) — jamais 0/illimité. Pas un secret. */
     readonly connectionTimeoutMs: number;
+  };
+  readonly auth: {
+    /** URL du projet Supabase. Absent : aucun module Auth ne doit démarrer. */
+    readonly supabaseUrl: string | undefined;
+    /** Clé publishable (jamais secrète — vérifié à la validation). */
+    readonly supabasePublishableKey: string | undefined;
+    /** Origin exact attendu pour les requêtes mutantes (défense CSRF). */
+    readonly appOrigin: string | undefined;
+    /** Toujours résolus (défauts sûrs) — jamais 0/négatif/illimité. */
+    readonly sessionIdleSeconds: number;
+    readonly sessionAbsoluteSeconds: number;
   };
 }
 
@@ -184,6 +262,17 @@ export function loadConfig(env: EnvSource): AppConfig {
       }
     }
   }
+
+  const sessionIdleSeconds = raw.SESSION_IDLE_SECONDS ?? DEFAULT_SESSION_IDLE_SECONDS;
+  const sessionAbsoluteSeconds = raw.SESSION_ABSOLUTE_SECONDS ?? DEFAULT_SESSION_ABSOLUTE_SECONDS;
+  // Une session ne peut jamais être prolongée au-delà de son expiration
+  // absolue (voir backend/auth/session.ts) — incohérent de configurer le
+  // contraire, donc refusé dès la configuration plutôt qu'en silence au
+  // premier touch().
+  if (sessionIdleSeconds > sessionAbsoluteSeconds) {
+    issues.push('SESSION_IDLE_SECONDS: doit être inférieur ou égal à SESSION_ABSOLUTE_SECONDS');
+  }
+
   if (issues.length > 0) throw new ConfigError(issues);
 
   return {
@@ -195,6 +284,13 @@ export function loadConfig(env: EnvSource): AppConfig {
       appUrl: raw.DATABASE_URL_APP,
       caCert: raw.DATABASE_CA_CERT,
       connectionTimeoutMs: raw.DATABASE_CONNECTION_TIMEOUT_MS ?? DEFAULT_DATABASE_CONNECTION_TIMEOUT_MS,
+    },
+    auth: {
+      supabaseUrl: raw.SUPABASE_URL,
+      supabasePublishableKey: raw.SUPABASE_PUBLISHABLE_KEY,
+      appOrigin: raw.APP_ORIGIN,
+      sessionIdleSeconds,
+      sessionAbsoluteSeconds,
     },
   };
 }

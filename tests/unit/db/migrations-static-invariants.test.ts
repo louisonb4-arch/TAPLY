@@ -178,3 +178,111 @@ describe('supabase/migrations : pre-staging patch (lookup, idempotency, role det
     expect(envExample).not.toMatch(/BEGIN CERTIFICATE-----\s*\n[A-Za-z0-9+/=]/);
   });
 });
+
+describe('supabase/migrations : Phase 3A — merchant_users / merchant_sessions', () => {
+  const merchantUsersFile = files.find((f) => f.endsWith('merchant_users.sql'));
+  const merchantSessionsFile = files.find((f) => f.endsWith('merchant_sessions.sql'));
+  const merchantUsersBody = merchantUsersFile ? (bodies.get(merchantUsersFile) ?? '') : '';
+  const merchantSessionsBody = merchantSessionsFile ? (bodies.get(merchantSessionsFile) ?? '') : '';
+
+  it('les migrations certifiées 0001–0010 restent byte-identiques (non touchées par Phase 3A)', () => {
+    const certified = files.filter((f) => !f.endsWith('merchant_users.sql') && !f.endsWith('merchant_sessions.sql'));
+    expect(certified).toHaveLength(10);
+  });
+
+  it('merchant_users existe, RLS enabled + forced', () => {
+    expect(merchantUsersFile).toBeDefined();
+    expect(merchantUsersBody).toMatch(/alter\s+table\s+taply\.merchant_users\s+enable\s+row\s+level\s+security\s*;/i);
+    expect(merchantUsersBody).toMatch(/alter\s+table\s+taply\.merchant_users\s+force\s+row\s+level\s+security\s*;/i);
+  });
+
+  it('merchant_users : policy exacte auth_user_lookup, aucune policy select_tenant générale', () => {
+    expect(merchantUsersBody).toMatch(/create\s+policy\s+auth_user_lookup\s+on\s+taply\.merchant_users/i);
+    expect(merchantUsersBody).toMatch(/auth_user_id\s*=\s*nullif\(current_setting\('app\.auth_user_id',\s*true\),\s*''\)::uuid/i);
+    expect(merchantUsersBody).not.toMatch(/create\s+policy\s+select_tenant\s+on\s+taply\.merchant_users/i);
+  });
+
+  it('merchant_users : aucun grant d’écriture à taply_app (SELECT uniquement)', () => {
+    expect(merchantUsersBody).toMatch(/grant\s+select\s+on\s+taply\.merchant_users\s+to\s+taply_app\s*;/i);
+    expect(merchantUsersBody).not.toMatch(/grant\s+[^;]*\b(insert|update|delete)\b[^;]*on\s+taply\.merchant_users/i);
+  });
+
+  it('merchant_sessions existe, RLS enabled + forced', () => {
+    expect(merchantSessionsFile).toBeDefined();
+    expect(merchantSessionsBody).toMatch(/alter\s+table\s+taply\.merchant_sessions\s+enable\s+row\s+level\s+security\s*;/i);
+    expect(merchantSessionsBody).toMatch(/alter\s+table\s+taply\.merchant_sessions\s+force\s+row\s+level\s+security\s*;/i);
+  });
+
+  it('merchant_sessions : policy exacte session_token_lookup (token exact + non révoqué + non expiré idle/absolu)', () => {
+    expect(merchantSessionsBody).toMatch(/create\s+policy\s+session_token_lookup\s+on\s+taply\.merchant_sessions/i);
+    expect(merchantSessionsBody).toMatch(/token_hash\s*=\s*nullif\(current_setting\('app\.session_token_hash',\s*true\),\s*''\)/i);
+    expect(merchantSessionsBody).toMatch(/revoked_at\s+is\s+null/i);
+    expect(merchantSessionsBody).toMatch(/idle_expires_at\s*>\s*now\(\)/i);
+    expect(merchantSessionsBody).toMatch(/absolute_expires_at\s*>\s*now\(\)/i);
+  });
+
+  it('merchant_sessions : aucun grant DELETE, aucun grant UPDATE table entière', () => {
+    expect(merchantSessionsBody).not.toMatch(/grant\s+[^;]*\bdelete\b[^;]*on\s+taply\.merchant_sessions/i);
+    // UPDATE doit toujours être colonne par colonne — jamais "grant ... update on taply.merchant_sessions" sans parenthèse.
+    expect(merchantSessionsBody).not.toMatch(/grant\s+[^(;]*\bupdate\b\s+on\s+taply\.merchant_sessions/i);
+  });
+
+  it('merchant_sessions : UPDATE limité exactement à last_seen_at, idle_expires_at, reauthenticated_at, revoked_at, updated_at', () => {
+    expect(merchantSessionsBody).toMatch(
+      /grant\s+update\s*\(\s*last_seen_at\s*,\s*idle_expires_at\s*,\s*reauthenticated_at\s*,\s*revoked_at\s*,\s*updated_at\s*\)\s+on\s+taply\.merchant_sessions\s+to\s+taply_app\s*;/i,
+    );
+  });
+
+  it('merchant_sessions : aucune colonne de jeton brut — seule token_hash existe, et elle est UNIQUE', () => {
+    const createTableMatch = merchantSessionsBody.match(/create\s+table\s+taply\.merchant_sessions\s*\(([\s\S]*?)\);/i);
+    expect(createTableMatch).not.toBeNull();
+    const columns = createTableMatch?.[1] ?? '';
+    expect(columns).toMatch(/\btoken_hash\s+text\s+not\s+null\b/i);
+    // Jamais une colonne nommée "token" ou "raw_token" (mot entier, pas une sous-chaîne de token_hash).
+    expect(columns).not.toMatch(/\btoken\s+text\b/i);
+    expect(columns).not.toMatch(/\braw_token\b/i);
+    expect(merchantSessionsBody).toMatch(/constraint\s+merchant_sessions_token_hash_key\s+unique\s*\(\s*token_hash\s*\)/i);
+    expect(merchantSessionsBody).toMatch(/token_hash\s*~\s*'\^\[0-9a-f\]\{64\}\$'/i);
+  });
+
+  it('merchant_sessions : FK composite tenant/identité vers merchant_users(id, merchant_id, auth_user_id)', () => {
+    expect(merchantSessionsBody).toMatch(
+      /foreign\s+key\s*\(\s*merchant_user_id\s*,\s*merchant_id\s*,\s*auth_user_id\s*\)\s*\n?\s*references\s+taply\.merchant_users\s*\(\s*id\s*,\s*merchant_id\s*,\s*auth_user_id\s*\)/i,
+    );
+  });
+
+  it('merchant_users/merchant_sessions : ownership transféré à taply_owner (couvert aussi par l’invariant générique)', () => {
+    expect(merchantUsersBody).toMatch(/alter\s+table\s+taply\.merchant_users\s+owner\s+to\s+taply_owner\s*;/i);
+    expect(merchantSessionsBody).toMatch(/alter\s+table\s+taply\.merchant_sessions\s+owner\s+to\s+taply_owner\s*;/i);
+  });
+
+  // Correction pré-staging : auth_user_id -> auth.users(id) doit être
+  // RESTRICT, jamais CASCADE. Avec CASCADE, delete auth.users échouerait
+  // quand même dès qu'une session active existe (merchant_sessions garde
+  // sa propre FK composite en RESTRICT vers merchant_users) — mais avec
+  // une erreur moins claire, plus tard dans la chaîne de cascade. RESTRICT
+  // ici rend explicite que la suppression d'une identité est un cycle de
+  // vie applicatif contrôlé (révoquer sessions -> supprimer mapping ->
+  // supprimer identité Supabase Auth), jamais un side-effect implicite de
+  // la base.
+  it('merchant_users : auth_user_id -> auth.users(id) est ON DELETE RESTRICT, jamais CASCADE', () => {
+    expect(merchantUsersBody).toMatch(/auth_user_id\s+uuid\s+not\s+null\s+references\s+auth\.users\s*\(\s*id\s*\)\s+on\s+delete\s+restrict/i);
+    expect(merchantUsersBody).not.toMatch(/auth_user_id[\s\S]*?on\s+delete\s+cascade/i);
+  });
+
+  it('merchant_sessions : FK composite vers merchant_users reste ON DELETE RESTRICT', () => {
+    expect(merchantSessionsBody).toMatch(
+      /foreign\s+key\s*\(\s*merchant_user_id\s*,\s*merchant_id\s*,\s*auth_user_id\s*\)\s*\n?\s*references\s+taply\.merchant_users\s*\([^)]*\)\s*\n?\s*on\s+delete\s+restrict/i,
+    );
+  });
+
+  it('merchant_users + merchant_sessions : chaîne RESTRICT/RESTRICT cohérente — aucune des deux FK n’est CASCADE', () => {
+    // Régression : la combinaison CASCADE (auth.users -> merchant_users) +
+    // RESTRICT (merchant_users -> merchant_sessions) crée un conflit —
+    // delete auth.users échoue de toute façon dès qu'une session active
+    // existe, mais via une erreur de cascade confuse plutôt qu'un refus
+    // explicite et immédiat. Les deux FK doivent être RESTRICT.
+    expect(merchantUsersBody).not.toMatch(/references\s+auth\.users[\s\S]*?cascade/i);
+    expect(merchantSessionsBody).not.toMatch(/references\s+taply\.merchant_users[\s\S]*?cascade/i);
+  });
+});

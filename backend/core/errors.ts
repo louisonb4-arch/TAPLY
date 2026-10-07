@@ -7,10 +7,19 @@
  *
  * Phase 1 : uniquement les codes transverses. Les codes métier
  * (INVALID_QR, SCAN_TOO_SOON, …) seront ajoutés avec leurs modules.
+ *
+ * Phase 3A (Auth) : AUTH_REQUIRED/AUTH_INVALID/AUTH_FORBIDDEN/
+ * ORIGIN_REJECTED. Le message utilisateur de AUTH_INVALID reste
+ * volontairement générique — jamais de distinction externe entre compte
+ * inconnu, mot de passe incorrect, mapping merchant absent ou désactivé.
  */
 
 export const ERROR_CATALOG = {
   VALIDATION_FAILED: { status: 400, message: 'La requête est invalide.' },
+  AUTH_REQUIRED: { status: 401, message: 'Authentification requise.' },
+  AUTH_INVALID: { status: 401, message: 'Identifiants invalides.' },
+  AUTH_FORBIDDEN: { status: 403, message: "Vous n'avez pas les droits nécessaires." },
+  ORIGIN_REJECTED: { status: 403, message: 'Requête refusée.' },
   NOT_FOUND: { status: 404, message: 'Ressource introuvable.' },
   METHOD_NOT_ALLOWED: { status: 405, message: 'Méthode non autorisée.' },
   PAYLOAD_TOO_LARGE: { status: 413, message: 'La requête est trop volumineuse.' },

@@ -11,6 +11,13 @@ describe('loadConfig', () => {
       api: { bodyLimitBytes: 65_536 },
       urls: { publicBase: undefined, merchantAppBase: undefined, joinBase: undefined, walletWebService: undefined },
       db: { appUrl: undefined, caCert: undefined, connectionTimeoutMs: 5_000 },
+      auth: {
+        supabaseUrl: undefined,
+        supabasePublishableKey: undefined,
+        appOrigin: undefined,
+        sessionIdleSeconds: 7_200,
+        sessionAbsoluteSeconds: 43_200,
+      },
     });
   });
 
@@ -159,5 +166,44 @@ describe('loadConfig', () => {
 
   it('ignore les variables inconnues', () => {
     expect(() => loadConfig({ SOMETHING_ELSE: 'x', PATH: '/usr/bin' })).not.toThrow();
+  });
+
+  // Correction pré-staging : seul le nouveau format sb_publishable_... est
+  // accepté. Un JWT legacy (anon ou service_role) encode son rôle dans le
+  // payload base64 — un test includes('service_role') sur la chaîne brute
+  // ne le détecterait pas fiablement. Préfixe strict uniquement, aucune
+  // vraie clé dans ces valeurs (formes factices seulement).
+  describe('SUPABASE_PUBLISHABLE_KEY : nouveau format sb_publishable_ uniquement', () => {
+    it('accepte sb_publishable_...', () => {
+      const config = loadConfig({ SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_fake_shape_only_0000000000' });
+      expect(config.auth.supabasePublishableKey).toBe('sb_publishable_fake_shape_only_0000000000');
+    });
+
+    it('refuse sb_secret_...', () => {
+      expect(() => loadConfig({ SUPABASE_PUBLISHABLE_KEY: 'sb_secret_fake_shape_only_0000000000' })).toThrow(ConfigError);
+    });
+
+    it('refuse une forme de JWT legacy anon (eyJ...)', () => {
+      // Forme factice imitant la structure d'un JWT (3 segments pointés) —
+      // jamais une vraie clé, jamais décodé, juste la forme eyJ... rejetée
+      // par le préfixe strict.
+      expect(() =>
+        loadConfig({ SUPABASE_PUBLISHABLE_KEY: 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.fake-signature-shape' }),
+      ).toThrow(ConfigError);
+    });
+
+    it('refuse une forme de JWT legacy service_role (eyJ...)', () => {
+      expect(() =>
+        loadConfig({ SUPABASE_PUBLISHABLE_KEY: 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.fake-signature-shape' }),
+      ).toThrow(ConfigError);
+    });
+
+    it('refuse une valeur arbitraire', () => {
+      expect(() => loadConfig({ SUPABASE_PUBLISHABLE_KEY: 'not-a-supabase-key-at-all' })).toThrow(ConfigError);
+    });
+
+    it('refuse une chaîne vide', () => {
+      expect(() => loadConfig({ SUPABASE_PUBLISHABLE_KEY: '' })).toThrow(ConfigError);
+    });
   });
 });

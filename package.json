@@ -24,6 +24,7 @@
     "db:reliability": "node --import ./scripts/dev-ts-hooks.mjs scripts/certification/db-runtime-reliability.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.117.3",
     "hono": "4.13.13",
     "pg": "8.23.1",
     "zod": "4.6.5"
