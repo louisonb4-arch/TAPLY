@@ -1,6 +1,6 @@
 # Merchant Auth V1 — Phase 3A / 3B
 
-No secret in this document. Status: **Auth DB foundation (`merchant_users`/`merchant_sessions`, migrations 11/12) is live and certified on staging (Phase 3B1 PASS).** Phase 3B2's real end-to-end staging certification found two real-staging bugs exercising the real application code against real Postgres: **finding A is fixed in local application code** (`createLoginSession`, verified against real staging); **finding B has a fix prepared locally (migration 13 + `revokeSession` GUC separation), pending its own live staging certification** — not yet applied to staging, not yet proven live.
+No secret in this document. Status: **MERCHANT AUTH V1 STAGING CERTIFICATION = PASS.** The Auth DB foundation (`merchant_users`/`merchant_sessions`, migrations 11/12) is live and certified on staging; Phase 3B2 found two real-staging RLS bugs in the real application flow, and both are now fixed and proven end-to-end against real staging PostgreSQL. Migration 13 (`session_revocation_policy`) is applied and certified. Production remains untouched.
 
 ## Four separate layers — never conflated
 
@@ -81,7 +81,7 @@ V1, deliberately flat: `owner` ⊇ `staff` (owner satisfies every staff-level ch
 
 `POST /api/auth/logout` — Origin-protected, sets `revoked_at = now()` on the exact session (idempotent: 0 rows matched is not an error), **always** clears the cookie and returns success regardless of whether a session existed. Never leaks session existence through a different response shape.
 
-### Real-staging finding B — logout vs PostgreSQL RLS, and the prepared fix (pending staging certification)
+### Real-staging finding B — logout vs PostgreSQL RLS, fixed and certified on staging
 
 Phase 3B2's real end-to-end staging certification found that `UPDATE taply.merchant_sessions SET revoked_at = now() WHERE token_hash = $1` — the exact logout statement, using no `RETURNING` clause — was **rejected by PostgreSQL** with `new row violates row-level security policy for table "merchant_sessions"`, reproduced three times in isolation against real staging Postgres.
 
@@ -123,7 +123,7 @@ Both found by running the real `backend/auth/*`/`backend/http/routes/auth.ts` co
 
 **A — `INSERT … RETURNING id` vs RLS (fixed, application code only).** `createLoginSession` set `app.auth_user_id`/`app.merchant_id` before the insert but generated the session token — and so computed `token_hash` — only *inside* the same function, after those `set_config` calls, never pushing it into `app.session_token_hash` before the `INSERT … RETURNING id`. Under `FORCE ROW LEVEL SECURITY`, `RETURNING`'s output is filtered by the table's `SELECT` policy (`session_token_lookup`, which requires that exact GUC) — so every real login failed with `new row violates row-level security policy`. Fixed by computing the token/hash first and setting `app.session_token_hash` before the insert, in `backend/auth/session.ts`. No schema change needed — this was a pure call-ordering bug.
 
-**B — logout vs RLS (fix prepared locally, pending staging certification — see the Logout section above).** Structurally different from A: no GUC-ordering fix exists, because the SELECT policy's condition (`revoked_at IS NULL`) is *necessarily* falsified by the very write revocation performs. Requires a genuinely separate RLS capability (`session_revoke_lookup` + `revoke_own_session`, migration `20261007120013_session_revocation_policy.sql`) scoped to its own GUC (`app.session_revoke_token_hash`), never reused for authentication. Designed and unit/static-tested locally; **not yet applied to staging, not yet proven against real Postgres RLS** — that live proof is the explicit scope of the next certification pass.
+**B — logout vs RLS (fixed and certified on staging — see the Logout section above).** Structurally different from A: no GUC-ordering fix exists, because the SELECT policy's condition (`revoked_at IS NULL`) is *necessarily* falsified by the very write revocation performs. The fix is a separate RLS capability (`session_revoke_lookup` + `revoke_own_session`, migration `20261007120013_session_revocation_policy.sql`) scoped to its own GUC (`app.session_revoke_token_hash`), never reused for authentication. Migration 13 is now applied on staging and was proven against real PostgreSQL for active, idle-expired, absolute-expired, wrong-token, idempotent, exact-row-isolation, COMMIT-leak and ROLLBACK-leak scenarios. Final end-to-end Auth recertification also proved logout A returns 200, revokes only A, A `/auth/me` becomes 401, and B remains authenticated.
 
 ## Read-only Supabase Auth configuration — UNKNOWN
 
