@@ -36,12 +36,38 @@
 -- jamais dans l'historique du SQL Editor.
 --
 -- On ne touche à aucun attribut des rôles internes Supabase : `postgres`
--- ne fait que recevoir une appartenance explicite à un rôle qu'on vient
--- de créer, avec SET TRUE (nécessaire pour CREATE SCHEMA ... AUTHORIZATION
--- et ALTER TABLE ... OWNER TO dans les migrations suivantes) et INHERIT
--- FALSE (postgres n'hérite jamais ambiante des privilèges de taply_owner
--- en dehors de ces opérations de propriété — pas de SET ROLE explicite
--- nécessaire, PostgreSQL vérifie l'option SET de l'appartenance lui-même).
+-- est notre rôle administratif/migration (CREATEROLE, pas SUPERUSER) ;
+-- `taply_owner` est NOLOGIN et propriétaire de tous les objets métier.
+--
+-- `postgres` reçoit une appartenance explicite à `taply_owner` :
+--   - SET TRUE     : nécessaire pour CREATE SCHEMA ... AUTHORIZATION et
+--                    ALTER TABLE ... OWNER TO dans cette migration et les
+--                    suivantes — aucun SET ROLE explicite n'est écrit
+--                    nulle part, PostgreSQL vérifie l'option SET lui-même.
+--   - INHERIT TRUE : pour que postgres continue, SANS SET ROLE explicite,
+--                    à pouvoir CREATE des tables dans le schéma taply
+--                    (propriété de taply_owner), référencer/modifier des
+--                    objets déjà possédés par taply_owner (FK, index) et
+--                    poursuivre les migrations suivantes sur ces mêmes
+--                    objets. Sans INHERIT TRUE, la seule capacité SET
+--                    n'accorde pas automatiquement les privilèges objets
+--                    de taply_owner à la session postgres — risque direct
+--                    de 42501 dans toute migration ultérieure qui touche
+--                    un objet déjà transféré à taply_owner.
+--
+-- PostgreSQL accorde EN PLUS, automatiquement, à tout rôle CREATEROLE
+-- non-superuser qui crée un nouveau rôle (ici `postgres` créant
+-- `taply_owner`), une appartenance ADMIN TRUE sur ce rôle nouvellement
+-- créé — documenté, pas une fuite. Notre GRANT explicite ci-dessous ne
+-- mentionne pas ADMIN : il ne fait que préciser SET et INHERIT, sans
+-- toucher à l'ADMIN déjà accordé automatiquement. On n'affirme donc
+-- JAMAIS que `postgres` a ADMIN FALSE sur `taply_owner` — l'inverse est
+-- vrai et documenté ici explicitement.
+--
+-- Ceci N'EST PAS une frontière de sécurité runtime : `postgres` est le
+-- rôle de migration, pas le rôle applicatif. La frontière qui compte est
+-- ailleurs, et reste intacte : `taply_app` ne reçoit AUCUNE appartenance
+-- à `taply_owner`, ni à aucun autre rôle privilégié — voir plus bas.
 
 do $$
 declare
@@ -81,10 +107,8 @@ begin
 end
 $$;
 
--- Appartenance explicite, pas d'héritage ambiant : postgres peut SET ROLE
--- taply_owner implicitement (via l'option SET) le temps des opérations de
--- propriété (CREATE SCHEMA ... AUTHORIZATION, ALTER TABLE ... OWNER TO),
--- jamais au-delà. taply_app ne reçoit cette appartenance ni aucune autre.
-grant taply_owner to postgres with set true, inherit false;
+-- taply_app ne reçoit cette appartenance ni aucune autre appartenance
+-- privilégiée — c'est la frontière de sécurité runtime qui compte.
+grant taply_owner to postgres with set true, inherit true;
 
 create schema if not exists taply authorization taply_owner;

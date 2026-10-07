@@ -64,10 +64,21 @@ describe('supabase/migrations : invariants statiques d’ownership', () => {
     }
   });
 
-  it('exactement un GRANT taply_owner TO postgres (WITH SET TRUE, INHERIT FALSE), dans tout le dossier', () => {
+  it('exactement un GRANT taply_owner TO postgres (WITH SET TRUE, INHERIT TRUE), dans tout le dossier', () => {
+    // INHERIT TRUE : postgres doit pouvoir continuer, sans SET ROLE
+    // explicite, à CREATE/modifier des objets déjà possédés par
+    // taply_owner dans les migrations suivantes (voir le commentaire de
+    // 0001 pour le scénario exact que ceci prévient).
     const all = [...bodies.values()].join('\n');
-    const matches = all.match(/grant\s+taply_owner\s+to\s+postgres\s+with\s+set\s+true\s*,\s*inherit\s+false\s*;/gi) ?? [];
+    const matches = all.match(/grant\s+taply_owner\s+to\s+postgres\s+with\s+set\s+true\s*,\s*inherit\s+true\s*;/gi) ?? [];
     expect(matches).toHaveLength(1);
+    // Jamais la variante INHERIT FALSE qu'on vient de corriger.
+    expect(all).not.toMatch(/grant\s+taply_owner\s+to\s+postgres\s+with\s+set\s+true\s*,\s*inherit\s+false\s*;/i);
+  });
+
+  it('le GRANT taply_owner → postgres ne mentionne jamais ADMIN explicitement (ADMIN TRUE est déjà accordé automatiquement par PostgreSQL à la création du rôle — pas réaffirmé ici, jamais prétendu FALSE)', () => {
+    const all = [...bodies.values()].join('\n');
+    expect(all).not.toMatch(/grant\s+taply_owner\s+to\s+postgres[^;]*\badmin\b/i);
   });
 
   it('aucun rôle interne Supabase/Postgres accordé en appartenance à taply_app', () => {
