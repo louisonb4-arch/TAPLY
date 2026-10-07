@@ -94,35 +94,33 @@ async function capture(browser: Browser, baseUrl: string, path: string, viewport
 }
 
 /**
- * Tolérance par canal (0–255). Mesure : le rendu Chromium headless varie de
- * ±2 niveaux sur quelques dizaines de pixels d'anticrénelage (zones à
- * backdrop-filter), y compris en comparant une version avec elle-même.
- * 8 niveaux (~3 %) absorbe ce bruit ; toute vraie modification visuelle
- * dépasse largement ce seuil.
+ * Comparaison STRICTE : tolérance 0, chaque canal RGBA de chaque pixel doit
+ * être identique.
+ *
+ * Mesure (config Chromium de playwright.config.ts, rastérisation déterministe) :
+ * référence comparée à elle-même, 19 pages × 2 viewports × 3 répétitions =
+ * 114/114 identiques au pixel près. Aucune marge n'est donc justifiée.
+ * Si un jour du bruit réapparaît (autre version de Chromium, autre machine),
+ * corriger la cause du non-déterminisme plutôt que d'ajouter une tolérance.
  */
-const CHANNEL_TOLERANCE = 8;
-
 interface DiffResult {
   readonly sameSize: boolean;
-  /** Pixels dont au moins un canal dépasse la tolérance. */
+  /** Pixels dont au moins un canal diffère. */
   readonly diff: number;
-  /** Pixels non identiques à l'octet (bruit compris), pour information. */
-  readonly rawDiff: number;
   readonly maxChannelDelta: number;
   readonly total: number;
   readonly sizes: string;
 }
 
-/** Comparaison RGBA exacte, décodage PNG côté Node. */
+/** Comparaison RGBA exacte, décodage PNG côté Node (diagnostic en cas d'échec). */
 function diffPixels(a: Buffer, b: Buffer): DiffResult {
   const imgA = PNG.sync.read(a);
   const imgB = PNG.sync.read(b);
   const sizes = `${imgA.width}x${imgA.height} vs ${imgB.width}x${imgB.height}`;
   if (imgA.width !== imgB.width || imgA.height !== imgB.height) {
-    return { sameSize: false, diff: -1, rawDiff: -1, maxChannelDelta: -1, total: 0, sizes };
+    return { sameSize: false, diff: -1, maxChannelDelta: -1, total: 0, sizes };
   }
   let diff = 0;
-  let rawDiff = 0;
   let maxChannelDelta = 0;
   for (let i = 0; i < imgA.data.length; i += 4) {
     let pixelMax = 0;
@@ -130,11 +128,10 @@ function diffPixels(a: Buffer, b: Buffer): DiffResult {
       const delta = Math.abs((imgA.data[i + c] ?? 0) - (imgB.data[i + c] ?? 0));
       if (delta > pixelMax) pixelMax = delta;
     }
-    if (pixelMax > 0) rawDiff += 1;
-    if (pixelMax > CHANNEL_TOLERANCE) diff += 1;
+    if (pixelMax > 0) diff += 1;
     if (pixelMax > maxChannelDelta) maxChannelDelta = pixelMax;
   }
-  return { sameSize: true, diff, rawDiff, maxChannelDelta, total: imgA.width * imgA.height, sizes };
+  return { sameSize: true, diff, maxChannelDelta, total: imgA.width * imgA.height, sizes };
 }
 
 test.describe('site statique : avant / après identiques', () => {
@@ -151,7 +148,7 @@ test.describe('site statique : avant / après identiques', () => {
       expect(after.failedRequests, 'ressources same-origin en échec').toEqual([]);
 
       const identicalBytes = before.png.equals(after.png);
-      let result: DiffResult = { sameSize: true, diff: 0, rawDiff: 0, maxChannelDelta: 0, total: 0, sizes: 'identiques (octets)' };
+      let result: DiffResult = { sameSize: true, diff: 0, maxChannelDelta: 0, total: 0, sizes: 'identiques (octets)' };
       if (!identicalBytes) result = diffPixels(before.png, after.png);
 
       const dir = join(testInfo.outputDir, 'captures');
@@ -164,7 +161,7 @@ test.describe('site statique : avant / après identiques', () => {
       });
 
       expect(result.sameSize, `tailles : ${result.sizes}`).toBe(true);
-      expect(result.diff, `pixels différents au-delà de ±${CHANNEL_TOLERANCE} (${result.sizes}, bruit brut ${result.rawDiff}, delta max ${result.maxChannelDelta})`).toBe(0);
+      expect(result.diff, `pixels différents (${result.sizes}, delta max ${result.maxChannelDelta})`).toBe(0);
     });
   }
 });

@@ -5,7 +5,8 @@
  *   BEFORE_URL (référence, ex. production ou commit d'origine)
  *   AFTER_URL  (version à valider)
  * Exemple :
- *   BEFORE_URL=https://taply-theta.vercel.app AFTER_URL=http://localhost:4411 npm run test:visual
+ *   BEFORE_URL=http://127.0.0.1:4410 AFTER_URL=http://127.0.0.1:4411 npm run test:visual
+ * Tolérance 0 (voir static-site.spec.ts).
  */
 
 import { defineConfig } from '@playwright/test';

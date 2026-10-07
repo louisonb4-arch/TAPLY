@@ -57,9 +57,30 @@ Commandes :
 
 ```bash
 npm install
-npm run typecheck      # tsc strict (backend + tests visuels)
-npm test               # unitaires + intégration
-BEFORE_URL=https://taply-theta.vercel.app AFTER_URL=http://localhost:4411 npm run test:visual
+npm run typecheck      # tsc strict (backend, scripts, tests visuels)
+npm test               # unitaires + intégration (vitest)
 ```
 
-Limite connue : `vercel dev` n'émule pas la Function quand un `buildCommand`/`outputDirectory` est défini (le site s'affiche, `/api/*` répond 404 en local). L'API se teste via `npm test` (point d'entrée réel `api/index.ts`) et sur un déploiement Preview (`vercel curl`).
+### Développement local
+
+| Commande | Ce qui tourne | URL |
+|---|---|---|
+| `npm run dev:api` | API seule : la vraie app Hono via `api/index.ts` | http://127.0.0.1:3000/api/health |
+| `npm run dev` | build `dist/` puis site + API sur la même origine, même routage que `vercel.json` (statique → `/api/*` → 404 `404.html`) | http://127.0.0.1:3000/ |
+| `npm run build:static` | reconstruit `dist/` (repart toujours d'un dossier vide) | — |
+
+- `PORT=4000 npm run dev:api` pour changer de port. Écoute uniquement sur `127.0.0.1`.
+- Rechargement automatique de l'API (`node --watch`). En mode `dev`, une modification du site demande de relancer (le site est servi depuis `dist/`).
+- Aucune compilation : Node 24 exécute le TypeScript directement (suppression native des types, `erasableSyntaxOnly` dans `tsconfig.json`) ; `scripts/dev-ts-hooks.mjs` résout les imports `./x.js` vers `./x.ts`.
+- Seule dépendance ajoutée : `@hono/node-server` (adaptateur Node officiel de Hono, devDependency, aucune dépendance propre). Jamais utilisé par Vercel.
+- `vercel dev` n'est pas utilisé : il n'émule pas la Function quand `buildCommand`/`outputDirectory` sont définis.
+
+### Non-régression visuelle
+
+Compare deux versions servies en direct, **au pixel près (tolérance 0)** :
+
+```bash
+SITE_DIR=/chemin/vers/version-de-reference PORT=4410 node --import ./scripts/dev-ts-hooks.mjs scripts/dev-server.ts
+PORT=4411 npm run dev
+BEFORE_URL=http://127.0.0.1:4410 AFTER_URL=http://127.0.0.1:4411 npm run test:visual
+```

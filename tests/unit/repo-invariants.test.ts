@@ -4,7 +4,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -134,6 +134,28 @@ describe('build statique (dist/)', () => {
         PRIVATE_ROOT_DIRS.some((dir) => file.startsWith(`${dir}/`)),
     );
     expect(leaked).toEqual([]);
+  });
+
+  it('repart toujours d’un dist/ vide : aucun fichier obsolète ne survit', () => {
+    const staleOut = mkdtempSync(join(tmpdir(), 'taply-dist-stale-'));
+    try {
+      buildStatic({ root: ROOT, out: staleOut, log: () => {} });
+      // Fichiers parasites : à la racine, dans un dossier public, dans un dossier inconnu.
+      const parasites = ['stale-asset.css', 'css/supprime-du-site.css', 'ancien-dossier/page.html'];
+      for (const file of parasites) {
+        mkdirSync(join(staleOut, file, '..'), { recursive: true });
+        writeFileSync(join(staleOut, file), 'stale');
+        expect(existsSync(join(staleOut, file)), file).toBe(true);
+      }
+      const rebuilt = buildStatic({ root: ROOT, out: staleOut, log: () => {} });
+      for (const file of parasites) {
+        expect(existsSync(join(staleOut, file)), file).toBe(false);
+      }
+      expect(existsSync(join(staleOut, 'ancien-dossier'))).toBe(false);
+      expect(listFiles(staleOut).length).toBe(rebuilt.length);
+    } finally {
+      rmSync(staleOut, { recursive: true, force: true });
+    }
   });
 
   it('contient les pages principales et la page 404', () => {

@@ -10,6 +10,9 @@
  * sont copiés, à l'octet près. Tout nouveau fichier public doit être ajouté
  * ici (le test `repo-invariants` échoue sinon).
  *
+ * Reproductible : `dist/` est supprimé puis recréé à chaque build, aucun
+ * fichier d’une sortie précédente ne peut survivre (testé).
+ *
  * Aucune transformation : copie binaire, mêmes chemins, mêmes URL.
  * Les Vercel Functions (api/) sont construites séparément par Vercel.
  */
