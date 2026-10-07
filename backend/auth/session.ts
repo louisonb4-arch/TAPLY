@@ -171,17 +171,32 @@ export interface CreatedSession {
 
 /**
  * Crée une nouvelle session Taply pour une identité déjà résolue et
- * active (jamais appelé avec des valeurs venant du client). Pose
- * app.auth_user_id ET app.merchant_id avant l'INSERT — exigés tous les
- * deux par la policy `insert_own_session`.
+ * active (jamais appelé avec des valeurs venant du client). Pose les
+ * trois GUC avant l'INSERT : app.auth_user_id et app.merchant_id,
+ * exigés par le WITH CHECK de `insert_own_session`, ET
+ * app.session_token_hash, exigé pour que `RETURNING id` reste visible
+ * sous FORCE RLS (la policy SELECT `session_token_lookup` filtre aussi
+ * la sortie de RETURNING, pas seulement le WITH CHECK de la policy
+ * INSERT).
  */
 export async function createLoginSession(pool: Pool, params: CreateLoginSessionParams): Promise<CreatedSession> {
   return withTx(pool, async (client) => {
-    await client.query('select set_config($1, $2, true)', ['app.auth_user_id', params.authUserId]);
-    await client.query('select set_config($1, $2, true)', ['app.merchant_id', params.merchantId]);
-
     const rawToken = generateSessionToken();
     const tokenHash = hashSessionToken(rawToken);
+
+    // Les trois GUC doivent être posés AVANT l'INSERT : sous FORCE RLS,
+    // `RETURNING` est filtré par la policy SELECT (session_token_lookup),
+    // pas seulement par le WITH CHECK de la policy INSERT. Sans
+    // app.session_token_hash posé ici, la ligne qu'on vient d'insérer est
+    // invisible à son propre RETURNING — Postgres lève alors « new row
+    // violates row-level security policy », même si le WITH CHECK de
+    // insert_own_session est satisfait. Découvert en staging réel (Phase
+    // 3B2) : les tests unitaires/integration mockent la DB et ne
+    // déclenchent jamais de vraie RLS, donc ce chemin n'était jamais
+    // exercé avant une vraie connexion Postgres.
+    await client.query('select set_config($1, $2, true)', ['app.auth_user_id', params.authUserId]);
+    await client.query('select set_config($1, $2, true)', ['app.merchant_id', params.merchantId]);
+    await client.query('select set_config($1, $2, true)', ['app.session_token_hash', tokenHash]);
 
     const result = await client.query<{ id: string }>(
       `insert into taply.merchant_sessions
@@ -203,12 +218,26 @@ export async function createLoginSession(pool: Pool, params: CreateLoginSessionP
  * existé), l'UPDATE ne touche aucune ligne et on ne lève rien. L'appelant
  * HTTP ne doit jamais traduire "0 ligne affectée" en une réponse
  * différente de "déjà déconnecté" — pas de fuite d'existence de session.
+ *
+ * Utilise app.session_revoke_token_hash — JAMAIS app.session_token_hash
+ * (celui de l'authentification normale). Preuve en staging réel (Phase
+ * 3B2) : sous FORCE RLS, l'UPDATE qui pose revoked_at exige que la ligne
+ * reste visible après coup — mais la policy d'authentification normale
+ * (`session_token_lookup`) exige justement `revoked_at IS NULL`, ce que
+ * cette écriture rend faux par construction. Aucun réordonnancement de
+ * GUC ne peut réconcilier ça : il faut une capacité RLS séparée, dédiée
+ * à la révocation seule (migration 20261007120013), qui n'accorde
+ * aucun pouvoir d'authentification — elle ne fait que permettre de
+ * retrouver exactement la ligne correspondant à un jeton donné pour y
+ * poser revoked_at. Le filtre applicatif explicite (`WHERE token_hash =
+ * $1 AND revoked_at IS NULL`) reste la barrière principale ; RLS reste
+ * une seconde couche indépendante, jamais le seul sélecteur de ligne.
  */
 export async function revokeSession(pool: Pool, rawSessionToken: string): Promise<void> {
   const tokenHash = hashSessionToken(rawSessionToken);
 
   await withTx(pool, async (client) => {
-    await client.query('select set_config($1, $2, true)', ['app.session_token_hash', tokenHash]);
+    await client.query('select set_config($1, $2, true)', ['app.session_revoke_token_hash', tokenHash]);
     await client.query(
       `update taply.merchant_sessions
        set revoked_at = now(), updated_at = now()

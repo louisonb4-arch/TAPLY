@@ -186,7 +186,9 @@ describe('supabase/migrations : Phase 3A — merchant_users / merchant_sessions'
   const merchantSessionsBody = merchantSessionsFile ? (bodies.get(merchantSessionsFile) ?? '') : '';
 
   it('les migrations certifiées 0001–0010 restent byte-identiques (non touchées par Phase 3A)', () => {
-    const certified = files.filter((f) => !f.endsWith('merchant_users.sql') && !f.endsWith('merchant_sessions.sql'));
+    const certified = files.filter(
+      (f) => !f.endsWith('merchant_users.sql') && !f.endsWith('merchant_sessions.sql') && !f.endsWith('session_revocation_policy.sql'),
+    );
     expect(certified).toHaveLength(10);
   });
 
@@ -284,5 +286,70 @@ describe('supabase/migrations : Phase 3A — merchant_users / merchant_sessions'
     // explicite et immédiat. Les deux FK doivent être RESTRICT.
     expect(merchantUsersBody).not.toMatch(/references\s+auth\.users[\s\S]*?cascade/i);
     expect(merchantSessionsBody).not.toMatch(/references\s+taply\.merchant_users[\s\S]*?cascade/i);
+  });
+});
+
+describe('supabase/migrations : Phase 3B2 — session_revocation_policy (migration 13)', () => {
+  const revocationFile = files.find((f) => f.endsWith('session_revocation_policy.sql'));
+  const revocationBody = revocationFile ? (bodies.get(revocationFile) ?? '') : '';
+  const sessionsFile = files.find((f) => f.endsWith('merchant_sessions.sql'));
+  const sessionsBody = sessionsFile ? (bodies.get(sessionsFile) ?? '') : '';
+
+  it('existe', () => {
+    expect(revocationFile).toBeDefined();
+  });
+
+  it('crée session_revoke_lookup (SELECT, TO taply_app, exact app.session_revoke_token_hash)', () => {
+    expect(revocationBody).toMatch(/create\s+policy\s+session_revoke_lookup\s+on\s+taply\.merchant_sessions\s+for\s+select\s+to\s+taply_app/i);
+    expect(revocationBody).toMatch(/token_hash\s*=\s*nullif\(current_setting\('app\.session_revoke_token_hash',\s*true\),\s*''\)/i);
+  });
+
+  it('session_revoke_lookup ne contient aucune condition large (pas de revoked_at IS NULL / expiry) — capacité de révocation seule, pas d’authentification', () => {
+    const match = revocationBody.match(/create\s+policy\s+session_revoke_lookup[\s\S]*?using\s*\(([\s\S]*?)\)\s*;/i);
+    expect(match).not.toBeNull();
+    const usingClause = match?.[1] ?? '';
+    expect(usingClause).not.toMatch(/revoked_at/i);
+    expect(usingClause).not.toMatch(/idle_expires_at/i);
+    expect(usingClause).not.toMatch(/absolute_expires_at/i);
+  });
+
+  it('crée revoke_own_session (UPDATE, TO taply_app, USING et WITH CHECK exacts sur app.session_revoke_token_hash)', () => {
+    expect(revocationBody).toMatch(/create\s+policy\s+revoke_own_session\s+on\s+taply\.merchant_sessions\s+for\s+update\s+to\s+taply_app/i);
+    const match = revocationBody.match(/create\s+policy\s+revoke_own_session[\s\S]*?;/i);
+    expect(match).not.toBeNull();
+    const policyBody = match?.[0] ?? '';
+    expect(policyBody).toMatch(/using\s*\(\s*token_hash\s*=\s*nullif\(current_setting\('app\.session_revoke_token_hash',\s*true\),\s*''\)\s*\)/i);
+    expect(policyBody).toMatch(/with\s+check\s*\(\s*token_hash\s*=\s*nullif\(current_setting\('app\.session_revoke_token_hash',\s*true\),\s*''\)\s*\)/i);
+  });
+
+  it('ne modifie ni session_token_lookup ni update_own_session (aucun CREATE/ALTER/DROP POLICY sur ces noms)', () => {
+    expect(revocationBody).not.toMatch(/\bsession_token_lookup\b/i);
+    expect(revocationBody).not.toMatch(/\bupdate_own_session\b/i);
+    expect(revocationBody).not.toMatch(/\bdrop\s+policy\b/i);
+    expect(revocationBody).not.toMatch(/\balter\s+policy\b/i);
+  });
+
+  it('session_token_lookup (migration 12) reste inchangée telle quelle', () => {
+    expect(sessionsBody).toMatch(/create\s+policy\s+session_token_lookup\s+on\s+taply\.merchant_sessions/i);
+    expect(sessionsBody).toMatch(/revoked_at\s+is\s+null/i);
+    expect(sessionsBody).toMatch(/idle_expires_at\s*>\s*now\(\)/i);
+    expect(sessionsBody).toMatch(/absolute_expires_at\s*>\s*now\(\)/i);
+  });
+
+  it('aucun nouveau GRANT (DELETE, UPDATE table entière, ALL) ni GRANT élargi', () => {
+    expect(revocationBody).not.toMatch(/\bgrant\b/i);
+  });
+
+  it('aucun SECURITY DEFINER, aucune élévation de rôle, aucun SET ROLE/RESET ROLE', () => {
+    expect(revocationBody).not.toMatch(/security\s+definer/i);
+    expect(revocationBody).not.toMatch(/\bgrant\b.*\bto\b/i);
+    expect(revocationBody).not.toMatch(/\bset\s+role\b/i);
+    expect(revocationBody).not.toMatch(/\breset\s+role\b/i);
+  });
+
+  it('ne crée/altère aucune table, aucune colonne, aucune contrainte', () => {
+    expect(revocationBody).not.toMatch(/create\s+table/i);
+    expect(revocationBody).not.toMatch(/alter\s+table\s+taply\.merchant_sessions\s+(add|drop)\s+column/i);
+    expect(revocationBody).not.toMatch(/add\s+constraint/i);
   });
 });

@@ -163,7 +163,7 @@ describe('resolveMerchantUserByAuthId', () => {
 });
 
 describe('createLoginSession', () => {
-  it('pose auth_user_id puis merchant_id avant INSERT ; le token stocké est l’empreinte, jamais le brut', async () => {
+  it('pose auth_user_id, merchant_id PUIS session_token_hash avant INSERT ; le token stocké est l’empreinte, jamais le brut', async () => {
     const calls: string[] = [];
     const client = fakeClient(calls, {});
     const pool = fakePool(client);
@@ -182,7 +182,15 @@ describe('createLoginSession', () => {
     expect(calls[0]).toBe('begin');
     expect(calls[1]).toContain('"app.auth_user_id"');
     expect(calls[2]).toContain('"app.merchant_id"');
-    const insertCall = calls[3] ?? '';
+    // Les trois GUC doivent être posés avant l'INSERT, y compris
+    // session_token_hash : sous FORCE RLS, `RETURNING id` est filtré par
+    // la policy SELECT session_token_lookup, pas seulement par le WITH
+    // CHECK de insert_own_session — sans ce troisième GUC, la ligne tout
+    // juste insérée est invisible à son propre RETURNING (reproduit en
+    // staging réel, Phase 3B2).
+    expect(calls[3]).toContain('"app.session_token_hash"');
+    expect(calls[3]).toContain(hashSessionToken(rawToken));
+    const insertCall = calls[4] ?? '';
     expect(insertCall).toContain('insert into taply.merchant_sessions');
     expect(insertCall).toContain(hashSessionToken(rawToken));
     expect(insertCall).not.toContain(rawToken);
@@ -190,15 +198,40 @@ describe('createLoginSession', () => {
 });
 
 describe('revokeSession', () => {
-  it('pose session_token_hash puis UPDATE revoked_at — idempotent par construction (0 ligne = pas d’erreur)', async () => {
+  it('pose app.session_revoke_token_hash (JAMAIS app.session_token_hash) puis UPDATE revoked_at — idempotent par construction (0 ligne = pas d’erreur)', async () => {
     const calls: string[] = [];
     const client = fakeClient(calls, {});
-    await revokeSession(fakePool(client), 'raw-token');
+    const rawToken = 'raw-token';
+    await revokeSession(fakePool(client), rawToken);
 
     expect(calls[0]).toBe('begin');
-    expect(calls[1]).toContain('"app.session_token_hash"');
+    // Preuve en staging réel (Phase 3B2) : app.session_token_hash est la
+    // GUC de l'authentification normale, exigée par session_token_lookup
+    // (revoked_at IS NULL) — la réutiliser ici ferait échouer l'UPDATE
+    // sous FORCE RLS puisque révoquer rend justement cette condition
+    // fausse. La révocation utilise une capacité RLS séparée
+    // (session_revoke_lookup / revoke_own_session, migration
+    // 20261007120013), jamais la policy d'authentification.
+    expect(calls[1]).toContain('"app.session_revoke_token_hash"');
+    expect(calls[1]).toContain(hashSessionToken(rawToken));
+    expect(calls.some((c) => c.includes('"app.session_token_hash"'))).toBe(false);
     expect(calls[2]).toContain('update taply.merchant_sessions');
+    // Le filtre applicatif explicite reste la barrière principale — RLS
+    // n'est jamais le seul sélecteur de ligne.
+    expect(calls[2]).toContain('where token_hash = $1');
     expect(calls[2]).toContain('revoked_at is null');
+    expect(calls[2]).not.toContain(rawToken);
+    expect(calls[2]).toContain(hashSessionToken(rawToken));
     expect(calls.at(-2)).toBe('commit');
+  });
+
+  it('jamais le jeton brut en base/GUC — uniquement son empreinte SHA-256', async () => {
+    const calls: string[] = [];
+    const client = fakeClient(calls, {});
+    const rawToken = 'un-autre-jeton-tres-secret';
+    await revokeSession(fakePool(client), rawToken);
+
+    const joined = calls.join(' | ');
+    expect(joined).not.toContain(rawToken);
   });
 });

@@ -1,6 +1,6 @@
-# Merchant Auth V1 — Phase 3A
+# Merchant Auth V1 — Phase 3A / 3B
 
-No secret in this document. Status: **local implementation, not yet pushed to staging, not yet reviewed/approved.**
+No secret in this document. Status: **Auth DB foundation (`merchant_users`/`merchant_sessions`, migrations 11/12) is live and certified on staging (Phase 3B1 PASS).** Phase 3B2's real end-to-end staging certification found two real-staging bugs exercising the real application code against real Postgres: **finding A is fixed in local application code** (`createLoginSession`, verified against real staging); **finding B has a fix prepared locally (migration 13 + `revokeSession` GUC separation), pending its own live staging certification** — not yet applied to staging, not yet proven live.
 
 ## Four separate layers — never conflated
 
@@ -81,6 +81,19 @@ V1, deliberately flat: `owner` ⊇ `staff` (owner satisfies every staff-level ch
 
 `POST /api/auth/logout` — Origin-protected, sets `revoked_at = now()` on the exact session (idempotent: 0 rows matched is not an error), **always** clears the cookie and returns success regardless of whether a session existed. Never leaks session existence through a different response shape.
 
+### Real-staging finding B — logout vs PostgreSQL RLS, and the prepared fix (pending staging certification)
+
+Phase 3B2's real end-to-end staging certification found that `UPDATE taply.merchant_sessions SET revoked_at = now() WHERE token_hash = $1` — the exact logout statement, using no `RETURNING` clause — was **rejected by PostgreSQL** with `new row violates row-level security policy for table "merchant_sessions"`, reproduced three times in isolation against real staging Postgres.
+
+**Root cause:** SELECT policies participate in UPDATE visibility and checks, not only in `SELECT` statements. Under `FORCE ROW LEVEL SECURITY`, PostgreSQL requires the row to remain visible under an applicable `SELECT` policy after the update — confirmed empirically: updating an unrelated column (`last_seen_at`) succeeded, updating `revoked_at` to `now()` failed, and setting `revoked_at` to `NULL` (a no-op that keeps the row matching) succeeded again. `session_token_lookup` (the normal-authentication SELECT policy) requires `revoked_at IS NULL` — but revocation's entire purpose is to make that condition false for the row being revoked. No GUC-ordering trick fixes this (unlike finding A below): the row that was selectable before the `UPDATE` is, by design, no longer selectable under the *same* policy afterward.
+
+**Fix (migration `20261007120013_session_revocation_policy.sql`):** a capability separation, not a weakening. Normal authentication and revocation now use two different transaction-local GUCs, never set together in the same code path:
+
+- **Normal auth** (unchanged): raw cookie → SHA-256 → `app.session_token_hash` → `session_token_lookup` (active-only: not revoked, not expired) → merchant/auth resolution.
+- **Revocation** (new): raw cookie → SHA-256 → `app.session_revoke_token_hash` → `session_revoke_lookup` (exact token match only — deliberately does **not** require `revoked_at IS NULL` or unexpired, since the whole point is to find and revoke a session regardless of its current state) → `revoke_own_session` (UPDATE, same exact-token `USING`/`WITH CHECK`) → `revoked_at = now()`.
+
+`session_revoke_lookup` grants no authentication power: it only lets the exact row matching a caller-supplied token hash be found for revocation, never lets that token authenticate a request (that remains exclusively `session_token_lookup`'s job, untouched by this migration). A revoked session stays invisible to normal authentication — the two GUCs are never set together, and `session_token_lookup`'s `revoked_at IS NULL` condition is unchanged. `revokeSession()` still keeps its explicit application-level `WHERE token_hash = $1 AND revoked_at IS NULL` — RLS remains a second, independent layer, never the sole row selector. No new grant was added (the existing column-scoped `UPDATE` grant already covers `revoked_at`/`updated_at`); no `DELETE` grant, no table-wide `UPDATE` grant, no `SECURITY DEFINER`, no role escalation.
+
 ## CSRF / Origin
 
 `backend/http/origin.ts` — exact `Origin` header match against configured `APP_ORIGIN`, for `POST`/`PUT`/`PATCH`/`DELETE` only. Mounted **per-route** on `/auth/login` and `/auth/logout` (not as a global app-wide middleware — an earlier draft mounted it globally and broke two unrelated, already-certified Phase 1 tests by rejecting their POST requests; scoping it to the actual cookie-authenticated routes was the correct fix, and matches the instruction's own framing: "cookie authentication requires explicit Origin protection," not "every mutation anywhere requires it today"). Fail-closed: missing `APP_ORIGIN` config, missing `Origin` header, or any mismatch (scheme/host/port) → rejected. Future authenticated mutating routes must explicitly add `originCheck` themselves — it is not inherited automatically.
@@ -103,6 +116,14 @@ Safe events only: `auth.login.success`, `auth.login.failed` (reason code only, n
 ## Auth-identity delete semantics — correction (pre-staging review)
 
 Migration 11's `merchant_users.auth_user_id → auth.users(id)` is `ON DELETE RESTRICT`, not `ON DELETE CASCADE` as originally drafted. The original CASCADE choice conflicted with migration 12: `merchant_sessions` references `merchant_users` with `ON DELETE RESTRICT`, so deleting `auth.users` while an active session exists would still fail — just later in the cascade chain, with a confusing constraint-violation error instead of an explicit, immediate one. Deleting an authentication identity is a controlled application lifecycle operation, not something an implicit database cascade should perform. A future account-deletion workflow must explicitly, in order: (1) revoke/remove the Taply sessions tied to the identity, (2) remove the `merchant_users` mapping, (3) delete the Supabase Auth identity. No trigger, no `SECURITY DEFINER`, no deletion workflow is built in this phase — only the constraint that prevents an implicit cascade from doing that work silently. See `tests/unit/db/migrations-static-invariants.test.ts` (`merchant_users : auth_user_id -> auth.users(id) est ON DELETE RESTRICT, jamais CASCADE`, `merchant_sessions : FK composite vers merchant_users reste ON DELETE RESTRICT`, and the explicit RESTRICT/RESTRICT regression test).
+
+## Real-staging findings (Phase 3B2 dynamic end-to-end certification)
+
+Both found by running the real `backend/auth/*`/`backend/http/routes/auth.ts` code — never a reimplementation — against real staging Postgres through real Supavisor with CA-verified TLS. Neither was caught by unit/integration tests beforehand, because those mock the database entirely and never exercise real RLS.
+
+**A — `INSERT … RETURNING id` vs RLS (fixed, application code only).** `createLoginSession` set `app.auth_user_id`/`app.merchant_id` before the insert but generated the session token — and so computed `token_hash` — only *inside* the same function, after those `set_config` calls, never pushing it into `app.session_token_hash` before the `INSERT … RETURNING id`. Under `FORCE ROW LEVEL SECURITY`, `RETURNING`'s output is filtered by the table's `SELECT` policy (`session_token_lookup`, which requires that exact GUC) — so every real login failed with `new row violates row-level security policy`. Fixed by computing the token/hash first and setting `app.session_token_hash` before the insert, in `backend/auth/session.ts`. No schema change needed — this was a pure call-ordering bug.
+
+**B — logout vs RLS (fix prepared locally, pending staging certification — see the Logout section above).** Structurally different from A: no GUC-ordering fix exists, because the SELECT policy's condition (`revoked_at IS NULL`) is *necessarily* falsified by the very write revocation performs. Requires a genuinely separate RLS capability (`session_revoke_lookup` + `revoke_own_session`, migration `20261007120013_session_revocation_policy.sql`) scoped to its own GUC (`app.session_revoke_token_hash`), never reused for authentication. Designed and unit/static-tested locally; **not yet applied to staging, not yet proven against real Postgres RLS** — that live proof is the explicit scope of the next certification pass.
 
 ## Read-only Supabase Auth configuration — UNKNOWN
 
