@@ -28,6 +28,46 @@ const optionalUrl = z
   .transform((value) => value.replace(/\/+$/, ''))
   .optional();
 
+/**
+ * Chaîne de connexion Postgres (Transaction Pooler, rôle taply_app).
+ * Jamais de contrôle sur le mot de passe ici : seul le schéma d'URL compte,
+ * la valeur elle-même n'apparaît jamais dans un message d'erreur (redact.ts
+ * masque aussi le mot de passe d'URL si jamais elle fuit vers un log).
+ *
+ * `sslmode`/`sslcert`/`sslkey`/`sslrootcert` sont interdits dans cette URL
+ * dès que l'environnement est staging/production (voir plus bas) : le TLS
+ * est configuré explicitement et exclusivement par `backend/db/pool.ts`
+ * (objet `ssl` avec `ca` + `rejectUnauthorized: true`), jamais par des
+ * paramètres d'URL qui pourraient diverger silencieusement de cet objet.
+ */
+const optionalPgUrl = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => /^postgres(ql)?:\/\//.test(value), 'doit commencer par postgres:// ou postgresql://')
+  .optional();
+
+/**
+ * Certificat CA PEM de Supabase, nécessaire pour vérifier le certificat
+ * serveur ET le hostname sans se reposer uniquement sur le magasin de
+ * confiance système (voir backend/db/pool.ts). Si stocké dans
+ * l'environnement avec des `\n` littéraux (fréquent : certaines interfaces
+ * de variables d'environnement n'acceptent pas les retours à la ligne
+ * réels), ils sont normalisés ici en vrais retours à la ligne.
+ */
+const optionalCaCert = z
+  .string()
+  .trim()
+  .min(1)
+  .transform((value) => value.replace(/\\n/g, '\n'))
+  .refine(
+    (value) => value.includes('-----BEGIN CERTIFICATE-----') && value.includes('-----END CERTIFICATE-----'),
+    'doit être un certificat PEM (-----BEGIN CERTIFICATE----- … -----END CERTIFICATE-----)',
+  )
+  .optional();
+
+const FORBIDDEN_URL_SSL_PARAMS = ['sslmode', 'sslcert', 'sslkey', 'sslrootcert'] as const;
+
 const rawSchema = z.object({
   APP_ENV: z.enum(APP_ENVS).optional(),
   VERCEL_ENV: z.string().optional(),
@@ -38,6 +78,8 @@ const rawSchema = z.object({
   MERCHANT_APP_BASE_URL: optionalUrl,
   JOIN_BASE_URL: optionalUrl,
   WALLET_WEB_SERVICE_URL: optionalUrl,
+  DATABASE_URL_APP: optionalPgUrl,
+  DATABASE_CA_CERT: optionalCaCert,
 });
 
 export interface AppConfig {
@@ -51,6 +93,12 @@ export interface AppConfig {
     readonly merchantAppBase: string | undefined;
     readonly joinBase: string | undefined;
     readonly walletWebService: string | undefined;
+  };
+  readonly db: {
+    /** Transaction Pooler, rôle taply_app. Absent : aucun module DB ne doit démarrer. */
+    readonly appUrl: string | undefined;
+    /** Certificat CA PEM Supabase, retours à la ligne réels (normalisés). */
+    readonly caCert: string | undefined;
   };
 }
 
@@ -99,6 +147,24 @@ export function loadConfig(env: EnvSource): AppConfig {
         issues.push(`${name}: HTTPS obligatoire en ${appEnv}`);
       }
     }
+    // TLS configuré exclusivement par l'objet `ssl` explicite de
+    // backend/db/pool.ts (ca + rejectUnauthorized: true) : aucun paramètre
+    // ssl* dans l'URL, pour qu'il n'existe qu'une seule source de vérité,
+    // jamais deux configurations qui pourraient diverger silencieusement.
+    if (raw.DATABASE_URL_APP !== undefined) {
+      const lowerUrl = raw.DATABASE_URL_APP.toLowerCase();
+      for (const param of FORBIDDEN_URL_SSL_PARAMS) {
+        if (lowerUrl.includes(`${param}=`)) {
+          issues.push(`DATABASE_URL_APP: paramètre ${param} interdit en ${appEnv} (TLS géré par backend/db/pool.ts, pas par l'URL)`);
+        }
+      }
+      // CA obligatoire seulement si la DB est effectivement configurée :
+      // un déploiement staging/production qui ne branche encore aucun
+      // module DB ne doit pas être bloqué par une variable sans objet.
+      if (raw.DATABASE_CA_CERT === undefined) {
+        issues.push(`DATABASE_CA_CERT: obligatoire en ${appEnv} dès que DATABASE_URL_APP est défini`);
+      }
+    }
   }
   if (issues.length > 0) throw new ConfigError(issues);
 
@@ -107,6 +173,7 @@ export function loadConfig(env: EnvSource): AppConfig {
     logLevel: raw.LOG_LEVEL ?? (appEnv === 'development' ? 'debug' : 'info'),
     api: { bodyLimitBytes: raw.API_BODY_LIMIT_BYTES ?? 64 * 1_024 },
     urls,
+    db: { appUrl: raw.DATABASE_URL_APP, caCert: raw.DATABASE_CA_CERT },
   };
 }
 

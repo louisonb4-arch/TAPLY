@@ -10,6 +10,7 @@ describe('loadConfig', () => {
       logLevel: 'debug',
       api: { bodyLimitBytes: 65_536 },
       urls: { publicBase: undefined, merchantAppBase: undefined, joinBase: undefined, walletWebService: undefined },
+      db: { appUrl: undefined, caCert: undefined },
     });
   });
 
@@ -47,6 +48,73 @@ describe('loadConfig', () => {
     expect(loadConfig({ APP_ENV: 'development', PUBLIC_BASE_URL: 'http://localhost:3000' }).urls.publicBase).toBe(
       'http://localhost:3000',
     );
+  });
+
+  it('DATABASE_URL_APP : doit ressembler à une chaîne postgres', () => {
+    expect(() => loadConfig({ DATABASE_URL_APP: 'mysql://user:pass@host/db' })).toThrow(ConfigError);
+    expect(loadConfig({ DATABASE_URL_APP: 'postgresql://user:pass@host:6543/postgres' }).db.appUrl).toBe(
+      'postgresql://user:pass@host:6543/postgres',
+    );
+  });
+
+  const FAKE_CA_CERT = '-----BEGIN CERTIFICATE-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END CERTIFICATE-----';
+
+  it.each(['sslmode', 'sslcert', 'sslkey', 'sslrootcert'])(
+    'DATABASE_URL_APP : refuse %s en staging/production — TLS géré par pool.ts, pas par l’URL',
+    (param) => {
+      expect(() =>
+        loadConfig({
+          APP_ENV: 'staging',
+          DATABASE_URL_APP: `postgresql://user:pass@host:6543/postgres?${param}=require`,
+          DATABASE_CA_CERT: FAKE_CA_CERT,
+        }),
+      ).toThrow(new RegExp(`DATABASE_URL_APP: paramètre ${param} interdit`));
+    },
+  );
+
+  it('DATABASE_CA_CERT obligatoire en staging/production dès que DATABASE_URL_APP est défini', () => {
+    expect(() =>
+      loadConfig({ APP_ENV: 'staging', DATABASE_URL_APP: 'postgresql://user:pass@host:6543/postgres' }),
+    ).toThrow(/DATABASE_CA_CERT: obligatoire/);
+
+    // Pas de DATABASE_URL_APP → pas de DB configurée → pas d'exigence de CA.
+    expect(() => loadConfig({ APP_ENV: 'staging' })).not.toThrow();
+  });
+
+  it('DATABASE_URL_APP + DATABASE_CA_CERT valides, sans paramètre ssl* : accepté en staging/production', () => {
+    const config = loadConfig({
+      APP_ENV: 'staging',
+      DATABASE_URL_APP: 'postgresql://user:pass@host:6543/postgres',
+      DATABASE_CA_CERT: FAKE_CA_CERT,
+    });
+    expect(config.db.appUrl).toBe('postgresql://user:pass@host:6543/postgres');
+    expect(config.db.caCert).toBe(FAKE_CA_CERT);
+  });
+
+  it('DATABASE_CA_CERT : doit être un PEM valide', () => {
+    expect(() =>
+      loadConfig({ APP_ENV: 'staging', DATABASE_URL_APP: 'postgresql://user:pass@host:6543/postgres', DATABASE_CA_CERT: 'pas un certificat' }),
+    ).toThrow(ConfigError);
+  });
+
+  it('DATABASE_CA_CERT : normalise les \\n littéraux en vrais retours à la ligne', () => {
+    const literal = '-----BEGIN CERTIFICATE-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\\n-----END CERTIFICATE-----';
+    const config = loadConfig({
+      APP_ENV: 'staging',
+      DATABASE_URL_APP: 'postgresql://user:pass@host:6543/postgres',
+      DATABASE_CA_CERT: literal,
+    });
+    expect(config.db.caCert).not.toContain('\\n');
+    expect(config.db.caCert).toContain('\n');
+  });
+
+  it('en développement : aucun paramètre ssl*/DATABASE_CA_CERT exigé', () => {
+    const config = loadConfig({
+      APP_ENV: 'development',
+      DATABASE_URL_APP: 'postgresql://user:pass@host:6543/postgres?sslmode=require',
+    });
+    expect(config.db.appUrl).toBeDefined();
+    expect(config.db.caCert).toBeUndefined();
   });
 
   it('borne la limite de corps', () => {

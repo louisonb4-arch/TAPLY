@@ -15,18 +15,26 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:visual": "playwright test -c tests/visual/playwright.config.ts",
-    "check": "npm run typecheck && npm run test"
+    "check": "npm run typecheck && npm run test",
+    "db:migration:new": "supabase migration new",
+    "db:migrations:list": "supabase migration list",
+    "db:push:dry": "supabase db push --dry-run",
+    "db:push": "supabase db push",
+    "db:lint": "supabase db lint --linked --schema taply --fail-on error"
   },
   "dependencies": {
     "hono": "4.13.13",
+    "pg": "8.23.1",
     "zod": "4.6.5"
   },
   "devDependencies": {
     "@hono/node-server": "2.1.3",
     "@playwright/test": "1.61.0",
     "@types/node": "24.19.1",
+    "@types/pg": "8.23.1",
     "@types/pngjs": "6.0.5",
     "pngjs": "7.0.0",
+    "supabase": "2.120.0",
     "typescript": "5.9.3",
     "vitest": "5.0.3"
   }

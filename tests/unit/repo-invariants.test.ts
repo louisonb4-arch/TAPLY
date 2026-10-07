@@ -17,6 +17,7 @@ const read = (path: string): string => readFileSync(join(ROOT, path), 'utf8');
 /** Racine du dépôt : tout ce qui n'est PAS public doit être listé ici. */
 const PRIVATE_ROOT_FILES = [
   '.gitignore',
+  '.env.example',
   'README.md',
   'package.json',
   'package-lock.json',
@@ -24,9 +25,20 @@ const PRIVATE_ROOT_FILES = [
   'vercel.json',
   'vitest.config.ts',
 ];
-const PRIVATE_ROOT_DIRS = ['api', 'backend', 'scripts', 'tests'];
+const PRIVATE_ROOT_DIRS = ['api', 'backend', 'scripts', 'tests', 'supabase'];
 /** Générés ou locaux, jamais versionnés. */
-const IGNORED_ROOT = ['.git', '.vercel', '.DS_Store', 'node_modules', 'dist', 'test-results', 'playwright-report', 'coverage'];
+const IGNORED_ROOT = [
+  '.git',
+  '.vercel',
+  '.claude',
+  '.mcp.json',
+  '.DS_Store',
+  'node_modules',
+  'dist',
+  'test-results',
+  'playwright-report',
+  'coverage',
+];
 
 function listFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -104,6 +116,10 @@ describe('invariants du dépôt', () => {
     expect(gitignore).toMatch(/^\.env$/m);
     expect(gitignore).toMatch(/^\.env\.\*$/m);
     expect(gitignore).toMatch(/^dist\/$/m);
+  });
+
+  it('.mcp.json (config MCP locale) jamais suivi par git', () => {
+    expect(read('.gitignore')).toMatch(/^\.mcp\.json$/m);
   });
 });
 

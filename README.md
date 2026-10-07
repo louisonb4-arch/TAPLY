@@ -84,3 +84,21 @@ SITE_DIR=/chemin/vers/version-de-reference PORT=4410 node --import ./scripts/dev
 PORT=4411 npm run dev
 BEFORE_URL=http://127.0.0.1:4410 AFTER_URL=http://127.0.0.1:4411 npm run test:visual
 ```
+
+## Base de données (phase 2 — fondation, staging uniquement)
+
+Schéma privé `taply` sur Supabase (projet `taply-staging`), migrations SQL versionnées via le CLI officiel, jamais via psql/MCP à la main.
+
+```
+supabase/migrations/        migrations SQL, une par `supabase migration new <nom>`
+backend/db/pool.ts          pool pg module-scope (rôle taply_app, Transaction Pooler)
+backend/db/tenant-context.ts  withTx / withTenantTx — seule porte d'entrée transactionnelle
+backend/db/lookup.ts        résolution publique pré-tenant (jeton exact, non énumérable)
+backend/db/idempotency.ts   claim + mutation + finalize dans une seule transaction
+```
+
+- Copier `.env.example` → `.env`, renseigner `DATABASE_URL_APP` (Transaction Pooler, rôle `taply_app` — jamais le rôle `postgres`).
+- Rôles DB : `taply_owner` (NOLOGIN, propriétaire), `taply_app` (LOGIN, runtime, soumis à RLS — `NOSUPERUSER NOBYPASSRLS`). Pas de rôle « migrator » séparé : le CLI authentifie avec son propre rôle, à qui une appartenance à `taply_owner` est accordée en migration `0001` pour que les objets créés lui appartiennent.
+- Commandes : `npm run db:migration:new -- <nom>`, `npm run db:migrations:list`, `npm run db:push:dry`, `npm run db:lint`, `npm run db:push` (jamais sans confirmation explicite).
+- Toute table contenant `merchant_id` doit avoir RLS activé **et forcé**, avec policy. Un test dynamique (introspection `pg_class`/`pg_policies`, pas une liste figée de tables) est prévu pour la certification staging — **sera vérifié durant la certification staging**, pas encore exécuté contre le vrai projet.
+- TLS : `DATABASE_CA_CERT` (certificat CA Supabase, PEM) obligatoire en staging/production dès que `DATABASE_URL_APP` est défini — voir `.env.example`.
