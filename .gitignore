@@ -10,3 +10,4 @@ playwright-report/
 coverage/
 *.tsbuildinfo
 dist/
+.env*

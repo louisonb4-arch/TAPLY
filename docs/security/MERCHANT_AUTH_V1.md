@@ -1,6 +1,6 @@
 # Merchant Auth V1 — Phase 3A / 3B
 
-No secret in this document. Status: **MERCHANT AUTH V1 STAGING CERTIFICATION = PASS.** The Auth DB foundation (`merchant_users`/`merchant_sessions`, migrations 11/12) is live and certified on staging; Phase 3B2 found two real-staging RLS bugs in the real application flow, and both are now fixed and proven end-to-end against real staging PostgreSQL. Migration 13 (`session_revocation_policy`) is applied and certified. Production remains untouched.
+No secret in this document. Status: **MERCHANT AUTH V1 STAGING CERTIFICATION = PASS**, and **DEPLOYED STAGING AUTH FREEZE = PASS** (see `docs/certification/DEPLOYED_STAGING_AUTH_CERTIFICATION.md`). The Auth DB foundation (`merchant_users`/`merchant_sessions`, migrations 11/12) is live and certified on staging; Phase 3B2 found two real-staging RLS bugs in the real application flow, and both are now fixed and proven end-to-end against real staging PostgreSQL, both locally and through the real deployed Vercel Preview origin. Migration 13 (`session_revocation_policy`) is applied and certified. **Production is still not certified and not deployed** — no Production environment variables, no Production Auth-capable deployment; everything above covers staging only.
 
 ## Four separate layers — never conflated
 
