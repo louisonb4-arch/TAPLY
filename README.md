@@ -34,3 +34,32 @@ Tout est dans `css/tokens.css` (couleurs, typo, espacements, rayons, ombres, mou
   - Les modifications faites dans la démo sont gardées dans le navigateur (localStorage) ; « Réinitialiser la démo » dans Paramètres.
   - Couleurs du commerce connecté : variables `--brand*` en haut de `dashboard/dashboard.css`.
   - Non indexé (`noindex`).
+
+## Backend (phase 1 — socle)
+
+API Hono en TypeScript strict, servie par **une seule Vercel Function** (`api/index.ts`). Le site statique n'est jamais servi par Hono.
+
+```
+api/index.ts                 Vercel Function (export default { fetch })
+backend/core/                config (zod), erreurs, logger structuré, masquage des secrets
+backend/http/                app Hono (/api/*), requestId, en-têtes de sécurité, routes
+scripts/build-static.mjs     copie la LISTE BLANCHE du site public dans dist/
+tests/unit|integration       vitest
+tests/visual                 non-régression visuelle avant/après (Playwright)
+```
+
+- **Routage Vercel** (`vercel.json`) : `framework: null` (pas de détection Hono), `outputDirectory: dist`, puis : fichiers statiques → `/api/*` vers la Function → tout le reste en **404** (`404.html`).
+- **Pourquoi `dist/`** : avec le preset « Other », Vercel sert tout le dossier de sortie ; servir la racine exposerait `backend/`, `tests/`, `tsconfig.json`… `dist/` ne contient que la liste blanche (`PUBLIC_ENTRIES`). **Tout nouveau fichier public doit y être ajouté** (un test échoue sinon).
+- **Ne jamais créer de dossier `public/`** à la racine.
+- Endpoint : `GET /api/health` → `{ status, service, time, requestId }`, en-tête `X-Request-Id`.
+
+Commandes :
+
+```bash
+npm install
+npm run typecheck      # tsc strict (backend + tests visuels)
+npm test               # unitaires + intégration
+BEFORE_URL=https://taply-theta.vercel.app AFTER_URL=http://localhost:4411 npm run test:visual
+```
+
+Limite connue : `vercel dev` n'émule pas la Function quand un `buildCommand`/`outputDirectory` est défini (le site s'affiche, `/api/*` répond 404 en local). L'API se teste via `npm test` (point d'entrée réel `api/index.ts`) et sur un déploiement Preview (`vercel curl`).
