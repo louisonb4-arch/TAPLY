@@ -12,29 +12,42 @@
  * Exception documentée : `backend/db/lookup.ts` est le seul module qui
  * ouvre une transaction (via withTx) sans contexte tenant — c'est
  * délibéré, voir son commentaire.
+ *
+ * Client potentiellement cassé après erreur : si le ROLLBACK lui-même
+ * échoue, la connexion est tenue pour défaillante — on ne la rend jamais
+ * réutilisable (`client.release(err)` : pg l'évacue au lieu de la remettre
+ * idle, voir node_modules/pg-pool/index.js `_release`). L'erreur
+ * applicative d'origine reste celle propagée ; l'échec du rollback est
+ * seulement journalisé (jamais masqué, jamais substitué à l'erreur
+ * d'origine). Aucune détection d'état de connexion plus fine que ça :
+ * l'échec du rollback est la seule preuve qu'on exploite, par choix.
  */
 
 import type { Pool, PoolClient } from 'pg';
 import { z } from 'zod';
+import { getDbLogger } from './pool.js';
 import { TenantContextError } from './errors.js';
 
 const merchantIdSchema = z.uuid();
 
 export async function withTx<T>(pool: Pool, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
+  let discard: Error | undefined;
   try {
     await client.query('begin');
     const result = await fn(client);
     await client.query('commit');
     return result;
   } catch (error) {
-    await client.query('rollback').catch(() => {
-      // La connexion peut déjà être cassée : on ne masque jamais l'erreur
-      // d'origine avec un échec de rollback.
-    });
+    try {
+      await client.query('rollback');
+    } catch (rollbackError) {
+      discard = rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError));
+      getDbLogger().warn('db.transaction.rollback_failed', { error: rollbackError });
+    }
     throw error;
   } finally {
-    client.release();
+    client.release(discard);
   }
 }
 

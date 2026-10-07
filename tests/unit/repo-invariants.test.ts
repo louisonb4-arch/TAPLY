@@ -25,7 +25,7 @@ const PRIVATE_ROOT_FILES = [
   'vercel.json',
   'vitest.config.ts',
 ];
-const PRIVATE_ROOT_DIRS = ['api', 'backend', 'scripts', 'tests', 'supabase'];
+const PRIVATE_ROOT_DIRS = ['api', 'backend', 'scripts', 'tests', 'supabase', 'docs'];
 /** Générés ou locaux, jamais versionnés. */
 const IGNORED_ROOT = [
   '.git',

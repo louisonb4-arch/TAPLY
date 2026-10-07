@@ -4,24 +4,34 @@
  * séquence. Les propriétés réelles (contexte qui ne fuit pas sur une
  * connexion de pool réutilisée) ne se prouvent que contre taply-staging
  * (tests/integration/db/*.staging.test.ts).
+ *
+ * Client potentiellement cassé (section « broken connection release ») :
+ * release() doit recevoir un signal de discard (truthy) uniquement quand
+ * le ROLLBACK lui-même échoue — jamais sur un simple échec de callback
+ * avec rollback réussi. `getDbLogger` est mocké (silencieux, hermétique).
  */
 
 import type { Pool, PoolClient } from 'pg';
-import { describe, expect, it } from 'vitest';
-import { TenantContextError } from '../../../backend/db/errors.js';
-import { withTenantTx, withTx } from '../../../backend/db/tenant-context.js';
+import { describe, expect, it, vi } from 'vitest';
 
-function fakeClient(calls: string[], options: { failOn?: string } = {}) {
+vi.mock('../../../backend/db/pool.js', () => ({
+  getDbLogger: () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn() }),
+}));
+
+const { TenantContextError } = await import('../../../backend/db/errors.js');
+const { withTenantTx, withTx } = await import('../../../backend/db/tenant-context.js');
+
+function fakeClient(calls: string[], options: { failOn?: string[] } = {}) {
   const client = {
     query: async (text: string, values?: readonly unknown[]) => {
       calls.push(values === undefined ? text : `${text} ${JSON.stringify(values)}`);
-      if (options.failOn !== undefined && text === options.failOn) {
+      if (options.failOn?.includes(text)) {
         throw new Error(`échec simulé sur ${text}`);
       }
       return { rows: [] };
     },
-    release: () => {
-      calls.push('release');
+    release: (discard?: unknown) => {
+      calls.push(discard === undefined ? 'release' : 'release(discard)');
     },
   };
   return client as unknown as PoolClient;
@@ -32,7 +42,7 @@ function fakePool(client: PoolClient) {
 }
 
 describe('withTx', () => {
-  it('begin → callback → commit → release, dans cet ordre', async () => {
+  it('begin → callback → commit → release normal, dans cet ordre', async () => {
     const calls: string[] = [];
     const client = fakeClient(calls);
     const pool = fakePool(client);
@@ -46,7 +56,7 @@ describe('withTx', () => {
     expect(calls).toEqual(['begin', 'select 1', 'commit', 'release']);
   });
 
-  it('rollback puis release si le callback jette, erreur d’origine propagée', async () => {
+  it('A. callback échoue, ROLLBACK réussit → erreur d’origine propagée, release normal (pas de discard)', async () => {
     const calls: string[] = [];
     const client = fakeClient(calls);
     const pool = fakePool(client);
@@ -60,9 +70,9 @@ describe('withTx', () => {
     expect(calls).toEqual(['begin', 'rollback', 'release']);
   });
 
-  it('release appelé même si le rollback lui-même échoue', async () => {
+  it('B. callback échoue, ROLLBACK échoue aussi → erreur d’origine propagée (pas celle du rollback), client discard', async () => {
     const calls: string[] = [];
-    const client = fakeClient(calls, { failOn: 'rollback' });
+    const client = fakeClient(calls, { failOn: ['rollback'] });
     const pool = fakePool(client);
 
     await expect(
@@ -71,7 +81,57 @@ describe('withTx', () => {
       }),
     ).rejects.toThrow('boum métier');
 
+    expect(calls).toEqual(['begin', 'rollback', 'release(discard)']);
+  });
+
+  it('C. COMMIT échoue → rollback tenté ensuite, erreur de COMMIT propagée (pas masquée)', async () => {
+    const calls: string[] = [];
+    const client = fakeClient(calls, { failOn: ['commit'] });
+    const pool = fakePool(client);
+
+    await expect(
+      withTx(pool, async (c) => {
+        await c.query('select 1');
+      }),
+    ).rejects.toThrow('échec simulé sur commit');
+
+    expect(calls).toEqual(['begin', 'select 1', 'commit', 'rollback', 'release']);
+  });
+
+  it('C bis. COMMIT échoue ET le ROLLBACK de secours échoue aussi → client discard, erreur de COMMIT propagée', async () => {
+    const calls: string[] = [];
+    const client = fakeClient(calls, { failOn: ['commit', 'rollback'] });
+    const pool = fakePool(client);
+
+    await expect(
+      withTx(pool, async (c) => {
+        await c.query('select 1');
+      }),
+    ).rejects.toThrow('échec simulé sur commit');
+
+    expect(calls).toEqual(['begin', 'select 1', 'commit', 'rollback', 'release(discard)']);
+  });
+
+  it('D. BEGIN échoue → rollback de sécurité tenté, release reste cohérent avec son résultat', async () => {
+    const calls: string[] = [];
+    const client = fakeClient(calls, { failOn: ['begin'] });
+    const pool = fakePool(client);
+
+    await expect(withTx(pool, async () => 'jamais atteint')).rejects.toThrow('échec simulé sur begin');
+
+    // rollback sans transaction en cours : no-op valide côté Postgres réel,
+    // notre faux client le laisse réussir → release normal.
     expect(calls).toEqual(['begin', 'rollback', 'release']);
+  });
+
+  it('D bis. BEGIN échoue ET rollback échoue aussi (connexion vraiment cassée) → client discard', async () => {
+    const calls: string[] = [];
+    const client = fakeClient(calls, { failOn: ['begin', 'rollback'] });
+    const pool = fakePool(client);
+
+    await expect(withTx(pool, async () => 'jamais atteint')).rejects.toThrow('échec simulé sur begin');
+
+    expect(calls).toEqual(['begin', 'rollback', 'release(discard)']);
   });
 });
 

@@ -68,6 +68,21 @@ const optionalCaCert = z
 
 const FORBIDDEN_URL_SSL_PARAMS = ['sslmode', 'sslcert', 'sslkey', 'sslrootcert'] as const;
 
+/** Défaut par défaut documenté dans backend/db/pool.ts (bornes : 100 ms – 60 s). */
+export const DEFAULT_DATABASE_CONNECTION_TIMEOUT_MS = 5_000;
+
+/**
+ * Borne la connexion (file d'attente du pool ET établissement d'une
+ * connexion neuve — node-postgres utilise `connectionTimeoutMillis` pour
+ * les deux, voir node_modules/pg-pool/index.js). `0`/absent chez pg
+ * signifierait « jamais de timeout » — jamais ce que nous voulons, donc
+ * zéro est explicitement hors bornes ici (minimum 100 ms). Maximum 60 s :
+ * largement sous la limite Vercel (300 s par défaut), pour qu'une
+ * connexion bloquée échoue vite plutôt que de consommer tout le budget
+ * de la Function.
+ */
+const optionalConnectionTimeoutMs = z.coerce.number().int().min(100).max(60_000).optional();
+
 const rawSchema = z.object({
   APP_ENV: z.enum(APP_ENVS).optional(),
   VERCEL_ENV: z.string().optional(),
@@ -80,6 +95,7 @@ const rawSchema = z.object({
   WALLET_WEB_SERVICE_URL: optionalUrl,
   DATABASE_URL_APP: optionalPgUrl,
   DATABASE_CA_CERT: optionalCaCert,
+  DATABASE_CONNECTION_TIMEOUT_MS: optionalConnectionTimeoutMs,
 });
 
 export interface AppConfig {
@@ -99,6 +115,8 @@ export interface AppConfig {
     readonly appUrl: string | undefined;
     /** Certificat CA PEM Supabase, retours à la ligne réels (normalisés). */
     readonly caCert: string | undefined;
+    /** Toujours résolu (défaut sûr si absent) — jamais 0/illimité. Pas un secret. */
+    readonly connectionTimeoutMs: number;
   };
 }
 
@@ -173,7 +191,11 @@ export function loadConfig(env: EnvSource): AppConfig {
     logLevel: raw.LOG_LEVEL ?? (appEnv === 'development' ? 'debug' : 'info'),
     api: { bodyLimitBytes: raw.API_BODY_LIMIT_BYTES ?? 64 * 1_024 },
     urls,
-    db: { appUrl: raw.DATABASE_URL_APP, caCert: raw.DATABASE_CA_CERT },
+    db: {
+      appUrl: raw.DATABASE_URL_APP,
+      caCert: raw.DATABASE_CA_CERT,
+      connectionTimeoutMs: raw.DATABASE_CONNECTION_TIMEOUT_MS ?? DEFAULT_DATABASE_CONNECTION_TIMEOUT_MS,
+    },
   };
 }
 

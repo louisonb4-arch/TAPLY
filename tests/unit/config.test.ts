@@ -10,7 +10,7 @@ describe('loadConfig', () => {
       logLevel: 'debug',
       api: { bodyLimitBytes: 65_536 },
       urls: { publicBase: undefined, merchantAppBase: undefined, joinBase: undefined, walletWebService: undefined },
-      db: { appUrl: undefined, caCert: undefined },
+      db: { appUrl: undefined, caCert: undefined, connectionTimeoutMs: 5_000 },
     });
   });
 
@@ -116,6 +116,23 @@ describe('loadConfig', () => {
     expect(config.db.appUrl).toBeDefined();
     expect(config.db.caCert).toBeUndefined();
   });
+
+  it('DATABASE_CONNECTION_TIMEOUT_MS : défaut 5000 ms si absent, jamais 0/illimité', () => {
+    expect(loadConfig({}).db.connectionTimeoutMs).toBe(5_000);
+  });
+
+  it('DATABASE_CONNECTION_TIMEOUT_MS : accepte une valeur valide dans les bornes', () => {
+    expect(loadConfig({ DATABASE_CONNECTION_TIMEOUT_MS: '2500' }).db.connectionTimeoutMs).toBe(2_500);
+    expect(loadConfig({ DATABASE_CONNECTION_TIMEOUT_MS: '100' }).db.connectionTimeoutMs).toBe(100);
+    expect(loadConfig({ DATABASE_CONNECTION_TIMEOUT_MS: '60000' }).db.connectionTimeoutMs).toBe(60_000);
+  });
+
+  it.each(['0', '-1', 'not-a-number', '60001', '99999999'])(
+    'DATABASE_CONNECTION_TIMEOUT_MS : refuse %s (jamais 0/négatif/NaN/hors bornes)',
+    (value) => {
+      expect(() => loadConfig({ DATABASE_CONNECTION_TIMEOUT_MS: value })).toThrow(ConfigError);
+    },
+  );
 
   it('borne la limite de corps', () => {
     expect(loadConfig({ API_BODY_LIMIT_BYTES: '2048' }).api.bodyLimitBytes).toBe(2_048);

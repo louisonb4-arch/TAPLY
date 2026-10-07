@@ -51,4 +51,46 @@ describe('getPool', () => {
     getConfigMock.mockReturnValue({ db: { appUrl: 'postgresql://x:y@host:6543/postgres', caCert: FAKE_CA_CERT } });
     expect(getPool()).toBe(getPool());
   });
+
+  it('connectionTimeoutMillis vient de getConfig().db.connectionTimeoutMs (jamais 0/illimité par défaut)', () => {
+    getConfigMock.mockReturnValue({
+      db: { appUrl: 'postgresql://x:y@host:6543/postgres', caCert: FAKE_CA_CERT, connectionTimeoutMs: 1234 },
+    });
+    const pool = getPool() as unknown as Pool & { options: Record<string, unknown> };
+    expect(pool.options.connectionTimeoutMillis).toBe(1234);
+  });
+
+  it("pool.on('error') : un évènement error ne devient jamais une exception non gérée", () => {
+    getConfigMock.mockReturnValue({
+      logLevel: 'error',
+      db: { appUrl: 'postgresql://x:y@host:6543/postgres', caCert: FAKE_CA_CERT, connectionTimeoutMs: 5000 },
+    });
+    const pool = getPool();
+    expect(() => {
+      pool.emit('error', new Error('connexion idle rompue'), undefined as never);
+    }).not.toThrow();
+  });
+
+  it("pool.on('error') : journalise db.pool.error sans exposer de secret (pipeline de redaction réel, pas mocké)", () => {
+    getConfigMock.mockReturnValue({
+      logLevel: 'error',
+      db: { appUrl: 'postgresql://x:y@host:6543/postgres', caCert: FAKE_CA_CERT, connectionTimeoutMs: 5000 },
+    });
+    const pool = getPool();
+    const writeSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    try {
+      pool.emit(
+        'error',
+        new Error('connection reset: postgresql://taply_app:SuperSecretPass@host/db'),
+        undefined as never,
+      );
+      expect(writeSpy).toHaveBeenCalled();
+      const line = String(writeSpy.mock.calls[0]?.[0]);
+      const parsed = JSON.parse(line) as Record<string, unknown>;
+      expect(parsed['msg']).toBe('db.pool.error');
+      expect(line).not.toContain('SuperSecretPass');
+    } finally {
+      writeSpy.mockRestore();
+    }
+  });
 });
