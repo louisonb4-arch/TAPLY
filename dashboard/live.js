@@ -88,9 +88,9 @@
       msg('Accueil temporairement indisponible', 'Les données de démarrage ne peuvent pas être chargées. Réessayez dans un instant.') +
       link('Modifier le programme', 'parametres/carte');
     const labels = {
-      program: { title: 'Configurer le programme', detail: 'Règles et nombre de passages', route: 'parametres/carte' },
+      program: { title: 'Vérifier ma carte', detail: 'La carte commune à tous vos clients', route: 'carte' },
       staff_device: { title: 'Approuver un appareil', detail: 'Sécuriser les validations au comptoir', route: 'parametres/integrations' },
-      first_card: { title: 'Créer une première carte', detail: 'Avec un client présent et son consentement', route: 'inscription' },
+      first_card: { title: 'Inscrire un premier client', detail: 'Une même carte, un identifiant différent par client', route: 'inscription' },
       first_visit: { title: 'Valider une première visite', detail: 'Après achat, sur un appareil approuvé', route: 'scan' },
     };
     const steps = h.onboarding.steps.map(step => {
@@ -127,7 +127,7 @@
           ${current ? `<p><strong>${esc(current.name)}</strong> — ${current.status === 'active' ? 'Actif' : 'En pause'}</p>
             <p>${esc(current.threshold ?? '—')} passages pour obtenir une récompense</p>` :
             '<p>Aucun programme configuré.</p>'}
-          ${link('Modifier les règles', 'parametres/carte')}
+          ${link('Voir ma carte', 'carte')}
         </div>
         <div class="card" style="padding:1.5rem"><h2>Sécurité au comptoir</h2>
           <p>${esc(h.devices.usableCount)} appareil(s) approuvé(s) et utilisable(s).</p>
@@ -148,8 +148,9 @@
         <small>${esc(c.programName)} · ${esc(plural(c.visitCount, 'passage'))} / ${esc(c.threshold ?? '—')}
         ${c.rewardPending ? ' · 🎁 Cadeau en attente' : ''}</small></span>
       <span class="row__end">${esc(fmt(c.lastVisitAt))}</span></li>`).join('');
-    return header('Clients', '50 dernières cartes au maximum · informations issues de Supabase') +
-      `<section class="card card--flush"><ul class="list">${rows || '<li class="row">Aucune carte enregistrée.</li>'}</ul></section>`;
+    return header('Clients', 'Chaque client possède son propre identifiant lié à la même carte du commerce.') +
+      `<section class="card card--flush"><ul class="list">${rows || '<li class="row">Aucun client inscrit pour le moment.</li>'}</ul></section>` +
+      `<div style="margin-top:1rem">${link('Inscrire un client au comptoir', 'inscription')}</div>`;
   }
   function rewards() {
     return header('Récompenses', 'Récompenses réellement en attente par programme') +
@@ -181,11 +182,58 @@
     return header('Paramètres', 'Compte commerçant et appareils autorisés') +
       msg('Compte', 'Rôle : ' + (s.principal?.role === 'owner' ? 'propriétaire' : 'employé') +
         ' · Commerce : ' + (s.principal?.merchantId || '—')) +
-      `<div class="grid">${link('Règles de fidélité', 'parametres/carte')}
+      `<div class="grid">${link('Ma carte', 'carte')}
+        ${link('Règles de fidélité', 'parametres/carte')}
+        ${link('Statistiques', 'statistiques')}
         ${link('Appareils et sécurité', 'parametres/integrations')}</div>`;
   }
+  /**
+   * La carte « commerce » est le programme commun déjà provisionné.
+   * Aucun prénom, inscription ni jeton personnel n'est émis sur cette page.
+   */
+  function cardTemplate() {
+    const model = s.homeData?.program || s.programs.find(p => p.status === 'active') || s.programs[0];
+    if (!model) return header('Ma carte', 'La carte commune à vos clients') +
+      msg('Aucun programme trouvé', 'Votre programme de fidélité est indisponible. Rechargez la page ou contactez le support.');
+    const name = s.merchant?.name || 'Mon commerce';
+    const threshold = Number.isInteger(model.threshold) && model.threshold >= 3 && model.threshold <= 10
+      ? model.threshold : null;
+    const stamps = threshold === null ? '' : Array.from({ length: threshold }, () =>
+      '<span class="merchant-card-stamp" aria-hidden="true"></span>').join('');
+    return header('Ma carte de fidélité', 'La même carte pour tous vos clients. Seul leur identifiant et leur progression changent.') +
+      `<section class="merchant-template card" aria-label="Modèle de la carte du commerce">
+        <div>
+          <div class="merchant-template__visual" aria-label="Aperçu illustratif, non utilisable comme carte client">
+            <span class="merchant-template__eyebrow">CARTE DE FIDÉLITÉ</span>
+            <strong class="merchant-template__name">${esc(name)}</strong>
+            <span class="merchant-template__program">${esc(model.name)}</span>
+            <div class="merchant-template__stamps" aria-label="${threshold === null ? 'Seuil indisponible' : threshold + ' passages nécessaires'}">${stamps}</div>
+            <div class="merchant-template__bottom">
+              <small>Modèle du commerce</small><small>Taply</small>
+            </div>
+          </div>
+          <p class="merchant-template__note">Aperçu illustratif de la carte du commerce. Les cartes Wallet natives ne sont pas encore émises dans cette version.</p>
+        </div>
+        <div class="merchant-template__content">
+          <span class="badge ${model.status === 'active' ? '' : 'badge--muted'}">${model.status === 'active' ? 'Programme actif' : 'Programme en pause'}</span>
+          <h2>Une carte, tous vos clients.</h2>
+          <p>Ce modèle appartient à votre commerce. Vous le configurez une seule fois. Chaque client inscrit reçoit sa propre carte liée à ce programme, avec un identifiant sécurisé et un compteur de passages indépendant.</p>
+          <div class="merchant-template__info">
+            <div><span>Passages requis</span><strong>${esc(threshold ?? 'À configurer')}</strong></div>
+            <div><span>Identifiant client</span><strong>Unique pour chacun</strong></div>
+          </div>
+          ${link('Modifier les règles de la carte', 'parametres/carte')}
+        </div>
+      </section>
+      <section class="card" style="margin-top:1rem;padding:1.5rem">
+        <h2>Comment les clients obtiennent-ils cette carte ?</h2>
+        <p>Le programme est identique pour tous. Lorsqu’un client s’inscrit, Taply lui attribue un identifiant et un QR personnel distincts. Scanner le présentoir public ne crédite pas automatiquement une visite : la validation reste faite par votre équipe.</p>
+        <div style="margin-top:1rem">${link('Voir les clients inscrits', 'clients')}</div>
+      </section>`;
+  }
+
   function configCard() {
-    return header('Carte de fidélité', 'Les changements de seuil sont autorisés au maximum une fois tous les 30 jours') +
+    return header('Règles de ma carte', 'Ces paramètres définissent le programme commun à tous vos clients. Le seuil ne peut changer qu’une fois tous les 30 jours.') +
       s.programs.map(p => `<form data-action="program" class="card" style="padding:1.5rem;margin-bottom:1rem">
         <h2>${esc(p.name)}</h2><input type="hidden" name="programId" value="${esc(p.id)}">
         <label style="display:grid;gap:.5rem">Nombre de passages requis (3 à 10)
@@ -250,9 +298,11 @@
       ${btn('Confirmer la remise')}</form>`;
   }
   function registerPage() {
-    return header('Créer une carte', 'Au comptoir, avec le consentement et la présence du client') +
-      `<form data-action="register" class="card" style="padding:1.5rem">
-      ${field('firstName', 'Prénom du client')}
+    return header('Inscrire un client', 'Le modèle de carte est déjà créé pour le commerce. Cette action attribue un identifiant unique à un client.') +
+      `<div class="card" style="margin-bottom:1rem"><p>Inscription manuelle au comptoir : actuellement, un prénom est requis pour la fiche client. L’inscription automatique par le présentoir est un parcours distinct en préparation.</p>
+      ${link('Voir la carte du commerce', 'carte')}</div>
+      <form data-action="register" class="card" style="padding:1.5rem">
+      ${field('firstName', 'Prénom du client (inscription manuelle)')}
       <label style="display:grid;gap:.4rem">Programme
         <select class="input" name="programId" required>
           ${s.programs.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}
@@ -260,7 +310,7 @@
       ${field('pin', 'PIN de l’appareil', 'password')}
       <label><input type="checkbox" name="privacyAccepted" required> Le client accepte le traitement des données de fidélité.</label>
       <label><input type="checkbox" name="customerPresent" required> Le client est présent.</label>
-      ${btn('Créer la carte')}</form>
+      ${btn('Inscrire ce client')}</form>
       ${msg('Remise au client', 'Le QR personnel doit être remis directement au client. La création de pass Wallet natif reste en attente des comptes émetteurs.')}`;
   }
   function noFeature(page) {
@@ -294,7 +344,7 @@
       return;
     }
     const routes = {
-      accueil: home, clients: customers, recompenses: rewards, statistiques: stats,
+      accueil: home, carte: cardTemplate, clients: customers, recompenses: rewards, statistiques: stats,
       parametres: settings, 'parametres/carte': configCard,
       'parametres/integrations': devicePage,
       'parametres/etablissement': settings,
@@ -343,7 +393,7 @@
           pin, idempotencyKey:uuid(), privacyAccepted:true, customerPresent:true
         });
         // QR brut uniquement dans la réponse HTTP et ce DOM éphémère, jamais stocké.
-        return { message: 'Carte créée, 0 passage crédité automatiquement.', qrToken: x.qrToken };
+        return { message: 'Client inscrit : identifiant et QR personnel générés. Aucun passage crédité automatiquement.', qrToken: x.qrToken };
       }
       case 'activate-staff': {
         if (!/^[0-9]{6,10}$/.test(pin)) throw new Error('PIN à 6–10 chiffres requis.');

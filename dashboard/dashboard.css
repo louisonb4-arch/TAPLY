@@ -372,6 +372,41 @@ button.row { width: 100%; text-align: left; }
 .push__body { word-break: break-word; }
 .push__img { margin-top: .5rem; border-radius: 10px; width: 100%; max-height: 9rem; object-fit: cover; }
 
+/* ---- Modèle commun de la carte de fidélité -------------------------- */
+.merchant-template {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1.25rem, 4vw, 3rem);
+  padding: clamp(1.2rem, 3vw, 2.25rem);
+}
+.merchant-template__visual {
+  display: flex; flex-direction: column; gap: .35rem;
+  min-height: 15rem; max-width: 26rem;
+  padding: 1.5rem;
+  border-radius: 22px;
+  background: radial-gradient(circle at 95% 0, #234434 0, transparent 54%), #10241a;
+  color: #fff;
+  box-shadow: 0 18px 32px -22px rgba(10, 27, 17, .55);
+}
+.merchant-template__eyebrow { color: #b9e59e; font-size: .72rem; font-weight: 700; letter-spacing: .12em; }
+.merchant-template__name { font-size: clamp(1.4rem, 3vw, 2rem); line-height: 1.12; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.merchant-template__program { font-size: .93rem; opacity: .8; }
+.merchant-template__stamps { display: flex; flex-wrap: wrap; gap: .45rem; margin: 1rem 0; }
+.merchant-card-stamp { width: 1.6rem; height: 1.6rem; border: 1.5px solid rgba(206, 241, 187, .75); border-radius: 50%; }
+.merchant-template__bottom { display: flex; justify-content: space-between; align-items: end; margin-top: auto; opacity: .8; }
+.merchant-template__note { margin-top: .7rem; color: var(--d-muted); font-size: .8rem; max-width: 27rem; }
+.merchant-template__content { display: grid; justify-items: start; gap: 1rem; }
+.merchant-template__content h2 { font-size: clamp(1.4rem, 2.5vw, 2rem); letter-spacing: -.03em; line-height: 1.14; }
+.merchant-template__content p { color: var(--d-muted); max-width: 49ch; }
+.merchant-template__info { display: flex; flex-wrap: wrap; gap: 1.5rem; padding-block: .5rem; }
+.merchant-template__info > div { display: grid; gap: .1rem; }
+.merchant-template__info span { font-size: .8rem; color: var(--d-muted); }
+.merchant-template__info strong { font-size: .97rem; }
+@media (min-width: 768px) {
+  .merchant-template { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
 /* ---- Paramètres ------------------------------------------------------- */
 .set-icon { flex: none; display: grid; place-items: center; width: 2.9rem; height: 2.9rem; border-radius: 50%; background: var(--brand-soft); color: #7A3F1B; }
 .set-icon--ok { background: var(--ok-soft); color: var(--ok); }
