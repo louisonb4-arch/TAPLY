@@ -78,3 +78,58 @@ test('le widget React est différé et ne bloque pas la première visite en haut
   await expect(page.locator('[data-scroll-card]')).toBeAttached({timeout:12000});
   expect(requested).toHaveLength(1);
 });
+
+test('desktop : titre centré, grand écran au milieu, trois bénéfices alignés sous le dashboard', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  for (const width of [1024, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(base + '/index.html');
+    const section = page.locator('[data-dashboard-story]');
+    await section.scrollIntoViewIfNeeded();
+    await expect(section.locator('[data-scroll-card]')).toBeVisible({ timeout: 12000 });
+    const result = await page.evaluate(() => {
+      const bounds = (selector: string) => {
+        const rect = document.querySelector(selector)?.getBoundingClientRect();
+        if (!rect) throw new Error('Missing ' + selector);
+        return {x: rect.x, y: rect.y + scrollY, width: rect.width};
+      };
+      const rows = Array.from(document.querySelectorAll('.dashboard-story__features li')).map(item => {
+        const rect=item.getBoundingClientRect();
+        return {x: rect.x, y: rect.y + scrollY};
+      });
+      return {
+        intro: bounds('.dashboard-story__intro'),
+        screen: bounds('.dashboard-story__visual'),
+        features: bounds('.dashboard-story__features'),
+        rows,
+        horizontalOverflow: document.documentElement.scrollWidth - innerWidth,
+      };
+    });
+    expect(result.intro.y).toBeLessThan(result.screen.y);
+    expect(result.screen.y).toBeLessThan(result.features.y);
+    expect(Math.abs(result.screen.x + result.screen.width / 2 - width / 2)).toBeLessThan(40);
+    expect(result.screen.width).toBeGreaterThan(Math.min(700, width * .67));
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows[0]!.x).toBeLessThan(result.rows[1]!.x);
+    expect(result.rows[1]!.x).toBeLessThan(result.rows[2]!.x);
+    expect(result.rows[0]!.y).toBeCloseTo(result.rows[1]!.y, 1);
+    expect(result.rows[1]!.y).toBeCloseTo(result.rows[2]!.y, 1);
+    expect(result.horizontalOverflow).toBeLessThanOrEqual(2);
+  }
+});
+
+test('mobile et tablette : garder les bénéfices avant le visuel', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  for (const width of [390, 768]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(base + '/index.html');
+    const section = page.locator('[data-dashboard-story]');
+    const y = await section.locator('.dashboard-story__intro').evaluate(el=>el.getBoundingClientRect().top + scrollY);
+    const f = await section.locator('.dashboard-story__features').evaluate(el=>el.getBoundingClientRect().top + scrollY);
+    const v = await section.locator('.dashboard-story__visual').evaluate(el=>el.getBoundingClientRect().top + scrollY);
+    expect(y).toBeLessThan(f);
+    expect(f).toBeLessThan(v);
+    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
+    expect(overflow).toBeLessThanOrEqual(2);
+  }
+});
