@@ -1,6 +1,14 @@
 name: Loyalty PostgreSQL certification
 
 on:
+  # Temporaire, réservé à la certification du QR du pilote ; jamais main.
+  push:
+    branches: [feature/merchant-public-qr-pilot-20261008]
+    paths:
+      - 'backend/**'
+      - 'scripts/certification/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/loyalty-postgres.yml'
   pull_request:
     branches: [main]
     paths:
