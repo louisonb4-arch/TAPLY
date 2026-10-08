@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -7,9 +7,11 @@ const read = (name: string) => readFileSync(root + name, 'utf8');
 
 describe('UI Taply — aucun retour silencieux aux données fictives', () => {
   it('logo Taply officiel cohérent dans toutes les en-têtes', () => {
-    // Le mot-symbole + petit accent vert en SVG proviennent de la nav
-    // principale (index.html). Aucune substitution par « Taply. » ou « Taply’ ».
-    const canonicalMark = 'M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z';
+    // Tous les anciens mots-symboles HTML ont été remplacés par le même
+    // logo PNG validé, avec variante contrastée pour les fonds sombres.
+    expect(statSync(root + 'images/taply-wordmark-noir.png').size).toBeGreaterThan(1000);
+    expect(statSync(root + 'images/taply-wordmark-blanc.png').size).toBeGreaterThan(1000);
+    let count = 0;
     for (const file of [
       'index.html', 'connexion.html', 'creer-compte.html',
       'join.html', 'dashboard/index.html',
@@ -17,14 +19,14 @@ describe('UI Taply — aucun retour silencieux aux données fictives', () => {
       'cookies.html', 'confidentialite.html', '404.html',
     ]) {
       const html = read(file);
-      const markPosition = html.indexOf(canonicalMark);
-      expect(markPosition, file).toBeGreaterThan(0);
-      const logo = html.slice(Math.max(0,markPosition - 150),markPosition + canonicalMark.length + 20);
-      expect(logo, file).toContain('Taply');
-      expect(logo, file).toContain('<svg');
-      expect(logo, file).not.toContain('Taply.');
-      expect(logo, file).not.toContain('Taply’');
+      const dark = (html.match(/class="logo__asset logo__asset--dark"/g) || []).length;
+      const light = (html.match(/class="logo__asset logo__asset--light"/g) || []).length;
+      expect(dark, file).toBeGreaterThan(0);
+      expect(light, file).toBe(dark);
+      expect(html, file).not.toMatch(/<svg class="logo__tick"/);
+      count += dark;
     }
+    expect(count).toBe(22);
   });
   it('le dashboard public charge seulement le script connecté', () => {
     const page = read('dashboard/index.html');

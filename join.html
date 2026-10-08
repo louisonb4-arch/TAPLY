@@ -30,11 +30,18 @@
     .error{color:#B42318} .foot{font-size:.82rem;color:#657360;line-height:1.5;margin-top:1.5rem}
     :focus-visible{outline:3px solid #206820;outline-offset:3px}
     [hidden]{display:none !important}
-  </style>
+
+/* Logo Taply image approuvée, noir/vert et blanc/vert sur fond sombre. */
+.logo__asset { display: block; width: auto; height: 1em; max-width: none; flex: none; }
+.logo .logo__asset--light { display: none; }
+.logo--on-deep .logo__asset--dark { display: none; }
+.logo--on-deep .logo__asset--light { display: block; }
+
+</style>
 </head>
 <body>
   <main>
-    <a class="logo" href="index.html" aria-label="Taply — accueil">Taply<svg class="logo__tick" viewBox="0 0 10 16" aria-hidden="true"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></a>
+    <a class="logo" href="index.html" aria-label="Taply — accueil"><img class="logo__asset logo__asset--dark" src="images/taply-wordmark-noir.png" width="1697" height="644" alt="" aria-hidden="true"><img class="logo__asset logo__asset--light" src="images/taply-wordmark-blanc.png" width="1697" height="644" alt="" aria-hidden="true"></a>
     <p class="eyebrow">Programme fidélité · Préproduction</p>
     <h1>Votre fidélité, en toute simplicité.</h1>
     <p class="lead">Inscrivez-vous avec votre prénom. Votre premier passage sera confirmé par le personnel au comptoir après votre achat.</p>
