@@ -145,7 +145,7 @@
         body:JSON.stringify({businessName,email,password,termsAccepted}),
       });
       if(!res.ok)throw new Error(res.status===429?
-        'Trop de demandes. Réessayez dans quelques minutes.':
+        'Les e-mails de confirmation sont temporairement limités. Attendez environ une heure avant de réessayer. Si vous avez déjà confirmé votre compte, connectez-vous.':
         res.status===503?'Les inscriptions sont temporairement indisponibles.':
         "Inscription impossible. Réessayez.");
       form.elements.namedItem('password').value='';

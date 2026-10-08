@@ -237,3 +237,21 @@ test('une inscription acceptée affiche la confirmation et ne conserve pas le mo
   expect(submitted).toMatchObject({businessName:'Boulangerie Taply',email:'owner@taply.test',termsAccepted:true});
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
 });
+
+test('signup limité par Supabase : message utile et aucun faux succès', async ({ page }) => {
+  await page.route('**/api/auth/signup', route => route.fulfill({
+    status:429, contentType:'application/json',
+    body:JSON.stringify({error:{code:'RATE_LIMITED'}}),
+  }));
+  await page.goto(base + '/creer-compte.html');
+  await page.locator('#businessName').fill('Café test');
+  await page.locator('#email').fill('owner@example.com');
+  await page.locator('#pwd').fill('UnePassphraseDeTest123!');
+  await page.locator('#pwdConfirm').fill('UnePassphraseDeTest123!');
+  await page.locator('[name=termsAccepted]').check();
+  await page.getByRole('button',{name:/Créer mon compte/}).click();
+  await expect(page.locator('[data-signup-error]')).toContainText('e-mails de confirmation');
+  await expect(page.locator('[data-signup-error]')).toContainText('environ une heure');
+  await expect(page.locator('[data-signup-result]')).toBeHidden();
+  await expect(page.locator('#pwd')).toBeEmpty();
+});

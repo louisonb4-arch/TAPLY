@@ -63,7 +63,14 @@ authRoutes.post('/auth/signup', originCheck, async (c) => {
       },
     },
   });
-  if (error?.status === 429) throw new AppError('RATE_LIMITED');
+  if (error?.status === 429) {
+    // Code provider non personnel : permet de distinguer le quota
+    // global d'emails du quota par IP, sans journaliser email ou mot de passe.
+    c.get('log').warn('auth.signup.provider_rate_limited', {
+      providerCode: error.code ?? 'unspecified',
+    });
+    throw new AppError('RATE_LIMITED');
+  }
   if (error && !['User already registered', 'Email address already registered'].some(
       m => error.message.includes(m))) {
     c.get('log').warn('auth.signup.provider_failed', { status: error.status || 0 });
