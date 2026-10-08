@@ -7,7 +7,7 @@
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const view = $('#view');
-  const s = { principal: null, identity: null, merchant: null, programs: [], customers: [], security: null, homeData: null, error: null,
+  const s = { principal: null, identity: null, merchant: null, programs: [], customers: [], security: null, homeData: null, setup: null, error: null,
     customersError: null, securityError: null };
   const esc = x => String(x ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -26,10 +26,10 @@
         autocomplete="off" required></label>`;
   const nav = () => location.hash.replace(/^#\/?/, '') || 'accueil';
   const link = (text, route) => `<a class="btn btn--ghost" href="#/${route}">${esc(text)} ${ico('arrow')}</a>`;
-  async function api(path, body) {
+  async function api(path, body, method = 'POST') {
     const options = { credentials:'same-origin', cache:'no-store' };
     if (body !== undefined) {
-      options.method = 'POST';
+      options.method = method;
       options.headers = { 'Content-Type': 'application/json' };
       options.body = JSON.stringify(body);
     }
@@ -57,6 +57,7 @@
     s.customers = [];
     s.security = null;
     s.homeData = null;
+    s.setup = null;
     s.customersError = null;
     s.securityError = null;
     s.principal = await api('auth/me');
@@ -68,6 +69,7 @@
     const results = await Promise.allSettled([
       api('loyalty/overview'), api('loyalty/customers'),
       api('loyalty/security'), api('loyalty/identity'), api('loyalty/home'),
+      api('loyalty/setup'),
     ]);
     if (results[0].status === 'fulfilled') s.programs = results[0].value.programs;
     else s.error = results[0].reason.message;
@@ -77,30 +79,86 @@
     else s.securityError = results[2].reason.message;
     if (results[3].status === 'fulfilled') s.identity = results[3].value;
     if (results[4].status === 'fulfilled') s.homeData = results[4].value;
+    if (results[5].status === 'fulfilled') s.setup = results[5].value;
   }
   async function refresh() {
     s.error = null; await load(); render();
   }
   const program = () => s.programs[0];
+  // Le programme commerçant existe déjà ; on paramètre sa publication,
+  // sans prénom client et sans créer de membership ici.
+  function setupPage() {
+    const data = s.setup;
+    if (!data) return header('Configurer ma fidélité', 'Configuration de votre commerce') +
+      msg('Configuration indisponible', 'La nouvelle base Taply QR V1 doit être activée sur cet environnement avant de pouvoir enregistrer.');
+    const suggested = data.rewardTerms || (
+      'Un passage est validé après un achat éligible, au comptoir. ' +
+      'Un délai de 2 heures s’applique entre deux passages. ' +
+      'La récompense est remise après ' + data.threshold + ' passages, une seule fois par cycle.'
+    );
+    return header('Lancer ma carte de fidélité', '5 étapes simples — les clients s’inscriront seuls avec votre QR code.') +
+      `<section class="card" style="padding:1.5rem;margin-bottom:1rem">
+        <h2>1 · Votre commerce</h2>
+        <p><strong>${esc(data.merchantName)}</strong> — informations reprises automatiquement depuis votre compte.</p>
+        <p class="muted">Aucun prénom client à demander ici.</p>
+      </section>
+      <form data-action="save-setup" class="card" style="padding:1.5rem;margin-bottom:1rem">
+        <h2>2 · Choisissez votre fidélité</h2>
+        <label style="display:grid;gap:.4rem;margin:.8rem 0">Nombre de passages (5 à 10)
+          <select class="input" name="threshold" required>
+            ${[5,6,7,8,9,10].map(n=>`<option value="${n}" ${n===data.threshold?'selected':''}>${n} passages</option>`).join('')}
+          </select>
+        </label>
+        ${field('rewardTitle','La récompense offerte', 'text', data.rewardTitle || '')}
+        <h2 style="margin-top:1.5rem">3 · Personnaliser (facultatif)</h2>
+        <p>Le thème Taply est proposé par défaut. Vous pouvez modifier les couleurs.</p>
+        <div class="grid">
+          <label>Couleur de carte <input type="color" name="cardColor" value="${esc(data.cardColor)}"></label>
+          <label>Couleur du texte <input type="color" name="textColor" value="${esc(data.textColor)}"></label>
+        </div>
+        <h2 style="margin-top:1.5rem">4 · Vérifiez les conditions</h2>
+        <label style="display:grid;gap:.5rem">Conditions de fidélité proposées
+          <textarea class="textarea" name="rewardTerms" maxlength="2000" rows="5" required>${esc(suggested)}</textarea>
+        </label>
+        <p class="muted">Les conditions commerciales sont distinctes de la confidentialité Taply.</p>
+        ${data.published ? '<p>Programme déjà publié. La modification des règles nécessitera une procédure de versionnement.</p>' :
+          btn('Enregistrer ma configuration')}
+      </form>
+      <section class="card" style="padding:1.5rem">
+        <h2>5 · Votre QR code commerçant</h2>
+        ${data.published && data.enrollmentUrl ?
+          `<p>Votre QR est prêt à être affiché au comptoir. Il sert uniquement à inscrire les clients.</p>
+            <img src="/api/loyalty/setup/qr.svg" alt="QR d’inscription du commerce" style="display:block;width:min(300px,100%);margin:1rem auto">
+            <a class="btn btn--brand" href="/api/loyalty/setup/qr.svg?download=1" download="taply-qr-commerce.svg">Télécharger mon QR code</a>
+            <p style="overflow-wrap:anywhere;margin-top:.8rem">${esc(data.enrollmentUrl)}</p>` :
+          `<p>Un QR unique est réservé pour votre commerce. Il deviendra disponible après publication.</p>
+          <form data-action="publish-setup">${btn('Publier ma carte et activer mon QR')}</form>
+          <p class="muted">La publication ne sera possible qu’une fois les inscriptions anonymes certifiées et activées.</p>`}
+        <div style="margin-top:1rem">${link('Sécuriser l’appareil de validation', 'parametres/integrations')}</div>
+      </section>`;
+  }
+
   function home() {
     const h = s.homeData;
     if (!h) return header('Accueil', 'Votre programme de fidélité') +
       msg('Accueil temporairement indisponible', 'Les données de démarrage ne peuvent pas être chargées. Réessayez dans un instant.') +
       link('Modifier le programme', 'parametres/carte');
-    const labels = {
-      program: { title: 'Vérifier ma carte', detail: 'La carte commune à tous vos clients', route: 'carte' },
-      staff_device: { title: 'Approuver un appareil', detail: 'Sécuriser les validations au comptoir', route: 'parametres/integrations' },
-      first_card: { title: 'Inscrire un premier client', detail: 'Une même carte, un identifiant différent par client', route: 'inscription' },
-      first_visit: { title: 'Valider une première visite', detail: 'Après achat, sur un appareil approuvé', route: 'scan' },
-    };
-    const steps = h.onboarding.steps.map(step => {
-      const item = labels[step.id];
-      if (!item) return '';
-      return `<div class="row" style="padding:1rem 0;border-bottom:1px solid #e8e8e4;gap:1rem;align-items:center">
-        <span aria-label="${step.completed ? 'Terminé' : 'À faire'}" style="min-width:1.8rem;font-weight:700;color:${step.completed ? '#34853e' : '#636a65'}">${step.completed ? '✓' : '○'}</span>
-        <span class="row__main"><strong>${esc(item.title)}</strong><small>${esc(item.detail)}</small></span>
-        ${step.completed ? '<span>Terminé</span>' : link('Commencer', item.route)}</div>`;
-    }).join('');
+    const setup = s.setup;
+    const items = [
+      { title: 'Vérifier mon commerce', detail: 'Nom repris automatiquement du compte',
+        done: Boolean(setup?.merchantName),route:'demarrage' },
+      { title: 'Définir ma fidélité', detail: 'De 5 à 10 passages et une récompense offerte',
+        done: Boolean(setup?.rewardTitle && setup.rewardTerms),route:'demarrage' },
+      { title: 'Publier mon QR commerçant', detail: 'Un QR unique que chaque client pourra scanner',
+        done: Boolean(setup?.published && setup.enrollmentUrl),route:'demarrage' },
+      { title: 'Sécuriser les validations', detail: 'Appareil approuvé et code PIN personnel',
+        done: (h.devices?.usableCount ?? 0) > 0,route:'parametres/integrations' },
+    ];
+    const doneCount = items.filter(item=>item.done).length;
+    const steps = items.map(item => `<div class="row" style="padding:1rem 0;border-bottom:1px solid #e8e8e4;gap:1rem;align-items:center">
+      <span aria-label="${item.done ? 'Terminé':'À faire'}" style="min-width:1.8rem;font-weight:700;color:${item.done ? '#34853e' : '#636a65'}">${item.done?'✓':'○'}</span>
+      <span class="row__main"><strong>${esc(item.title)}</strong><small>${esc(item.detail)}</small></span>
+      ${item.done ? '<span>Terminé</span>' : link('Commencer', item.route)}</div>`).join('');
     const cards = [
       ['Cartes inscrites', h.stats.cardsRegistered],
       ['Visites validées', h.stats.visitsValidated],
@@ -111,14 +169,15 @@
     const activities = h.recentActivity.map(item => `<p style="margin:.7rem 0">
       ${esc(fmt(item.happenedAt))} — ${item.kind === 'visit' ? 'Visite validée' : 'Récompense remise'}</p>`).join('');
     const current = h.program;
-    return header('Bienvenue sur Taply', 'Voici les prochaines étapes pour utiliser votre programme de fidélité.') +
+    return header('Bienvenue sur Taply', 'Configurez votre carte et accueillez vos clients via le QR du commerce.') +
+      `<section class="card" style="padding:1.25rem;margin-bottom:1rem"><h2>Votre carte pour tout le commerce</h2><p>Configurez les passages, la récompense et récupérez votre QR public. Vos clients s’inscriront eux-mêmes.</p>${link('Configurer ma carte et mon QR', 'demarrage')}</section>` +
       `<section class="card" data-onboarding style="padding:1.5rem">
         <div class="row" style="justify-content:space-between;gap:1rem;align-items:center">
           <h2 style="margin:0">Démarrage de votre commerce</h2>
-          <strong>${esc(h.onboarding.completed)} / ${esc(h.onboarding.total)} étapes</strong>
+          <strong>${esc(doneCount)} / 4 étapes</strong>
         </div>
         <p>Terminez les étapes utiles pour accueillir vos premiers clients.</p>
-        <progress value="${esc(h.onboarding.completed)}" max="${esc(h.onboarding.total)}" style="width:100%;accent-color:#34853e"></progress>
+        <progress value="${esc(doneCount)}" max="4" style="width:100%;accent-color:#34853e"></progress>
         ${steps}
       </section>
       <section class="kpis" aria-label="Statistiques du commerce" style="margin-top:1.2rem">${cards}</section>
@@ -203,7 +262,7 @@
     return header('Ma carte de fidélité', 'La même carte pour tous vos clients. Seul leur identifiant et leur progression changent.') +
       `<section class="merchant-template card" aria-label="Modèle de la carte du commerce">
         <div>
-          <div class="merchant-template__visual" aria-label="Aperçu illustratif, non utilisable comme carte client">
+          <div class="merchant-template__visual" style="background:${esc(s.setup?.cardColor || '#10241A')};color:${esc(s.setup?.textColor || '#FFFFFF')}" aria-label="Aperçu illustratif, non utilisable comme carte client">
             <span class="merchant-template__eyebrow">CARTE DE FIDÉLITÉ</span>
             <strong class="merchant-template__name">${esc(name)}</strong>
             <span class="merchant-template__program">${esc(model.name)}</span>
@@ -220,6 +279,7 @@
           <p>Ce modèle appartient à votre commerce. Vous le configurez une seule fois. Chaque client inscrit reçoit sa propre carte liée à ce programme, avec un identifiant sécurisé et un compteur de passages indépendant.</p>
           <div class="merchant-template__info">
             <div><span>Passages requis</span><strong>${esc(threshold ?? 'À configurer')}</strong></div>
+            <div><span>Récompense</span><strong>${esc(s.setup?.rewardTitle || 'À configurer')}</strong></div>
             <div><span>Identifiant client</span><strong>Unique pour chacun</strong></div>
           </div>
           ${link('Modifier les règles de la carte', 'parametres/carte')}
@@ -344,7 +404,7 @@
       return;
     }
     const routes = {
-      accueil: home, carte: cardTemplate, clients: customers, recompenses: rewards, statistiques: stats,
+      accueil: home, demarrage: setupPage, carte: cardTemplate, clients: customers, recompenses: rewards, statistiques: stats,
       parametres: settings, 'parametres/carte': configCard,
       'parametres/integrations': devicePage,
       'parametres/etablissement': settings,
@@ -358,6 +418,19 @@
     const pin = value('pin');
     const uuid = () => crypto.randomUUID();
     switch (form.dataset.action) {
+      case 'save-setup': {
+        await api('loyalty/setup', {
+          threshold:Number(value('threshold')),
+          rewardTitle:value('rewardTitle'), rewardTerms:value('rewardTerms'),
+          cardColor:value('cardColor'),textColor:value('textColor'),
+        }, 'PATCH');
+        return 'Programme enregistré. Vous pouvez maintenant le publier lorsque le QR client sera actif.';
+      }
+      case 'publish-setup': {
+        await api('loyalty/setup/publish', {});
+        return 'Votre programme est publié : téléchargez votre QR code.';
+      }
+
       case 'scan': {
         const x = await api('loyalty/scan', {
           qrToken:value('qrToken'), pin, idempotencyKey:uuid(), purchaseConfirmed:true

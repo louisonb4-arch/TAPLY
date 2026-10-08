@@ -207,3 +207,69 @@ describe('POST /api/loyalty/devices/approve — activation de son propre apparei
     expect(res.status).toBe(503);
   });
 });
+
+describe('QR V1 : feature gates, owner setup, CSRF', () => {
+  it('refuse les QR publics avant activation explicite', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const a = await app('test').request('/api/loyalty/public-card?code=' + 'A'.repeat(32));
+    expect(a.status).toBe(503);
+    const b = await app('test').request('/api/loyalty/public-card/enroll', {
+      method:'POST',headers:{Origin:ORIGIN,'content-type':'application/json'},
+      body:JSON.stringify({publicToken:'A'.repeat(32),privacyAccepted:true}),
+    });
+    expect(b.status).toBe(503);
+  });
+
+  it('refuse les QR publics en production même si les deux flags sont activés', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    vi.stubEnv('TAPLY_QR_ANONYMOUS_V1', 'enabled');
+    const response = await app('production').request('/api/loyalty/public-card?code=' + 'A'.repeat(32));
+    expect(response.status).toBe(503);
+  });
+
+  it('ne requiert pas la DB pour rejeter des codes publics invalides', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    vi.stubEnv('TAPLY_QR_ANONYMOUS_V1', 'enabled');
+    const response = await app('test').request('/api/loyalty/public-card?code=invalid');
+    expect(response.status).toBe(404);
+  });
+
+  it('interdit un enrollement sans Origin exacte (CSRF)', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    vi.stubEnv('TAPLY_QR_ANONYMOUS_V1', 'enabled');
+    const response = await app('test').request('/api/loyalty/public-card/enroll', {
+      method:'POST',headers:{Origin:'https://evil.invalid','content-type':'application/json'},
+      body:JSON.stringify({publicToken:'A'.repeat(32),privacyAccepted:true}),
+    });
+    expect(response.status).toBe(403);
+  });
+
+  it('refuse la configuration commerçante sans session', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const res = await app('test').request('/api/loyalty/setup');
+    expect(res.status).toBe(401);
+  });
+
+  it('refuse toute publication tant que la nouvelle expérience anonyme n’est pas disponible', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const response = await app('test').request('/api/loyalty/setup/publish', {
+      method:'POST',headers:{Origin:ORIGIN,'content-type':'application/json'},body:'{}',
+    });
+    expect(response.status).toBe(503);
+  });
+
+  it('refuse un PATCH sans Origin et tout seuil inférieur à 5', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const payload={threshold:4,rewardTitle:'Un café offert',rewardTerms:'Conditions',
+      cardColor:'#10241A',textColor:'#FFFFFF'};
+    const csrf = await app('test').request('/api/loyalty/setup', {
+      method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(payload),
+    });
+    expect(csrf.status).toBe(403);
+    const invalid = await app('test').request('/api/loyalty/setup', {
+      method:'PATCH',headers:{Origin:ORIGIN,'content-type':'application/json'},
+      body:JSON.stringify(payload),
+    });
+    expect(invalid.status).toBe(400);
+  });
+});

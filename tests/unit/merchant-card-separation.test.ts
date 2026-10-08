@@ -25,8 +25,8 @@ describe('Carte unique par commerce, identifiants propres aux clients', () => {
     const js = read('dashboard/live.js');
     expect(js).toContain("return header('Inscrire un client'");
     expect(js).toContain("return header('Règles de ma carte'");
-    expect(js).toContain("first_card: { title: 'Inscrire un premier client'");
-    expect(js).toContain("route: 'inscription'");
+    expect(js).toContain("title: 'Définir ma fidélité'");
+    expect(js).toContain("route:'demarrage'");
     expect(js).toContain("carte: cardTemplate");
     expect(js).toContain("api('loyalty/customers/register'");
   });

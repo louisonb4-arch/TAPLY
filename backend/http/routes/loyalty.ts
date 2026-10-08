@@ -27,6 +27,15 @@ import { preparePublicEnrollment, confirmPublicEnrollment } from '../../loyalty/
 import { securityOverview } from '../../loyalty/security-overview.js';
 import { merchantCustomers } from '../../loyalty/dashboard-read.js';
 import { merchantHome } from '../../loyalty/merchant-home.js';
+import { readMerchantSetup, saveMerchantSetup, publishMerchantSetup } from '../../loyalty/merchant-setup.js';
+import QRCode from 'qrcode';
+import { resolvePublicEnrollmentLink } from '../../db/lookup.js';
+import { withTenantTx } from '../../db/tenant-context.js';
+import {
+  publicProgram, existingAnonymousCard, createAnonymousCard, presentAnonymousCard,
+  generateRecovery, recoverAnonymousCard, clientSessionCookieName,
+} from '../../loyalty/anonymous-cards.js';
+
 import { originCheck } from '../origin.js';
 import type { AppEnvBindings } from '../types.js';
 
@@ -208,6 +217,170 @@ loyaltyRoutes.get('/loyalty/home', async (c) => {
   return c.json(result);
 });
 
+const setupSchema = z.strictObject({
+  threshold: z.number().int().min(5).max(10),
+  rewardTitle: z.string().trim().min(3).max(120),
+  rewardTerms: z.string().trim().max(2000),
+  cardColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  textColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+
+loyaltyRoutes.get('/loyalty/setup', async (c) => {
+  checkPreview(c);
+  const origin = c.get('config').auth.appOrigin;
+  if (!origin) throw new AppError('SERVICE_UNAVAILABLE');
+  const token = getSessionCookie(c, c.get('config').appEnv);
+  const setup = await authenticated(c, token, (db, owner) => readMerchantSetup(db, owner, origin));
+  if (!setup) throw new AppError('AUTH_FORBIDDEN');
+  return c.json(setup);
+});
+
+loyaltyRoutes.patch('/loyalty/setup', originCheck, async (c) => {
+  checkPreview(c);
+  const body = await parseBody(c, setupSchema);
+  const token = getSessionCookie(c, c.get('config').appEnv);
+  const status = await authenticated(c, token, (db, owner) => saveMerchantSetup(db, owner, body));
+  if (status === 'not_found') throw new AppError('AUTH_FORBIDDEN');
+  if (status !== 'updated') throw new AppError('VALIDATION_FAILED');
+  return c.json({ saved: true });
+});
+
+loyaltyRoutes.post('/loyalty/setup/publish', originCheck, async (c) => {
+  checkPreview(c);
+  // Deliberate release gate: don't send real clients to the old join.html
+  // (firstName + staff confirmation) until anonymous enrollment is certified.
+  if (process.env['TAPLY_QR_ANONYMOUS_V1'] !== 'enabled') {
+    throw new AppError('SERVICE_UNAVAILABLE');
+  }
+  const token = getSessionCookie(c, c.get('config').appEnv);
+  const result = await authenticated(c, token, (db, owner) => publishMerchantSetup(db, owner));
+  if (result === 'not_found') throw new AppError('AUTH_FORBIDDEN');
+  if (result !== 'published') throw new AppError('VALIDATION_FAILED');
+  return c.json({ published: true });
+});
+
+loyaltyRoutes.get('/loyalty/setup/qr.svg', async (c) => {
+  checkPreview(c);
+  const origin = c.get('config').auth.appOrigin;
+  if (!origin) throw new AppError('SERVICE_UNAVAILABLE');
+  const token = getSessionCookie(c, c.get('config').appEnv);
+  const setup = await authenticated(c, token, (db, owner) => readMerchantSetup(db, owner, origin));
+  if (!setup) throw new AppError('AUTH_FORBIDDEN');
+  if (!setup.enrollmentUrl) throw new AppError('NOT_FOUND');
+  const svg = await QRCode.toString(setup.enrollmentUrl, {
+    type: 'svg', errorCorrectionLevel: 'H', margin: 3, width: 640,
+  });
+  c.header('Content-Type', 'image/svg+xml; charset=utf-8');
+  if (c.req.query('download') === '1')
+    c.header('Content-Disposition', 'attachment; filename="taply-qr-commerce.svg"');
+  return c.body(svg);
+});
+
+
+const publicCodeSchema = z.string().regex(/^[A-Za-z0-9_-]{32}$/);
+const anonymousBodySchema = z.strictObject({
+  publicToken: publicCodeSchema,
+  privacyAccepted: z.literal(true),
+});
+const publicCardBodySchema = z.strictObject({ publicToken: publicCodeSchema });
+const recoveryBodySchema = z.strictObject({
+  publicToken: publicCodeSchema,
+  recoveryCode: z.string().min(20).max(40),
+});
+
+function checkAnonymous(c: { get(name: 'config'): { appEnv: string } }): void {
+  checkPreview(c);
+  if (process.env['TAPLY_QR_ANONYMOUS_V1'] !== 'enabled') {
+    throw new AppError('SERVICE_UNAVAILABLE');
+  }
+}
+
+async function publicTarget(c: { get(name: 'dbPool'): Pool | undefined }, token: string) {
+  const pool = c.get('dbPool') ?? getPool();
+  const target = await resolvePublicEnrollmentLink(pool, token);
+  if (!target) throw new AppError('NOT_FOUND');
+  return { pool, target };
+}
+
+function writeAnonymousCookie(c: Parameters<typeof setCookie>[0], programId: string,
+    raw: string, env: string): void {
+  setCookie(c, clientSessionCookieName(programId), raw, {
+    path: '/api/loyalty', httpOnly: true, sameSite: 'Strict',
+    secure: env !== 'test', maxAge: 365 * 86400,
+  });
+}
+
+/** Public QR: read-only, code only in the query string (not request logs). */
+loyaltyRoutes.get('/loyalty/public-card', async (c) => {
+  checkAnonymous(c);
+  const raw = c.req.query('code') ?? '';
+  if (!publicCodeSchema.safeParse(raw).success) throw new AppError('NOT_FOUND');
+  const { pool, target } = await publicTarget(c, raw);
+  const data = await withTenantTx(pool, target.merchantId, async (db) => {
+    const program = await publicProgram(db, target.merchantId, target.programId);
+    if (!program) return undefined;
+    const session = getCookie(c, clientSessionCookieName(target.programId));
+    const card = await existingAnonymousCard(db, target.merchantId, target.programId, session);
+    return { ...program, card };
+  });
+  if (!data) throw new AppError('NOT_FOUND');
+  return c.json(data);
+});
+
+loyaltyRoutes.post('/loyalty/public-card/enroll', originCheck, async (c) => {
+  checkAnonymous(c);
+  const body = await parseBody(c, anonymousBodySchema);
+  const { pool, target } = await publicTarget(c, body.publicToken);
+  const session = getCookie(c, clientSessionCookieName(target.programId));
+  const result = await withTenantTx(pool, target.merchantId, db =>
+    createAnonymousCard(db, target.merchantId, target.programId, session));
+  if (result.status === 'not_published') throw new AppError('NOT_FOUND');
+  if (result.status === 'rate_limited') throw new AppError('RATE_LIMITED');
+  if (!('card' in result)) throw new AppError('SERVICE_UNAVAILABLE');
+  if (result.session) writeAnonymousCookie(c, target.programId, result.session, c.get('config').appEnv);
+  return c.json({ created: result.status === 'created', card: result.card });
+});
+
+loyaltyRoutes.post('/loyalty/public-card/present', originCheck, async (c) => {
+  checkAnonymous(c);
+  const body = await parseBody(c, publicCardBodySchema);
+  const { pool, target } = await publicTarget(c, body.publicToken);
+  const session = getCookie(c, clientSessionCookieName(target.programId));
+  const result = await withTenantTx(pool, target.merchantId, async (db) => {
+    if (!await publicProgram(db, target.merchantId, target.programId)) return undefined;
+    return presentAnonymousCard(db, target.merchantId, target.programId, session);
+  });
+  if (!result) throw new AppError('AUTH_REQUIRED');
+  const qrSvg = await QRCode.toString(result.qrToken, {type:'svg', margin:3, width:360});
+  return c.json({ ...result, qrSvg });
+});
+
+loyaltyRoutes.post('/loyalty/public-card/recovery-code', originCheck, async (c) => {
+  checkAnonymous(c);
+  const body = await parseBody(c, publicCardBodySchema);
+  const { pool, target } = await publicTarget(c, body.publicToken);
+  const session = getCookie(c, clientSessionCookieName(target.programId));
+  const result = await withTenantTx(pool, target.merchantId, async (db) => {
+    if (!await publicProgram(db, target.merchantId, target.programId)) return undefined;
+    return generateRecovery(db, target.merchantId, target.programId, session);
+  });
+  if (!result) throw new AppError('AUTH_REQUIRED');
+  return c.json({ recoveryCode: result, shownOnce: true });
+});
+
+loyaltyRoutes.post('/loyalty/public-card/recover', originCheck, async (c) => {
+  checkAnonymous(c);
+  const body = await parseBody(c, recoveryBodySchema);
+  const { pool, target } = await publicTarget(c, body.publicToken);
+  const result = await withTenantTx(pool, target.merchantId, async (db) => {
+    if (!await publicProgram(db, target.merchantId, target.programId)) return undefined;
+    return recoverAnonymousCard(db, target.merchantId, target.programId, body.recoveryCode);
+  });
+  if (!result) throw new AppError('AUTH_REQUIRED');
+  writeAnonymousCookie(c, target.programId, result.session, c.get('config').appEnv);
+  return c.json({ recovered: true });
+});
+
 // Staff at counter creates the card; no public anonymous endpoint until a
 // durable anti-abuse solution, individual consent and ownership recovery exist.
 // No visit is credited on registration.
@@ -348,6 +521,8 @@ const publicConfirmSchema = z.strictObject({
 // Public QR can ONLY create a 10-minute PENDING enrollment.
 // It must not create a wallet token or increment any counters itself.
 loyaltyRoutes.post('/loyalty/enrollment/prepare', originCheck, async (c) => {
+  // Deprecated first-name flow cannot coexist with anonymous QR V1.
+  if (process.env['TAPLY_QR_ANONYMOUS_V1'] === 'enabled') throw new AppError('SERVICE_UNAVAILABLE');
   checkPreview(c);
   const body = await parseBody(c, publicStartSchema);
   const outcome = await preparePublicEnrollment(c.get('dbPool') ?? getPool(), body);
@@ -359,6 +534,8 @@ loyaltyRoutes.post('/loyalty/enrollment/prepare', originCheck, async (c) => {
 // Confirmed physical presence + purchase by approved staff.
 // First visit and personal QR creation are committed atomically.
 loyaltyRoutes.post('/loyalty/enrollment/confirm', originCheck, async (c) => {
+  // Deprecated first-name flow cannot coexist with anonymous QR V1.
+  if (process.env['TAPLY_QR_ANONYMOUS_V1'] === 'enabled') throw new AppError('SERVICE_UNAVAILABLE');
   checkPreview(c);
   const body = await parseBody(c, publicConfirmSchema);
   const cookie = getSessionCookie(c, c.get('config').appEnv);

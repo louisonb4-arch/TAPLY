@@ -38,7 +38,7 @@ describe('Taply QR public — droits minimaux et 192 bits aléatoires', () => {
   it('forme uniquement un lien HTTPS depuis un origin configuré, jamais Host', () => {
     const t = generateMerchantEnrollmentToken();
     expect(merchantEnrollmentUrl('https://app.taply.example/', t))
-      .toBe('https://app.taply.example/j/' + t);
+      .toBe('https://app.taply.example/join.html?code=' + t);
     for (const origin of ['http://app.taply.example/', 'https://user:pass@app.taply.example/',
       'https://app.taply.example/a', 'https://app.taply.example/?redirect=evil',
       'https://app.taply.example/#fragment']) {

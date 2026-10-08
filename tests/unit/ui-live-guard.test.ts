@@ -44,10 +44,12 @@ describe('UI Taply — aucun retour silencieux aux données fictives', () => {
 
   it('le QR public ne transmet jamais un jeton personnel dans les URLs ni le stockage', () => {
     const join = read('join.html');
-    expect(join).toContain("fetch('/api/loyalty/enrollment/prepare'");
-    expect(join).toContain('claimToken = data.claimToken');
+    expect(join).toContain("fetch('/api/loyalty/public-card'+path");
+    expect(join).toContain("privacyAccepted:true");
+    expect(join).not.toContain('firstName');
+    expect(join).not.toContain('claimToken');
     expect(join).not.toMatch(/localStorage|sessionStorage/);
-    expect(join).toContain('Aucune visite n');
+    expect(join).toContain('Aucun passage n');
   });
   it('la page réelle exige auth/me et refuse le mode démo/localStorage', () => {
     const live = read('dashboard/live.js');

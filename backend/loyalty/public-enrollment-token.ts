@@ -35,5 +35,7 @@ export function merchantEnrollmentUrl(origin: string, token: string): string {
       || base.search || base.hash || base.pathname !== '/') {
     throw new TypeError('A clean HTTPS application origin is required');
   }
-  return new URL('/j/' + token, base).href;
+  const url = new URL('/join.html', base);
+  url.searchParams.set('code', token);
+  return url.href;
 }
