@@ -21,6 +21,8 @@ import { withTenantTx } from '../../backend/db/tenant-context.ts';
 import { creditVisit } from '../../backend/loyalty/credit.ts';
 import { redeemReward } from '../../backend/loyalty/redeem.ts';
 import { createStaffDevicePairing, activateStaffDevice, authorizeStaffAction } from '../../backend/auth/staff-device.ts';
+import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgram } from '../../backend/loyalty/operations.ts';
+import { scanWalletQrAndCredit } from '../../backend/loyalty/scan.ts';
 
 const ACK = 'isolated-postgres-cluster';
 const DB_NAME = 'taply_cert';
@@ -423,6 +425,118 @@ async function certify() {
     assert.match(row.rows[0].pin_salt, /^[0-9a-f]{32}$/);
     assert.match(row.rows[0].pin_verifier, /^[0-9a-f]{128}$/);
     assert.ok(!row.rows[0].pin_verifier.includes('12345678'));
+  });
+
+  await test('Création carte client: consentement, QR opaque, aucun crédit automatique', async () => {
+    const key = randomUUID();
+    const input = {
+      firstName: 'Élodie',
+      programId: A.program,
+      idempotencyKey: key,
+      privacyAccepted: true,
+    };
+    const first = await withTenantTx(app, A.merchant,
+      (client) => registerCustomer(client, A.principal, input));
+    assert.ok(first?.membershipId);
+    assert.match(first?.qrToken, /^[A-Za-z0-9_-]{43}$/);
+    assert.equal(await count('visit_ledger', { membership: first.membershipId }), 0);
+    const state = await admin.query(
+      'select visit_count, reward_pending from taply.membership_states where membership_id=$1',
+      [first.membershipId],
+    );
+    assert.equal(state.rows[0].visit_count, 0);
+    assert.equal(state.rows[0].reward_pending, false);
+    const profile = await admin.query(
+      'select first_name from taply.customer_profiles where customer_id=$1',
+      [first.customerId],
+    );
+    assert.equal(profile.rows[0].first_name, 'Élodie');
+
+    const replay = await withTenantTx(app, A.merchant,
+      (client) => registerCustomer(client, A.principal, input));
+    assert.equal(replay.membershipId, first.membershipId);
+    assert.equal(replay.qrToken, undefined, 'Un jeton QR brut ne doit PAS être stocké en DB');
+    const textCheck = await admin.query(`select response::text as response
+      from taply.idempotency_requests where merchant_id=$1 and idempotency_key=$2`,
+      [A.merchant, key]);
+    assert.ok(!textCheck.rows[0].response.includes(first.qrToken));
+    const otherTenant = await withTenantTx(app, B.merchant,
+      (client) => registerCustomer(client, B.principal, input));
+    assert.equal(otherTenant, undefined);
+    const initial = await withTenantTx(app, A.merchant,
+      (client) => getLoyaltyCard(client, A.principal, first.qrToken));
+    assert.equal(initial.firstName, 'Élodie');
+    assert.equal(initial.visitCount, 0);
+    assert.equal(initial.threshold, 5);
+    const denied = await withTenantTx(app, B.merchant,
+      (client) => getLoyaltyCard(client, B.principal, first.qrToken));
+    assert.equal(denied, undefined);
+
+    const credited = await withTenantTx(app, A.merchant, (client) =>
+      scanWalletQrAndCredit(client, A.principal, first.qrToken, randomUUID()));
+    assert.equal(credited.credited, true);
+    assert.equal(credited.visitCount, 1);
+    assert.equal(await count('visit_ledger', { membership: first.membershipId }), 1);
+  });
+
+  await test('Dashboard et préférences: propriétaire, notifications OFF par défaut, programme en pause', async () => {
+    const initial = await withTenantTx(app, A.merchant,
+      (client) => merchantOverview(client, A.principal));
+    assert.equal(initial.length, 1);
+    assert.equal(initial[0].threshold, 5);
+    assert.equal(initial[0].notificationsEnabled, false);
+    assert.equal(initial[0].totalMembers, 2);
+
+    const staffFake = { ...A.principal, role: 'staff' };
+    const denied = await withTenantTx(app, A.merchant, (client) =>
+      updateMerchantProgram(client, staffFake, {
+        programId: A.program, status: 'paused', notificationsEnabled: true,
+      }));
+    assert.equal(denied.ok, false);
+    const paused = await withTenantTx(app, A.merchant, (client) =>
+      updateMerchantProgram(client, A.principal, {
+        programId: A.program, status: 'paused', notificationsEnabled: true,
+      }));
+    assert.equal(paused.ok, true);
+    const overview = await withTenantTx(app, A.merchant,
+      (client) => merchantOverview(client, A.principal));
+    assert.equal(overview[0].status, 'paused');
+    assert.equal(overview[0].notificationsEnabled, true);
+    const reset = await withTenantTx(app, A.merchant, (client) =>
+      updateMerchantProgram(client, A.principal, {
+        programId: A.program, status: 'active', notificationsEnabled: false,
+      }));
+    assert.equal(reset.ok, true);
+  });
+
+  await test('Changement de seuil: 30 jours et version épinglée au cycle', async () => {
+    const tooSoon = await withTenantTx(app, A.merchant, (client) =>
+      updateMerchantProgram(client, A.principal, {
+        programId: A.program, status: 'active', notificationsEnabled: false, threshold: 7,
+      }));
+    assert.deepEqual(tooSoon, { ok: false, reason: 'change_too_soon' });
+    await admin.query(`update taply.program_rule_versions
+      set created_at=now() - interval '31 days'
+      where id=(select id from taply.program_rule_versions
+        where merchant_id=$1 and program_id=$2 and is_active=true)`,
+      [A.merchant, A.program]);
+    const changed = await withTenantTx(app, A.merchant, (client) =>
+      updateMerchantProgram(client, A.principal, {
+        programId: A.program, status: 'active', notificationsEnabled: false, threshold: 7,
+      }));
+    assert.deepEqual(changed, { ok: true, nextThreshold: 7 });
+    const current = await withTenantTx(app, A.merchant,
+      (client) => merchantOverview(client, A.principal));
+    assert.equal(current[0].threshold, 7);
+    const previouslyPinned = await admin.query(`select rules->>'threshold' as threshold
+      from taply.program_rule_versions v join taply.memberships m
+       on m.current_rule_version_id=v.id where m.id=$1`, [A.membership]);
+    assert.equal(previouslyPinned.rows[0].threshold, '5');
+    const cross = await withTenantTx(app, B.merchant, (client) =>
+      updateMerchantProgram(client, B.principal, {
+        programId: A.program, status: 'paused', notificationsEnabled: true,
+      }));
+    assert.equal(cross.ok, false);
   });
 
   console.log('CERTIFICATION PG17 OK:', passed, 'vérifications dynamiques');

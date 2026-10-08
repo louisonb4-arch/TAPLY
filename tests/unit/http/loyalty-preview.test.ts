@@ -17,6 +17,10 @@ const cases = [
   ['/api/loyalty/redeem', { qrToken: 'fake', idempotencyKey: '00000000-0000-4000-8000-000000000001', pin: '123456', giftHandedOver: true, expectedCycleNumber: 1 }],
   ['/api/loyalty/devices/approve', { targetMerchantUserId: '00000000-0000-4000-8000-000000000001', ownerEmail: 'owner@taply.test', ownerPassword: 'bad' }],
   ['/api/loyalty/devices/activate', { pairingToken: 'fake', pin: '123456' }],
+  ['/api/loyalty/customers/register', { firstName: 'Elodie', programId: '00000000-0000-4000-8000-000000000001', idempotencyKey: '00000000-0000-4000-8000-000000000002', privacyAccepted: true, customerPresent: true, pin: '123456' }],
+  ['/api/loyalty/card/status', { qrToken: 'fake', pin: '123456' }],
+  ['/api/loyalty/programs/update', { programId: '00000000-0000-4000-8000-000000000001', status: 'active', notificationsEnabled: false, pin: '123456' }],
+  ['/api/loyalty/devices/revoke', { deviceId: '00000000-0000-4000-8000-000000000001', pin: '123456' }],
 ] as const;
 
 describe('Loyalty API est fail-closed', () => {
