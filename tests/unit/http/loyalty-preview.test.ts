@@ -149,3 +149,30 @@ describe('GET /api/loyalty/merchant', () => {
     expect((await app('test').request('/api/loyalty/merchant')).status).toBe(503);
   });
 });
+
+describe('GET /api/loyalty/home — privacy and feature gates', () => {
+  it('is disabled unless preview enabled', async () => {
+    expect((await app('test').request('/api/loyalty/home')).status).toBe(503);
+  });
+
+  it('requires a server session when preview is enabled', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const response = await app('test').request('/api/loyalty/home');
+    expect(response.status).toBe(401);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe('AUTH_REQUIRED');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('cannot be enabled in production', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const response = await app('production').request('/api/loyalty/home');
+    expect(response.status).toBe(503);
+  });
+
+  it('also rejects Vercel production even when APP_ENV=test', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    const response = await app('test').request('/api/loyalty/home');
+    expect(response.status).toBe(503);
+  });
+});

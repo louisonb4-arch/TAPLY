@@ -26,6 +26,7 @@ import { rotateWalletQr } from '../../loyalty/rotation.js';
 import { preparePublicEnrollment, confirmPublicEnrollment } from '../../loyalty/enrollment.js';
 import { securityOverview } from '../../loyalty/security-overview.js';
 import { merchantCustomers } from '../../loyalty/dashboard-read.js';
+import { merchantHome } from '../../loyalty/merchant-home.js';
 import { originCheck } from '../origin.js';
 import type { AppEnvBindings } from '../types.js';
 
@@ -194,6 +195,16 @@ loyaltyRoutes.get('/loyalty/overview', async (c) => {
   });
   if (operation === undefined) throw new AppError('AUTH_FORBIDDEN');
   return c.json({ programs: operation });
+});
+
+/** Accueil commerçant V1 : statistiques et démarrage réels, sans données fictives. */
+loyaltyRoutes.get('/loyalty/home', async (c) => {
+  checkPreview(c);
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const result = await authenticated(c, cookie, (client, principal) =>
+    merchantHome(client, principal));
+  if (result === undefined) throw new AppError('AUTH_FORBIDDEN');
+  return c.json(result);
 });
 
 // Staff at counter creates the card; no public anonymous endpoint until a

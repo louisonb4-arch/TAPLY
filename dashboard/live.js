@@ -7,7 +7,7 @@
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const view = $('#view');
-  const s = { principal: null, identity: null, merchant: null, programs: [], customers: [], security: null, error: null,
+  const s = { principal: null, identity: null, merchant: null, programs: [], customers: [], security: null, homeData: null, error: null,
     customersError: null, securityError: null };
   const esc = x => String(x ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -55,6 +55,7 @@
     s.programs = [];
     s.customers = [];
     s.security = null;
+    s.homeData = null;
     s.customersError = null;
     s.securityError = null;
     s.principal = await api('auth/me');
@@ -65,7 +66,7 @@
     }
     const results = await Promise.allSettled([
       api('loyalty/overview'), api('loyalty/customers'),
-      api('loyalty/security'), api('loyalty/identity'),
+      api('loyalty/security'), api('loyalty/identity'), api('loyalty/home'),
     ]);
     if (results[0].status === 'fulfilled') s.programs = results[0].value.programs;
     else s.error = results[0].reason.message;
@@ -74,28 +75,69 @@
     if (results[2].status === 'fulfilled') s.security = results[2].value;
     else s.securityError = results[2].reason.message;
     if (results[3].status === 'fulfilled') s.identity = results[3].value;
+    if (results[4].status === 'fulfilled') s.homeData = results[4].value;
   }
   async function refresh() {
     s.error = null; await load(); render();
   }
   const program = () => s.programs[0];
   function home() {
-    const total = s.programs.reduce((n, p) => n + p.totalMembers, 0);
-    const pending = s.programs.reduce((n, p) => n + p.pendingRewards, 0);
-    return header('Accueil', 'Données réelles de votre programme de fidélité') +
-      `<section class="kpis" aria-label="Indicateurs réels">
-        <div class="card kpi"><span class="kpi__label">Cartes inscrites</span><strong class="kpi__value">${total}</strong></div>
-        <div class="card kpi"><span class="kpi__label">Récompenses en attente</span><strong class="kpi__value">${pending}</strong></div>
-        <div class="card kpi"><span class="kpi__label">Programmes actifs</span><strong class="kpi__value">${s.programs.filter(p => p.status === 'active').length}</strong></div>
-      </section><section class="grid" style="margin-top:1.25rem">
-        <div class="card" style="padding:1.5rem"><h2>Actions au comptoir</h2>
-          <p>Une visite est créditée seulement après validation avec un appareil approuvé et un code PIN.</p>
-          ${link('Valider une visite', 'scan')} ${link('Confirmer une pré-inscription', 'confirmation')}
-          ${link('Créer une carte', 'inscription')}</div>
-        <div class="card" style="padding:1.5rem"><h2>Programme de fidélité</h2>
-          ${s.programs.map(p => `<p><strong>${esc(p.name)}</strong> — ${esc(p.status)} —
-           ${esc(p.threshold)} passages requis</p>`).join('') || '<p>Aucun programme actif enregistré.</p>'}
-          ${link('Modifier les règles', 'parametres/carte')}</div></section>`;
+    const h = s.homeData;
+    if (!h) return header('Accueil', 'Votre programme de fidélité') +
+      msg('Accueil temporairement indisponible', 'Les données de démarrage ne peuvent pas être chargées. Réessayez dans un instant.') +
+      link('Modifier le programme', 'parametres/carte');
+    const labels = {
+      program: { title: 'Configurer le programme', detail: 'Règles et nombre de passages', route: 'parametres/carte' },
+      staff_device: { title: 'Approuver un appareil', detail: 'Sécuriser les validations au comptoir', route: 'parametres/integrations' },
+      first_card: { title: 'Créer une première carte', detail: 'Avec un client présent et son consentement', route: 'inscription' },
+      first_visit: { title: 'Valider une première visite', detail: 'Après achat, sur un appareil approuvé', route: 'scan' },
+    };
+    const steps = h.onboarding.steps.map(step => {
+      const item = labels[step.id];
+      if (!item) return '';
+      return `<div class="row" style="padding:1rem 0;border-bottom:1px solid #e8e8e4;gap:1rem;align-items:center">
+        <span aria-label="${step.completed ? 'Terminé' : 'À faire'}" style="min-width:1.8rem;font-weight:700;color:${step.completed ? '#34853e' : '#636a65'}">${step.completed ? '✓' : '○'}</span>
+        <span class="row__main"><strong>${esc(item.title)}</strong><small>${esc(item.detail)}</small></span>
+        ${step.completed ? '<span>Terminé</span>' : link('Commencer', item.route)}</div>`;
+    }).join('');
+    const cards = [
+      ['Cartes inscrites', h.stats.cardsRegistered],
+      ['Visites validées', h.stats.visitsValidated],
+      ['Récompenses en attente', h.stats.rewardsPending],
+      ['Récompenses remises', h.stats.rewardsRedeemed],
+    ].map(([label, value]) => `<div class="card kpi"><span class="kpi__label">${esc(label)}</span>
+      <strong class="kpi__value">${esc(value)}</strong></div>`).join('');
+    const activities = h.recentActivity.map(item => `<p style="margin:.7rem 0">
+      ${esc(fmt(item.happenedAt))} — ${item.kind === 'visit' ? 'Visite validée' : 'Récompense remise'}</p>`).join('');
+    const current = h.program;
+    return header('Bienvenue sur Taply', 'Voici les prochaines étapes pour utiliser votre programme de fidélité.') +
+      `<section class="card" data-onboarding style="padding:1.5rem">
+        <div class="row" style="justify-content:space-between;gap:1rem;align-items:center">
+          <h2 style="margin:0">Démarrage de votre commerce</h2>
+          <strong>${esc(h.onboarding.completed)} / ${esc(h.onboarding.total)} étapes</strong>
+        </div>
+        <p>Terminez les étapes utiles pour accueillir vos premiers clients.</p>
+        <progress value="${esc(h.onboarding.completed)}" max="${esc(h.onboarding.total)}" style="width:100%;accent-color:#34853e"></progress>
+        ${steps}
+      </section>
+      <section class="kpis" aria-label="Statistiques du commerce" style="margin-top:1.2rem">${cards}</section>
+      <section class="grid" style="margin-top:1.2rem">
+        <div class="card" style="padding:1.5rem"><h2>Programme actuel</h2>
+          ${current ? `<p><strong>${esc(current.name)}</strong> — ${current.status === 'active' ? 'Actif' : 'En pause'}</p>
+            <p>${esc(current.threshold ?? '—')} passages pour obtenir une récompense</p>` :
+            '<p>Aucun programme configuré.</p>'}
+          ${link('Modifier les règles', 'parametres/carte')}
+        </div>
+        <div class="card" style="padding:1.5rem"><h2>Sécurité au comptoir</h2>
+          <p>${esc(h.devices.usableCount)} appareil(s) approuvé(s) et utilisable(s).</p>
+          <p>Le statut physique du présentoir NFC n’est pas encore vérifiable automatiquement.</p>
+          ${link('Gérer les appareils', 'parametres/integrations')}
+        </div>
+      </section>
+      <section class="card" style="padding:1.5rem;margin-top:1.2rem">
+        <h2>Activité récente</h2>
+        ${activities || '<p>Aucune activité pour le moment. Les visites et les récompenses apparaîtront ici après validation.</p>'}
+      </section>`;
   }
   function customers() {
     if (s.customersError) return header('Clients', 'Données réelles uniquement') +
