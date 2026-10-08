@@ -29,6 +29,7 @@ import { createApp } from '../../backend/http/app.ts';
 import { loadConfig } from '../../backend/core/config.ts';
 import { createLogger } from '../../backend/core/logger.ts';
 import { generateSessionToken, hashSessionToken } from '../../backend/auth/token.ts';
+import { preparePublicEnrollment, confirmPublicEnrollment } from '../../backend/loyalty/enrollment.ts';
 
 const ACK = 'isolated-postgres-cluster';
 const DB_NAME = 'taply_cert';
@@ -583,6 +584,33 @@ async function certify() {
     assert.equal(access.rows[0].can_delete, false);
   });
 
+  await test('QR public: 20 préparations maximum/10 min, sans créer de passage ni de carte', async () => {
+    const location = randomUUID();
+    const publicToken = randomBytes(20).toString('base64url');
+    await admin.query(`insert into taply.locations
+      (id,merchant_id,name,slug) values($1,$2,'Boutique test','comptoir')`,
+      [location, B.merchant]);
+    await admin.query(`insert into taply.public_enrollment_links
+      (public_token,merchant_id,location_id,program_id) values($1,$2,$3,$4)`,
+      [publicToken, B.merchant, location, B.program]);
+    const attempts = await Promise.all(Array.from({ length: 25 }, () =>
+      preparePublicEnrollment(app, {
+        publicToken, firstName: 'Clara', privacyAccepted: true,
+      })));
+    assert.equal(attempts.filter(x => x.status === 'prepared').length, 20);
+    assert.equal(attempts.filter(x => x.status === 'rate_limited').length, 5);
+    assert.equal((await state(B)).visit_count, 0);
+    assert.equal(await count('visit_ledger', B), 0);
+    const cards = await admin.query(`select count(*)::integer as n
+      from taply.wallet_qr_tokens where merchant_id=$1`, [B.merchant]);
+    assert.equal(cards.rows[0].n, 0);
+    const pending = attempts.find(x=>x.status==='prepared');
+    const wrongShop = await withTenantTx(app, A.merchant,
+      (client) => confirmPublicEnrollment(client,A.principal,
+        { claimToken: pending.claimToken, idempotencyKey: randomUUID() }));
+    assert.equal(wrongShop.status, 'not_found');
+  });
+
   await test('HTTP E2E réel: cookie session + PIN + appareil + création + scan + cadeau', async () => {
     const ownerPairing = await withTenantTx(app, A.merchant,
       (client) => createStaffDevicePairing(client, A.principal, A.principal.merchantUserId));
@@ -641,6 +669,49 @@ async function certify() {
         headers: { Cookie: cookies },
       });
       assert.equal((await afterReg.json()).programs[0].totalMembers, 3);
+
+      // Le QR du présentoir n'est JAMAIS une carte de fidélité.
+      const publicLocation = randomUUID();
+      const posterToken = randomBytes(20).toString('base64url');
+      await admin.query(`insert into taply.locations
+        (id,merchant_id,name,slug) values($1,$2,'Roll in Love demo','boutique-demo')`,
+        [publicLocation, A.merchant]);
+      await admin.query(`insert into taply.public_enrollment_links
+        (public_token,merchant_id,location_id,program_id) values($1,$2,$3,$4)`,
+        [posterToken, A.merchant, publicLocation, A.program]);
+      const signup = await post('enrollment/prepare', {
+        publicToken: posterToken, firstName: 'Juliette', privacyAccepted: true,
+      });
+      const prepared = await signup.json();
+      assert.equal(signup.status, 201);
+      assert.equal(prepared.status, 'prepared');
+      assert.match(prepared.claimToken, /^[A-Za-z0-9_-]{43}$/);
+      const cannotScanPoster = await post('scan', {
+        qrToken: posterToken, pin: '31415926',
+        idempotencyKey: randomUUID(), purchaseConfirmed: true,
+      });
+      assert.equal(cannotScanPoster.status, 200);
+      assert.equal((await cannotScanPoster.json()).credited, false);
+
+      const newClient = await post('enrollment/confirm', {
+        claimToken: prepared.claimToken, pin: '31415926',
+        idempotencyKey: randomUUID(), customerPresent: true, purchaseConfirmed: true,
+      });
+      const joined = await newClient.json();
+      assert.equal(newClient.status, 201);
+      assert.equal(joined.status, 'confirmed');
+      assert.equal(joined.firstVisitCredited, true);
+      assert.equal(joined.visitCount, 1);
+      const cardAfterJoin = await post('card/status', {
+        qrToken: joined.qrToken, pin: '31415926',
+      });
+      assert.equal(cardAfterJoin.status, 200);
+      assert.equal((await cardAfterJoin.json()).card.visitCount, 1);
+      const claimedAgain = await post('enrollment/confirm', {
+        claimToken: prepared.claimToken, pin: '31415926',
+        idempotencyKey: randomUUID(), customerPresent: true, purchaseConfirmed: true,
+      });
+      assert.equal(claimedAgain.status, 404, 'Un claim ne peut pas donner deux cartes');
 
       const card = await withTenantTx(app, A.merchant, (client) =>
         rotateWalletQr(client, A.principal, {

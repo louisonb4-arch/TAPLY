@@ -23,6 +23,7 @@ import { resolveWalletQrToken } from '../../loyalty/qr-token.js';
 import { redeemReward } from '../../loyalty/redeem.js';
 import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgram } from '../../loyalty/operations.js';
 import { rotateWalletQr } from '../../loyalty/rotation.js';
+import { preparePublicEnrollment, confirmPublicEnrollment } from '../../loyalty/enrollment.js';
 import { originCheck } from '../origin.js';
 import type { AppEnvBindings } from '../types.js';
 
@@ -312,4 +313,49 @@ loyaltyRoutes.post('/loyalty/cards/rotate', originCheck, async (c) => {
   if (!operation.authorized) throw new AppError('AUTH_FORBIDDEN');
   if (!operation.result) throw new AppError('NOT_FOUND');
   return c.json(operation.result);
+});
+
+const publicStartSchema = z.strictObject({
+  publicToken: z.string().min(16).max(512),
+  firstName: z.string().trim().min(1).max(40),
+  privacyAccepted: z.literal(true),
+});
+const publicConfirmSchema = z.strictObject({
+  claimToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  idempotencyKey: z.uuid(),
+  pin: z.string().regex(/^\d{6,10}$/),
+  customerPresent: z.literal(true),
+  purchaseConfirmed: z.literal(true),
+});
+
+// Public QR can ONLY create a 10-minute PENDING enrollment.
+// It must not create a wallet token or increment any counters itself.
+loyaltyRoutes.post('/loyalty/enrollment/prepare', originCheck, async (c) => {
+  checkPreview(c);
+  const body = await parseBody(c, publicStartSchema);
+  const outcome = await preparePublicEnrollment(c.get('dbPool') ?? getPool(), body);
+  if (outcome.status === 'not_found') throw new AppError('NOT_FOUND');
+  if (outcome.status === 'rate_limited') throw new AppError('RATE_LIMITED');
+  return c.json(outcome, 201);
+});
+
+// Confirmed physical presence + purchase by approved staff.
+// First visit and personal QR creation are committed atomically.
+loyaltyRoutes.post('/loyalty/enrollment/confirm', originCheck, async (c) => {
+  checkPreview(c);
+  const body = await parseBody(c, publicConfirmSchema);
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const deviceToken = getCookie(c, DEVICE_COOKIE);
+  const operation = await authenticated(c, cookie, async (client, principal) => {
+    if (!await authorizeStaffAction(client, principal, deviceToken, body.pin)) {
+      return { authorized: false as const };
+    }
+    const result = await confirmPublicEnrollment(client, principal, {
+      claimToken: body.claimToken, idempotencyKey: body.idempotencyKey,
+    });
+    return { authorized: true as const, result };
+  });
+  if (!operation.authorized) throw new AppError('AUTH_FORBIDDEN');
+  if (operation.result.status !== 'confirmed') throw new AppError('NOT_FOUND');
+  return c.json(operation.result, 201);
 });

@@ -22,6 +22,7 @@ const cases = [
   ['/api/loyalty/programs/update', { programId: '00000000-0000-4000-8000-000000000001', status: 'active', notificationsEnabled: false, pin: '123456' }],
   ['/api/loyalty/devices/revoke', { deviceId: '00000000-0000-4000-8000-000000000001', pin: '123456' }],
   ['/api/loyalty/cards/rotate', { membershipId: '00000000-0000-4000-8000-000000000001', idempotencyKey: '00000000-0000-4000-8000-000000000002', pin: '123456', customerPresent: true, identityVerifiedInPerson: true }],
+  ['/api/loyalty/enrollment/confirm', { claimToken: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq', idempotencyKey: '00000000-0000-4000-8000-000000000002', pin: '123456', customerPresent: true, purchaseConfirmed: true }],
 ] as const;
 
 describe('Loyalty API est fail-closed', () => {
