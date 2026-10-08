@@ -8,7 +8,7 @@
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const view = $('#view');
   const s = { principal: null, identity: null, merchant: null, programs: [], customers: [], security: null, error: null,
-    customersError: null, securityError: null };
+    customersError: null, securityError: null, publicLink: null, publicLinkError: null };
   const esc = x => String(x ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   const plural = (n, label) => n + ' ' + label + (n > 1 ? 's' : '');
@@ -55,6 +55,8 @@
     s.programs = [];
     s.customers = [];
     s.security = null;
+    s.publicLink = null;
+    s.publicLinkError = null;
     s.customersError = null;
     s.securityError = null;
     s.principal = await api('auth/me');
@@ -65,7 +67,7 @@
     }
     const results = await Promise.allSettled([
       api('loyalty/overview'), api('loyalty/customers'),
-      api('loyalty/security'), api('loyalty/identity'),
+      api('loyalty/security'), api('loyalty/identity'), api('loyalty/public-link'),
     ]);
     if (results[0].status === 'fulfilled') s.programs = results[0].value.programs;
     else s.error = results[0].reason.message;
@@ -74,6 +76,8 @@
     if (results[2].status === 'fulfilled') s.security = results[2].value;
     else s.securityError = results[2].reason.message;
     if (results[3].status === 'fulfilled') s.identity = results[3].value;
+    if (results[4].status === 'fulfilled') s.publicLink = results[4].value;
+    else s.publicLinkError = results[4].reason.message;
   }
   async function refresh() {
     s.error = null; await load(); render();
@@ -95,7 +99,7 @@
         <div class="card" style="padding:1.5rem"><h2>Programme de fidélité</h2>
           ${s.programs.map(p => `<p><strong>${esc(p.name)}</strong> — ${esc(p.status)} —
            ${esc(p.threshold)} passages requis</p>`).join('') || '<p>Aucun programme actif enregistré.</p>'}
-          ${link('Modifier les règles', 'parametres/carte')}</div></section>`;
+          ${link('Modifier les règles', 'parametres/carte')} ${link('Créer mon QR de comptoir', 'parametres/qr')}</div></section>`;
   }
   function customers() {
     if (s.customersError) return header('Clients', 'Données réelles uniquement') +
@@ -157,6 +161,63 @@
         ${btn('Enregistrer les changements')}</form>`).join('') +
       link('Activer cet appareil', 'parametres/integrations');
   }
+  function qrPage() {
+    const top = header('QR de comptoir', 'Vos clients peuvent démarrer leur carte en scannant ce QR code.');
+    if (s.publicLinkError) {
+      return top + msg('Lien indisponible', s.publicLinkError +
+        ' Vérifiez que le service de fidélité est activé et que les migrations sont à jour.');
+    }
+    if (!s.publicLink?.configured) {
+      return top + `<section class="card" style="padding:1.75rem">
+        <h2>Votre QR code personnel Taply</h2>
+        <p>Activez votre lien public en un clic. Le client saisira son prénom.
+          Un employé devra toujours valider son achat et son premier passage.</p>
+        <form data-action="create-public-link">
+          ${btn('Activer mon QR de comptoir')}</form>
+      </section>`;
+    }
+    const url = esc(s.publicLink.url);
+    return top + `<section class="card merchant-qr-card" style="padding:1.75rem">
+      <h2>Votre QR code est prêt</h2>
+      <div class="merchant-qr-display" data-public-qr role="img" aria-label="QR code d’inscription à votre programme Taply"></div>
+      <p class="merchant-qr-help">Présentez ce QR au comptoir : vos clients y créent leur carte.
+        Aucun passage n’est comptabilisé sans validation par votre équipe.</p>
+      <label class="merchant-qr-url-label" for="merchant-public-url">Lien d’inscription public</label>
+      <input class="input merchant-qr-url" id="merchant-public-url" type="text" value="${url}" readonly>
+      <div class="merchant-qr-actions">
+        <button type="button" class="btn btn--brand" data-copy-public-link>Copier le lien</button>
+        <button type="button" class="btn btn--ghost" data-print-public-link>Imprimer le QR</button>
+      </div>
+      <p class="merchant-qr-feedback" role="status" data-public-feedback></p>
+      <p style="font-size:.82rem;color:var(--d-muted)">L’inscription est une pré-inscription de 10 minutes ;
+        votre appareil approuvé et votre PIN restent nécessaires pour créditer une visite.
+        N’essayez pas encore ce système avec de vrais clients.</p>
+    </section>`;
+  }
+
+  function displayPublicQr() {
+    const target = $('[data-public-qr]', view);
+    if (!target || !s.publicLink?.configured) return;
+    if (typeof window.qrcode !== 'function') {
+      const label = document.createElement('p');
+      label.textContent = 'QR temporairement indisponible. Vous pouvez copier le lien ci-dessous.';
+      target.replaceChildren(label);
+      return;
+    }
+    const qr = window.qrcode(0, 'M');
+    qr.addData(s.publicLink.url);
+    qr.make();
+    // SVG de modules de QR générés localement à partir de l'URL publique :
+    // aucun appel de génération à un service tiers.
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(qr.createSvgTag(5, 3), 'image/svg+xml');
+    const svg = parsed.documentElement;
+    svg.setAttribute('width', '280');
+    svg.setAttribute('height', '280');
+    svg.setAttribute('aria-hidden', 'true');
+    target.replaceChildren(document.importNode(svg, true));
+  }
+
   function devicePage() {
     const devices = s.security?.devices || [];
     return header('Appareils et sécurité', 'Seul le propriétaire peut approuver un appareil') +
@@ -252,12 +313,14 @@
     }
     const routes = {
       accueil: home, clients: customers, recompenses: rewards, statistiques: stats,
+      'parametres/qr': qrPage,
       parametres: settings, 'parametres/carte': configCard,
       'parametres/integrations': devicePage,
       'parametres/etablissement': settings,
       scan: scanPage, cadeau: giftPage, confirmation: confirmPage, inscription: registerPage
     };
     view.innerHTML = (routes[path] || (() => noFeature(path)))();
+    displayPublicQr();
   }
   async function doAction(form) {
     const f = new FormData(form);
@@ -265,6 +328,11 @@
     const pin = value('pin');
     const uuid = () => crypto.randomUUID();
     switch (form.dataset.action) {
+      case 'create-public-link': {
+        const x = await api('loyalty/public-link', {});
+        if (!x.configured) throw new Error('Création du lien indisponible.');
+        return 'Le lien public est activé. Imprimez votre QR de comptoir.';
+      }
       case 'scan': {
         const x = await api('loyalty/scan', {
           qrToken:value('qrToken'), pin, idempotencyKey:uuid(), purchaseConfirmed:true
@@ -348,6 +416,22 @@
       feedback.textContent = err.message;
       form.prepend(feedback);
     } finally { button.disabled = false; }
+  });
+  view.addEventListener('click', async (e) => {
+    const copy = e.target.closest('[data-copy-public-link]');
+    if (copy && s.publicLink?.configured) {
+      const status = $('[data-public-feedback]', view);
+      try {
+        await navigator.clipboard.writeText(s.publicLink.url);
+        if (status) status.textContent = 'Lien copié.';
+      } catch (_) {
+        if (status) status.textContent = 'Sélectionnez le lien pour le copier.';
+        const input = $('#merchant-public-url', view);
+        input?.focus();
+        input?.select();
+      }
+    }
+    if (e.target.closest('[data-print-public-link]')) window.print();
   });
   $$('.side__out').forEach(a => a.addEventListener('click', async e => {
     e.preventDefault();

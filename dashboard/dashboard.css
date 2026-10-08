@@ -501,3 +501,13 @@ button.row { width: 100%; text-align: left; }
 .logo .logo__asset--light { display: none; }
 .logo--on-deep .logo__asset--dark { display: none; }
 .logo--on-deep .logo__asset--light { display: block; }
+
+/* QR imprimable, produit côté navigateur ; aucune fuite vers un générateur externe. */
+.merchant-qr-card { max-width: 700px; }
+.merchant-qr-display { display:grid;place-items:center;min-height:295px;padding:12px;margin:1.3rem 0;background:white;border:1px solid #e6e9e1;border-radius:18px; }
+.merchant-qr-display svg { width:min(100%,280px);height:auto;display:block; }
+.merchant-qr-help { line-height:1.5; }
+.merchant-qr-url-label {display:block;margin:1.2rem 0 .35rem;font-weight:700;font-size:.88rem;}
+.merchant-qr-url {width:100%;} .merchant-qr-actions {display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1rem;}
+.merchant-qr-feedback {min-height:1.5rem;font-size:.9rem;color:#28791b;}
+@media print {body * {visibility:hidden !important;} .merchant-qr-card,.merchant-qr-card * {visibility:visible !important;} .merchant-qr-card {position:absolute;top:0;left:0;width:100%;border:none;box-shadow:none;} .merchant-qr-actions,.merchant-qr-url,.merchant-qr-url-label,.merchant-qr-feedback {display:none !important;} }

@@ -778,15 +778,46 @@ async function certify() {
       });
       assert.equal((await afterReg.json()).programs[0].totalMembers, 3);
 
+      // Le QR de comptoir est provisionné réellement par un owner connecté,
+      // sans SQL admin ni accès aux données d'autres commerces.
+      const noAuthLink = await web.request('/api/loyalty/public-link');
+      assert.equal(noAuthLink.status, 401);
+      const getBeforeLink = await web.request('/api/loyalty/public-link', {
+        headers: { Cookie: cookies },
+      });
+      assert.equal(getBeforeLink.status, 200);
+      assert.equal((await getBeforeLink.json()).configured, false);
+      const createLink = await post('public-link', {});
+      assert.equal(createLink.status, 200);
+      const createdLink = await createLink.json();
+      assert.equal(createdLink.configured, true);
+      assert.equal(createdLink.created, true);
+      const posterToken = new URL(createdLink.url).searchParams.get('code');
+      assert.match(posterToken, /^[A-Za-z0-9_-]{27}$/);
+      assert.equal(new URL(createdLink.url).origin, ORIGIN);
+      const secondLink = await post('public-link', {});
+      assert.equal(secondLink.status, 200);
+      const secondPayload = await secondLink.json();
+      assert.equal(secondPayload.created, false);
+      assert.equal(secondPayload.url, createdLink.url,
+        'Deux appels simultanés/successifs ne doivent pas renouveler le QR');
+      const getLink = await web.request('/api/loyalty/public-link', {
+        headers: { Cookie: cookies },
+      });
+      assert.equal((await getLink.json()).url, createdLink.url);
+      const linkDb = await admin.query(
+        'select location_id, program_id from taply.public_enrollment_links where public_token=$1',
+        [posterToken],
+      );
+      assert.equal(linkDb.rowCount, 1);
+      assert.equal(linkDb.rows[0].program_id, A.program);
+      const locationDb = await admin.query(
+        'select merchant_id from taply.locations where id=$1',
+        [linkDb.rows[0].location_id],
+      );
+      assert.equal(locationDb.rows[0].merchant_id, A.merchant);
+
       // Le QR du présentoir n'est JAMAIS une carte de fidélité.
-      const publicLocation = randomUUID();
-      const posterToken = randomBytes(20).toString('base64url');
-      await admin.query(`insert into taply.locations
-        (id,merchant_id,name,slug) values($1,$2,'Roll in Love demo','boutique-demo')`,
-        [publicLocation, A.merchant]);
-      await admin.query(`insert into taply.public_enrollment_links
-        (public_token,merchant_id,location_id,program_id) values($1,$2,$3,$4)`,
-        [posterToken, A.merchant, publicLocation, A.program]);
       const signup = await post('enrollment/prepare', {
         publicToken: posterToken, firstName: 'Juliette', privacyAccepted: true,
       });

@@ -149,3 +149,31 @@ describe('GET /api/loyalty/merchant', () => {
     expect((await app('test').request('/api/loyalty/merchant')).status).toBe(503);
   });
 });
+
+describe('GET/POST /api/loyalty/public-link — gated merchant QR', () => {
+  it('est fermé hors préproduction', async () => {
+    expect((await app('test').request('/api/loyalty/public-link')).status).toBe(503);
+  });
+  it('refuse le public sans session, même en staging', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW','enabled');
+    expect((await app('test').request('/api/loyalty/public-link')).status).toBe(401);
+    expect((await app('test').request('/api/loyalty/public-link', {
+      method:'POST',headers:{Origin:ORIGIN},
+      body:'{}',
+    })).status).toBe(401);
+  });
+  it('interdit le POST sur une origine différente', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW','enabled');
+    expect((await app('test').request('/api/loyalty/public-link', {
+      method:'POST',headers:{Origin:'https://attacker.example'},body:'{}',
+    })).status).toBe(403);
+  });
+  it('reste interdit en production Vercel, y compris avec flag', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW','enabled');
+    vi.stubEnv('VERCEL_ENV','production');
+    expect((await app('test').request('/api/loyalty/public-link')).status).toBe(503);
+    expect((await app('test').request('/api/loyalty/public-link', {
+      method:'POST',headers:{Origin:ORIGIN},body:'{}',
+    })).status).toBe(503);
+  });
+});

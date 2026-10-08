@@ -26,6 +26,7 @@ import { rotateWalletQr } from '../../loyalty/rotation.js';
 import { preparePublicEnrollment, confirmPublicEnrollment } from '../../loyalty/enrollment.js';
 import { securityOverview } from '../../loyalty/security-overview.js';
 import { merchantCustomers } from '../../loyalty/dashboard-read.js';
+import { ensureMerchantPublicLink, getMerchantPublicLink } from '../../loyalty/public-enrollment-link.js';
 import { originCheck } from '../origin.js';
 import type { AppEnvBindings } from '../types.js';
 
@@ -363,6 +364,37 @@ loyaltyRoutes.post('/loyalty/enrollment/confirm', originCheck, async (c) => {
   if (!operation.authorized) throw new AppError('AUTH_FORBIDDEN');
   if (operation.result.status !== 'confirmed') throw new AppError('NOT_FOUND');
   return c.json(operation.result, 201);
+});
+
+/** QR de comptoir en préproduction : un lien par commerce, uniquement son propriétaire.
+ * Aucun passage client n'est validé à la simple consultation de ce lien.
+ */
+loyaltyRoutes.get('/loyalty/public-link', async (c) => {
+  checkPreview(c);
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const link = await authenticated(c, cookie, async (client, principal) =>
+    principal.role === 'owner' ? getMerchantPublicLink(client, principal) : undefined);
+  if (link === undefined) throw new AppError('AUTH_FORBIDDEN');
+  const origin = c.get('config').auth.appOrigin;
+  if (!origin) throw new AppError('SERVICE_UNAVAILABLE');
+  if (!link) return c.json({ configured: false }, 200);
+  const url = new URL('/join.html', origin);
+  url.searchParams.set('code', link.publicToken);
+  return c.json({ configured: true, url: url.href, programId: link.programId }, 200);
+});
+
+loyaltyRoutes.post('/loyalty/public-link', originCheck, async (c) => {
+  checkPreview(c);
+  const origin = c.get('config').auth.appOrigin;
+  if (!origin) throw new AppError('SERVICE_UNAVAILABLE');
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const link = await authenticated(c, cookie, async (client, principal) =>
+    principal.role === 'owner' ? ensureMerchantPublicLink(client, principal) : undefined);
+  if (link === undefined) throw new AppError('AUTH_FORBIDDEN');
+  if (!link) throw new AppError('NOT_FOUND');
+  const url = new URL('/join.html', origin);
+  url.searchParams.set('code', link.publicToken);
+  return c.json({ configured: true, url: url.href, programId: link.programId, created: link.created }, 200);
 });
 
 loyaltyRoutes.get('/loyalty/identity', async (c) => {
