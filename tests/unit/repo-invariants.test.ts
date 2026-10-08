@@ -21,11 +21,13 @@ const PRIVATE_ROOT_FILES = [
   'README.md',
   'package.json',
   'package-lock.json',
+  'components.json',
+  'tsconfig.react.json',
   'tsconfig.json',
   'vercel.json',
   'vitest.config.ts',
 ];
-const PRIVATE_ROOT_DIRS = ['api', 'backend', 'scripts', 'tests', 'supabase', 'docs'];
+const PRIVATE_ROOT_DIRS = ['api', 'backend', 'scripts', 'tests', 'supabase', 'docs', 'components', 'styles'];
 /** Générés ou locaux, jamais versionnés. */
 const IGNORED_ROOT = [
   '.git',
@@ -82,7 +84,7 @@ describe('invariants du dépôt', () => {
     expect(files).toEqual(['index.ts']);
   });
 
-  it('package.json : ESM, sans framework front, sans script de build implicite, versions figées', () => {
+  it('package.json : ESM, React strictement cantonné à un îlot, sans build implicite, versions figées', () => {
     const pkg = JSON.parse(read('package.json')) as {
       type: string;
       scripts: Record<string, string>;
@@ -94,9 +96,12 @@ describe('invariants du dépôt', () => {
     expect(pkg.scripts['build']).toBeUndefined();
     expect(pkg.scripts['vercel-build']).toBeUndefined();
     const all = { ...pkg.dependencies, ...pkg.devDependencies };
-    for (const forbidden of ['next', 'react', 'react-dom', 'vue', 'svelte', '@sveltejs/kit', 'nuxt', 'astro']) {
+    for (const forbidden of ['next', 'vue', 'svelte', '@sveltejs/kit', 'nuxt', 'astro']) {
       expect(all[forbidden], forbidden).toBeUndefined();
     }
+    expect(all['react']).toBeDefined();
+    expect(all['react-dom']).toBeDefined();
+    expect(all['framer-motion']).toBeDefined();
     for (const [name, version] of Object.entries(all)) {
       expect(version, name).toMatch(/^\d+\.\d+\.\d+$/);
     }
@@ -136,7 +141,9 @@ describe('build statique (dist/)', () => {
       const path = join(ROOT, entry);
       return statSync(path).isDirectory() ? listFiles(path).map((file) => relative(ROOT, file)) : [entry];
     }).sort();
-    expect([...copied].sort()).toEqual(expected);
+    const generated = ['css/dashboard-scroll.css', 'js/dashboard-scroll-react.js'];
+    expect([...copied].sort()).toEqual([...expected, ...generated].sort());
+    for(const asset of generated) expect(statSync(join(out, asset)).size).toBeGreaterThan(1000);
     for (const file of expected) {
       expect(sha256(join(out, file)), file).toBe(sha256(join(ROOT, file)));
     }

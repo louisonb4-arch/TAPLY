@@ -616,8 +616,8 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   transform: translate(0, 0);
 }
 
-/* — Dashboard commerçant : interface existante dans un Mac animé — */
-.dashboard-story { background: var(--c-white); overflow: clip; }
+/* — Dashboard commerçant : Card Scroll React + Framer Motion — */
+.dashboard-story { background: #fff; overflow: clip; }
 .dashboard-story__grid { display: grid; gap: clamp(2.25rem, 5vw, 4rem); }
 .dashboard-story__copy { min-width: 0; }
 .dashboard-story__eyebrow { display: inline-flex; padding: .65rem 1.1rem; border-radius: 999px; background: var(--c-lime-soft); color: var(--c-ink); }
@@ -627,67 +627,34 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .dashboard-story__features h3 { margin-bottom: .25rem; }
 .dashboard-story__features p { max-width: 37ch; }
 .dashboard-story__visual { margin: 0; min-width: 0; width: 100%; }
-.dashboard-story__caption { color: var(--c-muted); font-size: .72rem; text-align: center; margin-top: 1.2rem; }
-.macbook-stage {
-  position: relative; width: 100%; max-width: 940px; margin-inline: auto; padding-top: 4%;
-  perspective: 1800px; perspective-origin: 50% 46%;
-}
-.macbook { position: relative; width: 100%; isolation: isolate; }
-.macbook__lid {
-  position: relative; width: 93%; margin-inline: auto; padding: .65% .65% .9%;
-  border-radius: 2.4% 2.4% .2% .2% / 3.2% 3.2% .2% .2%;
-  background: linear-gradient(125deg, #505456, #141718 12%, #050709 52%, #353b3d 92%, #73787c);
-  border: 1px solid #3b4042; box-shadow: inset 0 0 0 2px #5a5f61, 0 3px 6px rgba(0,0,0,.2);
-  transform: rotateX(var(--mac-angle, 0deg));
-  transform-origin: center bottom;
-  backface-visibility: hidden;
-  will-change: transform;
-}
-.macbook__frame { position: relative; overflow: hidden; border-radius: .65% .65% 0 0; background: #fff; }
-.macbook__screen { display: block; width: 100%; height: auto; aspect-ratio: 1440 / 910; object-fit: cover; object-position: top left; }
-.macbook__camera {
-  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-  width: 10%; height: 2.3%; border-radius: 0 0 8px 8px;
-  background: #090b0b; z-index: 1;
-}
-.macbook__camera::after { content: ""; position: absolute; left: 50%; top: 30%; width: 3px; height: 3px; border-radius: 50%; background: #1c3840; }
-.macbook__hinge {
-  position: relative; z-index: 2; width: 95%; height: 7px; margin: -1px auto 0;
-  border-radius: 2px 2px 0 0; background: linear-gradient(#4a4e52, #a1a6a8 58%, #5d6265);
-}
-.macbook__base {
-  position: relative; z-index: 2; height: clamp(10px, 1.6vw, 20px); width: 100%;
-  border-radius: 1px 1px 48% 48% / 1px 1px 100% 100%;
-  background: linear-gradient(180deg, #f2f4f5 0%, #9da2a7 40%, #e1e5e6 63%, #7b8084 100%);
-  border: 1px solid #858a8d; box-shadow: inset 0 1px rgba(255,255,255,.7),0 5px 8px rgba(14,24,18,.11);
-}
-.macbook__base-notch {
-  position: absolute; top: 0; left: 40%; width: 20%; height: 41%;
-  border-radius: 0 0 18px 18px; background: linear-gradient(#90969a,#d6dcdf);
-}
-.macbook__shadow {
-  position: absolute; z-index: -1; bottom: -5%; left: 11%; width: 78%; height: 8%;
-  border-radius: 50%; background: rgba(18,27,22,.18); filter: blur(18px);
-}
+.dashboard-story__caption { color: var(--c-muted); font-size: .72rem; text-align: center; margin-top: 1rem; }
+.dashboard-story__react-root { width: 100%; }
+.dashboard-story__fallback { overflow: hidden; border: 7px solid #242424; border-radius: 24px; box-shadow: 0 18px 40px rgba(0,0,0,.13); }
+.dashboard-story__fallback img { display: block; width: 100%; height: auto; }
+.dashboard-scroll-container { min-height: clamp(29rem, 73vh, 43rem); padding-block: 1rem; }
+.dashboard-scroll-perspective { transform-style: preserve-3d; padding: 0 2%; }
+.dashboard-scroll-card { transform-origin: center center; }
+.dashboard-scroll-screen { aspect-ratio: 1440 / 910; }
+.dashboard-scroll-image { aspect-ratio: 1440 / 910; }
 @media (min-width: 1024px) {
   .dashboard-story__grid {
     grid-template-columns: minmax(0, .97fr) minmax(0, 1.13fr);
     align-items: center; gap: clamp(2rem, 4vw, 4rem);
-    min-height: min(980px, 110vh);
+    min-height: min(950px, 112vh);
   }
   .dashboard-story__visual {
-    position: sticky; top: 18vh;
-    align-self: center; width: calc(100% + clamp(2rem, 5.5vw, 7rem));
-    margin-right: calc(-1 * clamp(2rem, 5.5vw, 7rem));
+    align-self: center;
+    width: calc(100% + clamp(1.5rem, 4.7vw, 6rem));
+    margin-right: calc(-1 * clamp(1.5rem, 4.7vw, 6rem));
   }
 }
 @media (max-width: 1023.98px) {
   .dashboard-story__title { max-width: 16ch; }
-  .dashboard-story__visual { margin-top: 1rem; }
-  .macbook__lid { will-change: auto; }
+  .dashboard-story__visual { margin-top: .6rem; }
+  .dashboard-scroll-container { min-height: unset; padding-block: 2rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .macbook__lid { transform: none !important; will-change: auto; }
+  .dashboard-scroll-card { transform: none !important; }
 }
 
 /* — Tarifs — */

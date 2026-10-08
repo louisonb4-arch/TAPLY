@@ -13,13 +13,16 @@
  * Reproductible : `dist/` est supprimé puis recréé à chaque build, aucun
  * fichier d’une sortie précédente ne peut survivre (testé).
  *
- * Aucune transformation : copie binaire, mêmes chemins, mêmes URL.
+ * Les ressources existantes sont copiées à l’octet. Le seul ajout compilé
+ * est l’îlot React dashboard (bundle JS + utilitaires CSS Tailwind).
  * Les Vercel Functions (api/) sont construites séparément par Vercel.
  */
 
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { basename, dirname, join, relative } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
+import { buildSync } from 'esbuild';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'dist');
@@ -69,6 +72,20 @@ export function buildStatic({ root = ROOT, out = OUT, log = console.log } = {}) 
     });
   }
 
+  // Îlot React isolé de la vitrine. Aucun TS/TSX ou source map public.
+  // Les tests de whitelist construisent parfois une racine temporaire.
+  if (resolve(root) === resolve(ROOT)) {
+    buildSync({
+      entryPoints: [join(root, 'components', 'dashboard-scroll.tsx')],
+      outfile: join(out, 'js', 'dashboard-scroll-react.js'),
+      bundle: true, minify: true, platform: 'browser', target: 'es2020',
+      format: 'iife', sourcemap: false, legalComments: 'none',
+    });
+    execFileSync(join(root, 'node_modules', '.bin', 'tailwindcss'), [
+      '-i', join(root, 'styles', 'dashboard-scroll.tailwind.css'),
+      '-o', join(out, 'css', 'dashboard-scroll.css'), '--minify',
+    ], { cwd: root, stdio: 'pipe' });
+  }
   const files = listFiles(out);
   const forbidden = files.filter((file) => FORBIDDEN_EXTENSIONS.some((ext) => file.endsWith(ext)));
   if (forbidden.length > 0) {

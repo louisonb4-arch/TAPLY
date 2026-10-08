@@ -41,6 +41,7 @@
 
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/dashboard-scroll.css">
 
   <script src="js/config.js"></script>
   <script>
@@ -54,6 +55,7 @@
     })(document.documentElement, window.TAPLY_CONFIG);
   </script>
   <script src="js/main.js" defer></script>
+  <script src="js/dashboard-scroll-loader.js" defer></script>
 </head>
 <body>
 
@@ -394,20 +396,12 @@
       </ul>
     </div>
 
-    <figure class="dashboard-story__visual" data-macbook aria-label="Aperçu du dashboard commerçant Taply dans un MacBook qui s'ouvre au défilement">
-      <div class="macbook-stage">
-        <div class="macbook">
-          <div class="macbook__lid">
-            <div class="macbook__frame">
-              <span class="macbook__camera" aria-hidden="true"></span>
-              <img class="macbook__screen" src="images/dashboard-real-demo-preview.png"
-                   width="1440" height="910" loading="lazy" decoding="async"
-                   alt="Exemple du dashboard Taply actuel : clients fidèles, visites, récompenses et graphique des visites.">
-            </div>
-          </div>
-          <div class="macbook__hinge" aria-hidden="true"></div>
-          <div class="macbook__base" aria-hidden="true"><span class="macbook__base-notch"></span></div>
-          <div class="macbook__shadow" aria-hidden="true"></div>
+    <figure class="dashboard-story__visual" aria-label="Aperçu animé du dashboard commerçant Taply">
+      <div class="dashboard-story__react-root" data-dashboard-react-root>
+        <div class="dashboard-story__fallback">
+          <img src="images/dashboard-real-demo-preview.png" width="1440" height="910"
+               alt="Aperçu du tableau de bord commerçant Taply, avec statistiques, passages et récompenses."
+               loading="lazy" decoding="async">
         </div>
       </div>
       <figcaption class="dashboard-story__caption">Aperçu illustratif du tableau de bord · données de démonstration</figcaption>

@@ -1,0 +1,6 @@
+/* Tailwind v4, sans Preflight pour préserver toute la DA Taply existante. */
+@import "tailwindcss/theme.css";
+@import "tailwindcss/utilities.css";
+@source "../components/ui/container-scroll-animation.tsx";
+@source "../components/dashboard-scroll.tsx";
+@source "../components/ui/demo.tsx";
