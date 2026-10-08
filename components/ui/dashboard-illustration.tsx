@@ -4,15 +4,15 @@ import React from "react";
 import { ContainerScroll } from "./container-scroll-animation.js";
 
 /**
- * Démonstration Aceternity adaptée à Taply :
+ * Aperçu marketing de l’interface Taply :
  * on emploie le véritable dashboard existant, plutôt qu'une image Unsplash
  * sans rapport avec le produit. Le titre marketing reste en HTML adjacent.
  */
-export function HeroScrollDemo() {
+export function MerchantDashboardIllustration() {
   return (
     <ContainerScroll titleComponent={null}>
       <img
-        src="images/dashboard-real-demo-preview.png"
+        src="images/dashboard-interface.png"
         alt="Aperçu du tableau de bord commerçant Taply : clients, visites, statistiques et récompenses (données illustratives)."
         width={1440}
         height={910}

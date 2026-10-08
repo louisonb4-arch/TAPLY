@@ -20,20 +20,10 @@ window.TAPLY_CONFIG = {
     notifications: "images/notifications.webp",   // espace Taply (ordinateur) + iPhone notifié
     benefits:    "images/benefits.webp",   // 16:9 — comptoir ensoleillé, fleurs & croissants (recadré en portrait sur desktop)
     walletPhone: "images/wallet-iphone.webp",   // iPhone détouré (fond transparent) — section Apple Wallet
-    walletQr:    "",   // ex. "images/qr-exemple.png"  — QR code vers une carte d'exemple
     avatar1: "", avatar2: "", avatar3: "", avatar4: ""   // portraits ronds du hero (preuve sociale), 160×160
   },
 
   /* Téléphone construit en code dans le hero.
      Passer à false si la photo hero montre déjà le téléphone en main. */
-  heroDevice: true,
-
-  /* Vidéo de démo (modale). Fichier local .mp4 ou URL YouTube/Vimeo "embed". */
-  demoVideo:  "",      // ex. "images/demo.mp4" ou "https://www.youtube-nocookie.com/embed/XXXX"
-  demoPoster: "",      // ex. "images/demo-poster.jpg"
-
-  /* Formulaires : URL qui reçoit les données (Formspree, Make, API…).
-     Vide → l'envoi est simulé côté navigateur (aucune donnée transmise). */
-  formEndpoint:       "",
-  newsletterEndpoint: ""
+  heroDevice: true
 };

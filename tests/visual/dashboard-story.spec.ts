@@ -9,7 +9,7 @@ test('dashboard de Taply, texte intact, carte React chargée sans reconstruction
   await expect(story).toHaveCount(1);
   await expect(story.getByRole('heading', { name: /Piloter votre fidélité, mesurer ce qui compte/ })).toBeVisible();
   await expect(story.locator('li')).toHaveCount(3);
-  await expect(story.locator('figcaption')).toContainText('données de démonstration');
+  await expect(story.locator('figcaption')).toContainText('chiffres illustratifs');
   await expect(page.locator('section.notify')).toHaveCount(0);
   await story.scrollIntoViewIfNeeded();
   await expect(story.locator('[data-scroll-card]')).toBeVisible({ timeout: 12000 });

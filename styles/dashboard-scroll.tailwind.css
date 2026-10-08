@@ -3,5 +3,5 @@
 @import "tailwindcss/theme.css" source(none);
 @import "tailwindcss/utilities.css" source(none);
 @source "../components/ui/container-scroll-animation.tsx";
-@source "../components/ui/demo.tsx";
+@source "../components/ui/dashboard-illustration.tsx";
 @source "../components/dashboard-scroll.tsx";

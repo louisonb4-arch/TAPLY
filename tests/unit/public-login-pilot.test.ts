@@ -20,7 +20,7 @@ describe('Connexion commerçant — pont explicite vers la préproduction', () =
   });
   it('fournit une connexion réelle pilotée sur le domaine Supabase de test', () => {
     expect(login).toContain(prefix + '/connexion.html');
-    expect(login).toContain('Version d’essai');
-    expect(login).toContain('environnement Supabase de test');
+    expect(login).toContain('base de test séparée de la production');
+    expect(login).not.toContain('Version de démonstration');
   });
 });

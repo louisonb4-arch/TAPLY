@@ -5,7 +5,7 @@
 Le site public Taply est toujours **statique** (HTML/CSS/JS). L'îlot React est limité à la présentation du dashboard dans `index.html`, sans migration vers Next.js, sans serveur React et sans changement des API.
 
 - **`components/ui/container-scroll-animation.tsx`** : composant React inspiré d'Aceternity ContainerScroll, Framer Motion `useScroll`/`useTransform`, inclinaison + zoom liés au défilement.
-- **`components/ui/demo.tsx`** : exemple Taply avec la capture réelle du dashboard existant (`images/dashboard-real-demo-preview.png`).
+- **`components/ui/dashboard-illustration.tsx`** : exemple Taply avec la capture réelle du dashboard existant (`images/dashboard-interface.png`).
 - **`components/dashboard-scroll.tsx`** : point de montage React sur `[data-dashboard-react-root]`.
 - **`js/dashboard-scroll-loader.js`** : charge le bundle différé à proximité du viewport ; une capture statique reste visible si JS est désactivé ou échoue.
 - **`styles/dashboard-scroll.tailwind.css`** : Tailwind 4 limité aux utilitaires utilisés, **sans Preflight** pour protéger les styles existants ; CSS compilée dans `dist/css/dashboard-scroll.css`.
