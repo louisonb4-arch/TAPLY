@@ -106,65 +106,17 @@
       <h1>Bon retour <span>parmi nous.</span></h1>
       <p class="login__lead">Retrouvez vos clients, vos récompenses et vos statistiques.</p>
 
-      <form novalidate data-login>
-        <div class="field" data-f="email">
-          <label class="sr-only" for="email">E-mail</label>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></g></svg>
-          <input id="email" name="email" type="email" placeholder="E-mail" autocomplete="username" inputmode="email" required>
-        </div>
-        <p class="err" id="email-err" hidden>Indiquez une adresse e-mail valide.</p>
-        <div class="field" data-f="pwd">
-          <label class="sr-only" for="pwd">Mot de passe</label>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></g></svg>
-          <input id="pwd" name="password" type="password" placeholder="Mot de passe" autocomplete="current-password" required>
-          <button class="eye" type="button" aria-label="Afficher le mot de passe" aria-pressed="false" data-eye><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></g></svg></button>
-        </div>
-        <p class="err" id="pwd-err" hidden>Indiquez votre mot de passe.</p>
-        <div class="row">
-          <label class="check"><input type="checkbox" name="remember" checked>Rester connecté</label>
-          <a href="mailto:contact@taply.fr?subject=Mot%20de%20passe%20oubli%C3%A9">Mot de passe oublié ?</a>
-        </div>
-        <button class="btn" type="submit">Se connecter <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </form>
+      <div class="login__trial" aria-label="Connexion au véritable espace commerçant de test">
+        <p style="color:var(--c-muted);line-height:1.55;margin:1rem 0 1.5rem">Pour essayer Taply avec un vrai compte et vos propres identifiants, ouvrez l’espace commerçant de test sécurisé. La connexion et la création de votre commerce y sont reliées à Supabase.</p>
+        <a class="btn" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:.75rem" href="https://taply-staging-louisondu44000-7822.vercel.app/connexion.html">Se connecter <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      </div>
 
       <p class="terms">En vous connectant, vous acceptez les <a href="cgu.html">conditions générales d'utilisation</a>.</p>
-      <p class="sep">Pas encore de compte ? <a href="index.html#demo">Demander une démo</a></p>
-      <!-- PROTOTYPE : aucune authentification réelle. À brancher sur le vrai service de connexion. -->
-      <p class="demo">Version de démonstration : n'importe quel e-mail et mot de passe ouvrent l'espace d'exemple (Roll in Love). Rien n'est envoyé.</p>
+      <p class="sep">Pas encore de compte ? <a href="https://taply-staging-louisondu44000-7822.vercel.app/creer-compte.html">Créer un compte</a></p>
+      <p class="demo">Version d’essai : n’utilisez pas de données personnelles de vos clients. La connexion utilise un environnement Supabase de test, distinct d’une future production.</p>
     </div>
   </div>
 </main>
 
-<script>
-(() => {
-  const form = document.querySelector('[data-login]');
-  const eye = document.querySelector('[data-eye]');
-  const pwd = document.getElementById('pwd');
-  eye.addEventListener('click', () => {
-    const show = pwd.type === 'password';
-    pwd.type = show ? 'text' : 'password';
-    eye.setAttribute('aria-pressed', String(show));
-    eye.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
-  });
-  const check = (id, ok) => {
-    document.querySelector(`[data-f="${id}"]`).classList.toggle('has-error', !ok);
-    document.getElementById(`${id}-err`).hidden = ok;
-    const input = document.getElementById(id);
-    input.setAttribute('aria-invalid', String(!ok));
-    if (ok) input.removeAttribute('aria-describedby'); else input.setAttribute('aria-describedby', `${id}-err`);
-    return ok;
-  };
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const okMail = check('email', /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.value.trim()));
-    const okPwd = check('pwd', form.password.value.length > 0);
-    if (!okMail) return form.email.focus();
-    if (!okPwd) return form.password.focus();
-    form.querySelector('.btn').setAttribute('aria-busy', 'true');
-    // Prototype : redirection directe vers l'espace d'exemple
-    location.href = 'dashboard/#/accueil';
-  });
-})();
-</script>
 </body>
 </html>

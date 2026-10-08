@@ -142,7 +142,7 @@ test('animation Aceternity originale : 20° → 0°, 105 % → 100 %, titre 0 �
   await story.scrollIntoViewIfNeeded();
   const stage = page.locator('.dashboard-scroll-container');
   await expect(stage).toBeAttached({timeout:12000});
-  const stageBounds = await stage.evaluate(el => ({ top: el.getBoundingClientRect().top + scrollY, height: el.offsetHeight }));
+  const stageBounds = await stage.evaluate(el => ({ top: el.getBoundingClientRect().top + scrollY, height: (el as HTMLElement).offsetHeight }));
   expect(stageBounds.height).toBe(1280); // h-[80rem] de la référence.
   const card = page.locator('[data-scroll-card]');
   const title = page.locator('.dashboard-story__intro-motion');
