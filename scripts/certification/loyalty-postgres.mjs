@@ -95,7 +95,12 @@ async function migrate(pool) {
     await client.query('create role authenticated nologin');
     await client.query('create role service_role nologin');
     await client.query('create schema auth');
-    await client.query('create table auth.users (id uuid primary key)');
+    await client.query(`create table auth.users (
+      id uuid primary key, email_confirmed_at timestamptz, raw_user_meta_data jsonb
+    )`);
+    await client.query(`create function auth.uid() returns uuid language sql stable as $$
+      select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid
+    $$`);
     for (const file of files) {
       const sql = await readFile(new URL('../../supabase/migrations/' + file, import.meta.url), 'utf8');
       // Texte SQL complet: surtout PAS de split(';') à cause des DO $$ ... $$.
@@ -189,6 +194,55 @@ async function certify() {
   const testPassword = randomBytes(32).toString('hex');
   await admin.query("alter role taply_app password '" + testPassword + "'");
   app = new Pool({ ...db, user: 'taply_app', password: testPassword, max: 6 });
+
+  await test('Inscription autonome : JWT Supabase vérifié, mapping owner + programme 5 passages', async () => {
+    const publicFn = 'public.taply_complete_merchant_signup_v1()';
+    const grants = await admin.query(`select
+       has_function_privilege('anon', $1,'EXECUTE') as anon_can,
+       has_function_privilege('authenticated', $1,'EXECUTE') as auth_can,
+       has_function_privilege('taply_app', $1,'EXECUTE') as app_can`, [publicFn]);
+    assert.equal(grants.rows[0].anon_can, false);
+    assert.equal(grants.rows[0].auth_can, true);
+    assert.equal(grants.rows[0].app_can, false);
+
+    const user = randomUUID();
+    await admin.query(`insert into auth.users(id,email_confirmed_at,raw_user_meta_data)
+      values($1,now(),$2::jsonb)`,[user,JSON.stringify({
+      taply_onboarding_v1: true,taply_business_name:'Boulangerie QA'
+    })]);
+
+    const c = await admin.connect();
+    try {
+      await c.query('begin');
+      await c.query("select set_config('request.jwt.claim.sub',$1,true)",[user]);
+      const created=await c.query('select public.taply_complete_merchant_signup_v1() as id');
+      const merchantId=created.rows[0].id;
+      const merchant=await c.query('select name from taply.merchants where id=$1',[merchantId]);
+      assert.equal(merchant.rows[0].name,'Boulangerie QA');
+      const userMapping=await c.query("select role from taply.merchant_users where merchant_id=$1 and auth_user_id=$2",[merchantId,user]);
+      assert.equal(userMapping.rows[0].role,'owner');
+      const rules=await c.query(`select v.rules from taply.loyalty_programs p
+        join taply.program_rule_versions v on v.program_id=p.id
+        where p.merchant_id=$1`,[merchantId]);
+      assert.equal(rules.rows[0].rules.threshold,5);
+      await c.query('commit');
+    } catch(error) { await c.query('rollback');throw error; }
+    finally { c.release(); }
+
+    const unconfirmed=randomUUID();
+    await admin.query(`insert into auth.users(id,raw_user_meta_data)
+      values($1,$2::jsonb)`,[unconfirmed,JSON.stringify({
+      taply_onboarding_v1:true,taply_business_name:'Pas confirmé'
+    })]);
+    const x=await admin.connect();
+    try {
+      await x.query('begin');
+      await x.query("select set_config('request.jwt.claim.sub',$1,true)",[unconfirmed]);
+      await assert.rejects(() => x.query('select public.taply_complete_merchant_signup_v1()'),
+        (e) => e.code==='28000');
+      await x.query('rollback');
+    } finally { x.release(); }
+  });
 
   await test('Le runtime se connecte avec le rôle non privilégié taply_app', async () => {
     const result = await app.query('select current_user as name');

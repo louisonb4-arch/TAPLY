@@ -198,3 +198,42 @@ test('employé : validation du premier passage après confirmation humaine', asy
   expect(submitted).toMatchObject({ customerPresent:true, purchaseConfirmed:true, pin:'123456',
     claimToken:'A'.repeat(43) });
 });
+
+test('le lien Créer un compte remplace définitivement la démo', async ({ page }) => {
+  await page.goto(base + '/connexion.html');
+  await expect(page.getByRole('link', { name: 'Créer un compte' })).toHaveAttribute('href', 'creer-compte.html');
+  await page.getByRole('link', { name: 'Créer un compte' }).click();
+  await expect(page).toHaveURL(/creer-compte\.html/);
+  await expect(page.getByRole('button', { name: 'Créer mon compte' })).toBeVisible();
+});
+test('l’inscription valide le mot de passe et ne contacte pas le serveur si mismatch', async ({ page }) => {
+  let hits = 0;
+  await page.route('**/api/auth/signup', route => { hits++; return route.abort(); });
+  await page.goto(base + '/creer-compte.html');
+  await page.locator('[name=businessName]').fill('Boulangerie');
+  await page.locator('[name=email]').fill('owner@taply.test');
+  await page.locator('[name=password]').fill('long-test-password-12');
+  await page.locator('[name=passwordConfirm]').fill('different-long-password');
+  await page.locator('[name=termsAccepted]').check();
+  await page.getByRole('button', { name: 'Créer mon compte' }).click();
+  await expect(page.getByText('Les mots de passe ne correspondent pas.')).toBeVisible();
+  expect(hits).toBe(0);
+});
+test('une inscription acceptée affiche la confirmation et ne conserve pas le mot de passe', async ({ page }) => {
+  let submitted: unknown;
+  await page.route('**/api/auth/signup', async route => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({status:202,contentType:'application/json',body:JSON.stringify({emailSent:true})});
+  });
+  await page.goto(base + '/creer-compte.html');
+  await page.locator('[name=businessName]').fill('Boulangerie Taply');
+  await page.locator('[name=email]').fill('owner@taply.test');
+  await page.locator('[name=password]').fill('long-test-password-12');
+  await page.locator('[name=passwordConfirm]').fill('long-test-password-12');
+  await page.locator('[name=termsAccepted]').check();
+  await page.getByRole('button', { name: 'Créer mon compte' }).click();
+  await expect(page.getByText('Vérifiez votre boîte e-mail.')).toBeVisible();
+  await expect(page.locator('[data-signup]')).toBeHidden();
+  expect(submitted).toMatchObject({businessName:'Boulangerie Taply',email:'owner@taply.test',termsAccepted:true});
+  expect(await page.evaluate(() => localStorage.length)).toBe(0);
+});

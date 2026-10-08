@@ -39,19 +39,34 @@ export async function loginWithPassword(pool: Pool, log: Logger, params: LoginPa
 
   const authUserId = data.user.id;
 
-  // Nettoyage immédiat de la session Supabase temporaire — scope 'local'
-  // explicitement, JAMAIS le scope global par défaut (qui invaliderait
-  // toutes les sessions Supabase Auth de cette identité, pas seulement
-  // celle-ci). Un échec de ce nettoyage n'est pas fatal : aucun token
-  // Supabase n'est jamais persisté ou renvoyé au navigateur de toute
-  // façon ; c'est seulement journalisé pour observabilité.
-  const { error: signOutError } = await client.auth.signOut({ scope: 'local' });
-  if (signOutError) {
-    log.warn('auth.supabase_cleanup_failed', { message: signOutError.message });
+  let merchantUser;
+  try {
+    merchantUser = await resolveMerchantUserByAuthId(pool, authUserId);
+
+    // Seuls les comptes créés via l'inscription Taply, e-mail CONFIRMÉ,
+    // peuvent provisionner leur propre boutique au premier login.
+    // L'API RPC reçoit le JWT de l'utilisateur connecté depuis Supabase,
+    // calcule auth.uid() en SQL et ignore tout authUserId arbitraire.
+    if (!merchantUser &&
+        data.user.email_confirmed_at &&
+        data.user.user_metadata?.['taply_onboarding_v1'] === true) {
+      const { error: provisioningError } = await client.rpc('taply_complete_merchant_signup_v1');
+      if (provisioningError) {
+        log.warn('auth.signup.provision_failed', { code: provisioningError.code || 'unknown' });
+      } else {
+        merchantUser = await resolveMerchantUserByAuthId(pool, authUserId);
+      }
+    }
+  } finally {
+    // Scope local seulement, JAMAIS global (ne déconnecte pas les autres
+    // sessions Supabase). Aucun JWT Supabase renvoyé au navigateur Taply.
+    const { error: signOutError } = await client.auth.signOut({ scope: 'local' });
+    if (signOutError) {
+      log.warn('auth.supabase_cleanup_failed', { message: signOutError.message });
+    }
   }
 
-  const merchantUser = await resolveMerchantUserByAuthId(pool, authUserId);
-  if (merchantUser === undefined) {
+  if (!merchantUser) {
     log.info('auth.login.failed', { reason: 'no_active_mapping' });
     throw new AuthInvalidCredentialsError();
   }
