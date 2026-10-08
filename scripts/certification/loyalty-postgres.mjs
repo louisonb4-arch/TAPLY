@@ -20,6 +20,7 @@ import { Pool } from 'pg';
 import { withTenantTx } from '../../backend/db/tenant-context.ts';
 import { creditVisit } from '../../backend/loyalty/credit.ts';
 import { redeemReward } from '../../backend/loyalty/redeem.ts';
+import { createStaffDevicePairing, activateStaffDevice, authorizeStaffAction } from '../../backend/auth/staff-device.ts';
 
 const ACK = 'isolated-postgres-cluster';
 const DB_NAME = 'taply_cert';
@@ -364,6 +365,64 @@ async function certify() {
           where membership_id=$1`, [A.membership])),
       (e) => e.code === '42501',
     );
+  });
+
+  await test('Appareils: approbation owner, activation staff, PIN, blocage et révocation', async () => {
+    const staff = {
+      ...A.principal,
+      merchantUserId: randomUUID(),
+      authUserId: randomUUID(),
+      role: 'staff',
+    };
+    await admin.query('insert into auth.users(id) values($1),($2)', [A.principal.authUserId, staff.authUserId]);
+    await admin.query(`insert into taply.merchant_users
+      (id, merchant_id, auth_user_id, role) values ($1, $3, $2, 'owner'), ($4, $3, $5, 'staff')`,
+      [A.principal.merchantUserId, A.principal.authUserId, A.merchant,
+        staff.merchantUserId, staff.authUserId]);
+    const unauthorizedPairing = await withTenantTx(app, A.merchant,
+      (client) => createStaffDevicePairing(client, staff, staff.merchantUserId));
+    assert.equal(unauthorizedPairing, undefined);
+    const invite = await withTenantTx(app, A.merchant,
+      (client) => createStaffDevicePairing(client, A.principal, staff.merchantUserId));
+    assert.match(invite, /^[A-Za-z0-9_-]{43}$/);
+    const mismatched = await withTenantTx(app, A.merchant,
+      (client) => activateStaffDevice(client, A.principal, invite, '12345678'));
+    assert.equal(mismatched, undefined);
+    const device = await withTenantTx(app, A.merchant,
+      (client) => activateStaffDevice(client, staff, invite, '12345678'));
+    assert.match(device?.rawDeviceToken, /^[A-Za-z0-9_-]{43}$/);
+    const replay = await withTenantTx(app, A.merchant,
+      (client) => activateStaffDevice(client, staff, invite, '12345678'));
+    assert.equal(replay, undefined);
+
+    const allow = (principal, pin) => withTenantTx(app, principal.merchantId,
+      (client) => authorizeStaffAction(client, principal, device.rawDeviceToken, pin));
+    assert.equal(await allow(staff, '12345678'), true);
+    assert.equal(await allow(B.principal, '12345678'), false);
+    for (let i = 0; i < 5; i++) assert.equal(await allow(staff, '87654321'), false);
+    assert.equal(await allow(staff, '12345678'), false, 'PIN exact refuse pendant lockout');
+    const locks = await admin.query(
+      'select failed_attempts, locked_until from taply.staff_devices where id=$1',
+      [device.deviceId],
+    );
+    assert.equal(locks.rows[0].failed_attempts, 5);
+    assert.ok(locks.rows[0].locked_until !== null);
+    await admin.query(`update taply.staff_devices
+      set locked_until=now() - interval '1 second' where id=$1`, [device.deviceId]);
+    assert.equal(await allow(staff, '12345678'), true);
+    const reset = await admin.query(
+      'select failed_attempts from taply.staff_devices where id=$1', [device.deviceId],
+    );
+    assert.equal(reset.rows[0].failed_attempts, 0);
+    await admin.query('update taply.staff_devices set revoked_at=now() where id=$1', [device.deviceId]);
+    assert.equal(await allow(staff, '12345678'), false, 'revoked device must never authorize');
+  });
+
+  await test('Appareils: PIN pas en clair dans la base', async () => {
+    const row = await admin.query('select pin_salt,pin_verifier from taply.staff_devices limit 1');
+    assert.match(row.rows[0].pin_salt, /^[0-9a-f]{32}$/);
+    assert.match(row.rows[0].pin_verifier, /^[0-9a-f]{128}$/);
+    assert.ok(!row.rows[0].pin_verifier.includes('12345678'));
   });
 
   console.log('CERTIFICATION PG17 OK:', passed, 'vérifications dynamiques');

@@ -23,6 +23,7 @@ import type { Logger } from '../core/logger.js';
 import { requestIdMiddleware } from './request-id.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
+import { loyaltyRoutes } from './routes/loyalty.js';
 import type { AppEnvBindings } from './types.js';
 
 export interface AppDependencies {
@@ -104,6 +105,7 @@ export function createApp(deps: AppDependencies): Hono<AppEnvBindings> {
 
   app.route('/', healthRoutes);
   app.route('/', authRoutes);
+  app.route('/', loyaltyRoutes);
 
   app.notFound((c) => {
     const error = new AppError('NOT_FOUND');

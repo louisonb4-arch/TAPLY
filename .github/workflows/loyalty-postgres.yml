@@ -46,5 +46,6 @@ jobs:
       - name: PostgreSQL réel isolé — migrations, RLS, transactions
         env:
           TAPLY_PG_CERT_ACK: isolated-postgres-cluster
+          TAPLY_STAFF_PIN_PEPPER: ci-test-only-not-valid-in-any-real-environment-9f2c86a7d310
           POSTGRES_CERT_URL: postgresql://postgres:postgres@127.0.0.1:54329/taply_cert
         run: npm run db:loyalty:cert
