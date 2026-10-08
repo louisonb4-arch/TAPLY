@@ -185,10 +185,10 @@ describe('supabase/migrations : Phase 3A — merchant_users / merchant_sessions'
   const merchantUsersBody = merchantUsersFile ? (bodies.get(merchantUsersFile) ?? '') : '';
   const merchantSessionsBody = merchantSessionsFile ? (bodies.get(merchantSessionsFile) ?? '') : '';
 
-  it('les migrations certifiées 0001–0010 restent byte-identiques (non touchées par Phase 3A)', () => {
-    const certified = files.filter(
-      (f) => !f.endsWith('merchant_users.sql') && !f.endsWith('merchant_sessions.sql') && !f.endsWith('session_revocation_policy.sql'),
-    );
+  it('les dix migrations historiques 0001–0010 restent présentes (les nouvelles sont permises)', () => {
+    // Scope explicite aux dix migrations certifiées 0001–0010 ;
+    // les migrations futures n'invalident pas ce contrôle historique.
+    const certified = files.filter((f) => /(^|\/)202610071200(0[1-9]|10)_/.test(f));
     expect(certified).toHaveLength(10);
   });
 
