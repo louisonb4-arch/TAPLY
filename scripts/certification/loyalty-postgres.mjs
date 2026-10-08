@@ -25,6 +25,10 @@ import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgr
 import { scanWalletQrAndCredit } from '../../backend/loyalty/scan.ts';
 import { rotateWalletQr } from '../../backend/loyalty/rotation.ts';
 import { resolveWalletQrToken } from '../../backend/loyalty/qr-token.ts';
+import { createApp } from '../../backend/http/app.ts';
+import { loadConfig } from '../../backend/core/config.ts';
+import { createLogger } from '../../backend/core/logger.ts';
+import { generateSessionToken, hashSessionToken } from '../../backend/auth/token.ts';
 
 const ACK = 'isolated-postgres-cluster';
 const DB_NAME = 'taply_cert';
@@ -577,6 +581,123 @@ async function certify() {
     const access = await admin.query(`select has_table_privilege('taply_app',
       'taply.wallet_qr_rotations','DELETE') as can_delete`);
     assert.equal(access.rows[0].can_delete, false);
+  });
+
+  await test('HTTP E2E réel: cookie session + PIN + appareil + création + scan + cadeau', async () => {
+    const ownerPairing = await withTenantTx(app, A.merchant,
+      (client) => createStaffDevicePairing(client, A.principal, A.principal.merchantUserId));
+    const ownerDevice = await withTenantTx(app, A.merchant,
+      (client) => activateStaffDevice(client, A.principal, ownerPairing, '31415926'));
+    assert.ok(ownerDevice?.rawDeviceToken);
+
+    const rawSession = generateSessionToken();
+    await admin.query(`insert into taply.merchant_sessions
+       (merchant_id,merchant_user_id,auth_user_id,token_hash,idle_expires_at,absolute_expires_at)
+       values($1,$2,$3,$4,now()+interval '2 hours',now()+interval '12 hours')`,
+      [A.merchant, A.principal.merchantUserId, A.principal.authUserId,
+        hashSessionToken(rawSession)]);
+    const envKey = 'TAPLY_LOYALTY_PREVIEW';
+    const old = process.env[envKey];
+    process.env[envKey] = 'enabled';
+    try {
+      const ORIGIN = 'http://127.0.0.1:3000';
+      const web = createApp({
+        config: loadConfig({ APP_ENV: 'test', APP_ORIGIN: ORIGIN }),
+        logger: createLogger({ level: 'error' }),
+        dbPool: app,
+      });
+      const cookies = `taply_session=${rawSession}; taply_staff_device=${ownerDevice.rawDeviceToken}`;
+      const post = async (path, body, override = {}) => {
+        return web.request('/api/loyalty/' + path, {
+          method: 'POST',
+          headers: { Origin: ORIGIN, 'Content-Type': 'application/json', Cookie: cookies,
+            ...override },
+          body: JSON.stringify(body),
+        });
+      };
+      const invalidOrigin = await post('scan', {
+        qrToken: 'fake', pin: '31415926',
+        idempotencyKey: randomUUID(), purchaseConfirmed: true,
+      }, { Origin: 'https://attacker.example' });
+      assert.equal(invalidOrigin.status, 403);
+
+      const overview = await web.request('/api/loyalty/overview', {
+        headers: { Cookie: cookies },
+      });
+      assert.equal(overview.status, 200);
+      assert.equal((await overview.json()).programs[0].threshold, 7);
+
+      const reg = await post('customers/register', {
+        firstName: 'Manon', programId: A.program,
+        idempotencyKey: randomUUID(), privacyAccepted: true,
+        customerPresent: true, pin: '31415926',
+      });
+      const registered = await reg.json();
+      assert.equal(reg.status, 201);
+      assert.match(registered.qrToken, /^[A-Za-z0-9_-]{43}$/);
+      // Le QR brut n'est envoyé qu'une fois, dans la réponse confidentielle.
+      // Verify staff route persisted the registration through the overview.
+      const afterReg = await web.request('/api/loyalty/overview', {
+        headers: { Cookie: cookies },
+      });
+      assert.equal((await afterReg.json()).programs[0].totalMembers, 3);
+
+      const card = await withTenantTx(app, A.merchant, (client) =>
+        rotateWalletQr(client, A.principal, {
+          membershipId: A.membership, idempotencyKey: randomUUID(),
+        }));
+      const qr = card.qrToken;
+      const denied = await post('scan', {
+        qrToken: qr, pin: 'wrong',
+        idempotencyKey: randomUUID(), purchaseConfirmed: true,
+      });
+      assert.equal(denied.status, 400, 'Malformed PIN must fail input validation');
+      const wrong = await post('scan', {
+        qrToken: qr, pin: '00000000',
+        idempotencyKey: randomUUID(), purchaseConfirmed: true,
+      });
+      assert.equal(wrong.status, 403, 'Validly formatted but incorrect PIN denied');
+
+      const scan = await post('scan', {
+        qrToken: qr, pin: '31415926',
+        idempotencyKey: randomUUID(), purchaseConfirmed: true,
+      });
+      assert.equal(scan.status, 200);
+      const scanResult = await scan.json();
+      assert.equal(scanResult.credited, true);
+
+      const status = await post('card/status', { qrToken: qr, pin: '31415926' });
+      assert.equal(status.status, 200);
+      assert.equal((await status.json()).card.visitCount, 1);
+
+      const noGiftYet = await post('redeem', {
+        qrToken: qr, pin: '31415926', idempotencyKey: randomUUID(),
+        expectedCycleNumber: scanResult.cycleNumber, giftHandedOver: true,
+      });
+      assert.equal(noGiftYet.status, 200);
+      assert.equal((await noGiftYet.json()).redeemed, false);
+
+      await admin.query(`update taply.membership_states
+        set visit_count=5,reward_pending=true,last_credited_at=now()-interval '3 hours'
+        where membership_id=$1`, [A.membership]);
+      const claimedGift = await post('redeem', {
+        qrToken: qr, pin: '31415926', idempotencyKey: randomUUID(),
+        expectedCycleNumber: scanResult.cycleNumber, giftHandedOver: true,
+      });
+      assert.equal(claimedGift.status, 200);
+      assert.equal((await claimedGift.json()).redeemed, true);
+
+      const revoke = await post('devices/revoke', {
+        deviceId: ownerDevice.deviceId, pin: '31415926',
+      });
+      assert.equal(revoke.status, 200);
+      assert.equal((await revoke.json()).revoked, true);
+      const blocked = await post('card/status', { qrToken: qr, pin: '31415926' });
+      assert.equal(blocked.status, 403, 'Revoked staff device cannot access customer');
+    } finally {
+      if (old === undefined) delete process.env[envKey];
+      else process.env[envKey] = old;
+    }
   });
 
   console.log('CERTIFICATION PG17 OK:', passed, 'vérifications dynamiques');

@@ -8,6 +8,7 @@
  * à l'intérieur de la transaction (verrouillage effectif).
  */
 import { Hono } from 'hono';
+import type { Pool } from 'pg';
 import { getCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
 import { AppError } from '../../core/errors.js';
@@ -66,13 +67,13 @@ async function parseBody<T>(c: { req: { json(): Promise<unknown> } }, schema: z.
 }
 
 async function authenticated<T>(
-  c: { get(name: 'config'): { appEnv: string; auth: { sessionIdleSeconds: number } } },
+  c: { get(name: 'config'): { appEnv: string; auth: { sessionIdleSeconds: number } }; get(name: 'dbPool'): Pool | undefined },
   token: string | undefined,
   fn: Parameters<typeof withAuthenticatedTx<T>>[3],
 ): Promise<T> {
   if (!token) throw new AppError('AUTH_REQUIRED');
   try {
-    return await withAuthenticatedTx(getPool(), token, c.get('config').auth.sessionIdleSeconds, fn);
+    return await withAuthenticatedTx(c.get('dbPool') ?? getPool(), token, c.get('config').auth.sessionIdleSeconds, fn);
   } catch (err) {
     if (err instanceof SessionInvalidError) throw new AppError('AUTH_REQUIRED');
     throw err;

@@ -14,6 +14,7 @@
  */
 
 import { Hono } from 'hono';
+import type { Pool } from 'pg';
 import { bodyLimit } from 'hono/body-limit';
 import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
@@ -29,6 +30,8 @@ import type { AppEnvBindings } from './types.js';
 export interface AppDependencies {
   readonly config: AppConfig;
   readonly logger: Logger;
+  /** Pool injecté UNIQUEMENT par une certification PostgreSQL isolée. */
+  readonly dbPool?: Pool;
 }
 
 export const API_BASE_PATH = '/api';
@@ -55,11 +58,15 @@ function codeForHttpStatus(status: number): ErrorCode {
 }
 
 export function createApp(deps: AppDependencies): Hono<AppEnvBindings> {
+  if (deps.dbPool !== undefined && deps.config.appEnv !== 'test') {
+    throw new Error('DB injection interdite hors certification en environnement test');
+  }
   const app = new Hono<AppEnvBindings>().basePath(API_BASE_PATH);
 
   app.use('*', async (c, next) => {
     c.set('config', deps.config);
     c.set('rootLog', deps.logger);
+    if (deps.dbPool !== undefined) c.set('dbPool', deps.dbPool);
     await next();
   });
 
