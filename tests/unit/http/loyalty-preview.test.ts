@@ -134,3 +134,18 @@ describe('GET /api/loyalty/customers', () => {
     expect(res.status).toBe(503);
   });
 });
+
+describe('GET /api/loyalty/merchant', () => {
+  it('ne divulgue aucune identité commerçant hors preview', async () => {
+    expect((await app('test').request('/api/loyalty/merchant')).status).toBe(503);
+  });
+  it('exige une session serveur en preview', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    expect((await app('test').request('/api/loyalty/merchant')).status).toBe(401);
+  });
+  it('ne peut pas être activé sur la production Vercel', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    expect((await app('test').request('/api/loyalty/merchant')).status).toBe(503);
+  });
+});

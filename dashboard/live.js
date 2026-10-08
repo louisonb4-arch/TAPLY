@@ -7,7 +7,7 @@
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const view = $('#view');
-  const s = { principal: null, identity: null, programs: [], customers: [], security: null, error: null,
+  const s = { principal: null, identity: null, merchant: null, programs: [], customers: [], security: null, error: null,
     customersError: null, securityError: null };
   const esc = x => String(x ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -51,12 +51,14 @@
     // Effacer toute ancienne donnée AVANT de vérifier la nouvelle session.
     s.principal = null;
     s.identity = null;
+    s.merchant = null;
     s.programs = [];
     s.customers = [];
     s.security = null;
     s.customersError = null;
     s.securityError = null;
     s.principal = await api('auth/me');
+    try { s.merchant = await api('loyalty/merchant'); } catch (_) {}
     if (s.principal.role !== 'owner') {
       try { s.identity = await api('loyalty/identity'); } catch (_) {}
       return;
@@ -225,6 +227,12 @@
       msg('Fonction indisponible', 'Cette page ne présente aucune donnée fictive. Elle sera activée après certification.');
   }
   function render() {
+    const name = s.merchant?.name || 'Espace de fidélité';
+    $$('[data-merchant-name]').forEach(node => { node.textContent = name; });
+    $$('[data-merchant-city]').forEach(node => { node.textContent = 'Compte vérifié'; });
+    $$('[data-merchant-logo]').forEach(node => { node.textContent = name.slice(0,1).toUpperCase(); });
+    $$('[data-merchant-initial]').forEach(node => { node.textContent = name.slice(0,1).toUpperCase(); });
+    $$('[data-nfc-status]').forEach(node => { node.textContent = 'Non configuré'; });
     const path = nav(), root = path.split('/')[0];
     $('[data-crumb]').textContent = 'Espace commerçant · ' + path.replaceAll('/', ' › ');
     $$('[data-nav]').forEach(node => node.setAttribute('aria-current',

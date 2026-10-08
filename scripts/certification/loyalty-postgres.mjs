@@ -680,6 +680,12 @@ async function certify() {
       });
       assert.equal(whoami.status, 200);
       assert.equal((await whoami.json()).merchantUserId, A.principal.merchantUserId);
+      const merchant = await web.request('/api/loyalty/merchant', {
+        headers: { Cookie: cookies },
+      });
+      assert.equal(merchant.status, 200);
+      assert.match((await merchant.json()).name, /.+/);
+      assert.equal((await web.request('/api/loyalty/merchant')).status, 401);
       const overview = await web.request('/api/loyalty/overview', {
         headers: { Cookie: cookies },
       });

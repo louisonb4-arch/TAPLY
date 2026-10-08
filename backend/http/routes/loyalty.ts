@@ -389,6 +389,21 @@ loyaltyRoutes.get('/loyalty/security', async (c) => {
   return c.json(result);
 });
 
+/** Identité du commerce depuis PostgreSQL, jamais depuis le navigateur. */
+loyaltyRoutes.get('/loyalty/merchant', async (c) => {
+  checkPreview(c);
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const merchant = await authenticated(c, cookie, async (client, principal) => {
+    const result = await client.query<{ name: string }>(
+      `select name from taply.merchants where id=$1 and status='active'`,
+      [principal.merchantId],
+    );
+    return result.rows[0];
+  });
+  if (!merchant) throw new AppError('NOT_FOUND');
+  return c.json({ name: merchant.name });
+});
+
 /** Liste bornée, lecture seule, réservée au propriétaire de la boutique. */
 loyaltyRoutes.get('/loyalty/customers', async (c) => {
   checkPreview(c);

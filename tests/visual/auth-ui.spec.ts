@@ -11,6 +11,9 @@ const programs = { programs: [{
 
 function mockOwner(page: import('@playwright/test').Page) {
   return Promise.all([
+    page.route('**/api/loyalty/merchant', route => route.fulfill({
+      status:200, contentType:'application/json', body:JSON.stringify({ name:'Boutique pilote QA' }),
+    })),
     page.route('**/api/auth/me', route => route.fulfill({
       status:200, contentType:'application/json',
       body:JSON.stringify({ authenticated:true, role:'owner', merchantId:'00000000-0000-4000-8000-000000000001' }),
