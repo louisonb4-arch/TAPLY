@@ -6,6 +6,18 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const read = (name: string) => readFileSync(root + name, 'utf8');
 
 describe('UI Taply — aucun retour silencieux aux données fictives', () => {
+  it('section marketing : dashboard existant, aucun faux écran ou notifications anciennes', () => {
+    const html = read('index.html');
+    expect(html).toContain('id="dashboard-commercant"');
+    expect(html).toContain('Piloter votre fidélité,');
+    expect(html).toContain('mesurer</span> ce qui compte.');
+    expect(html).toContain('images/dashboard-real-demo-preview.png');
+    expect(html).toContain('données de démonstration');
+    expect(html).not.toContain('section notify');
+    const mainJs = read('js/main.js');
+    expect(mainJs).toContain("const dashboardStory = $('[data-dashboard-story]')");
+    expect(mainJs).toContain("addEventListener('scroll', requestMac, { passive: true })");
+  });
   it('logo Taply officiel cohérent dans toutes les en-têtes', () => {
     // Tous les anciens mots-symboles HTML ont été remplacés par le même
     // logo PNG validé, avec variante contrastée pour les fonds sombres.
