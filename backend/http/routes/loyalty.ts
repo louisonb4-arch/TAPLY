@@ -21,6 +21,7 @@ import { scanWalletQrAndCredit } from '../../loyalty/scan.js';
 import { resolveWalletQrToken } from '../../loyalty/qr-token.js';
 import { redeemReward } from '../../loyalty/redeem.js';
 import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgram } from '../../loyalty/operations.js';
+import { rotateWalletQr } from '../../loyalty/rotation.js';
 import { originCheck } from '../origin.js';
 import type { AppEnvBindings } from '../types.js';
 
@@ -280,4 +281,34 @@ loyaltyRoutes.post('/loyalty/devices/revoke', originCheck, async (c) => {
   });
   if (!operation.authorized) throw new AppError('AUTH_FORBIDDEN');
   return c.json({ revoked: operation.revoked });
+});
+
+const rotateSchema = z.strictObject({
+  membershipId: z.uuid(),
+  idempotencyKey: z.uuid(),
+  pin: z.string().regex(/^\d{6,10}$/),
+  customerPresent: z.literal(true),
+  identityVerifiedInPerson: z.literal(true),
+});
+
+// Replaces a compromised/lost card. The old QR stops working immediately.
+// Customer identity verification is a human business process, NOT cryptographic.
+loyaltyRoutes.post('/loyalty/cards/rotate', originCheck, async (c) => {
+  checkPreview(c);
+  const body = await parseBody(c, rotateSchema);
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const deviceToken = getCookie(c, DEVICE_COOKIE);
+  const operation = await authenticated(c, cookie, async (client, principal) => {
+    if (!await authorizeStaffAction(client, principal, deviceToken, body.pin)) {
+      return { authorized: false as const };
+    }
+    const result = await rotateWalletQr(client, principal, {
+      membershipId: body.membershipId,
+      idempotencyKey: body.idempotencyKey,
+    });
+    return { authorized: true as const, result };
+  });
+  if (!operation.authorized) throw new AppError('AUTH_FORBIDDEN');
+  if (!operation.result) throw new AppError('NOT_FOUND');
+  return c.json(operation.result);
 });

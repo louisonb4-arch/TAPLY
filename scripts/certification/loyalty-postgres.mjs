@@ -23,6 +23,8 @@ import { redeemReward } from '../../backend/loyalty/redeem.ts';
 import { createStaffDevicePairing, activateStaffDevice, authorizeStaffAction } from '../../backend/auth/staff-device.ts';
 import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgram } from '../../backend/loyalty/operations.ts';
 import { scanWalletQrAndCredit } from '../../backend/loyalty/scan.ts';
+import { rotateWalletQr } from '../../backend/loyalty/rotation.ts';
+import { resolveWalletQrToken } from '../../backend/loyalty/qr-token.ts';
 
 const ACK = 'isolated-postgres-cluster';
 const DB_NAME = 'taply_cert';
@@ -537,6 +539,44 @@ async function certify() {
         programId: A.program, status: 'paused', notificationsEnabled: true,
       }));
     assert.equal(cross.ok, false);
+  });
+
+  await test('Remplacement QR: ancien révoqué, nouveau actif, replay sans secret, audit immuable', async () => {
+    const issue = await withTenantTx(app, A.merchant, (client) =>
+      rotateWalletQr(client, A.principal, { membershipId: A.membership, idempotencyKey: randomUUID() }));
+    assert.equal(issue.rotated, true);
+    assert.match(issue.qrToken, /^[A-Za-z0-9_-]{43}$/);
+    const before = await withTenantTx(app, A.merchant,
+      (client) => resolveWalletQrToken(client, A.principal, issue.qrToken));
+    assert.equal(before, A.membership);
+
+    const key2 = randomUUID();
+    const next = await withTenantTx(app, A.merchant, (client) =>
+      rotateWalletQr(client, A.principal, { membershipId: A.membership, idempotencyKey: key2 }));
+    assert.equal(next.rotated, true);
+    assert.notEqual(next.qrToken, issue.qrToken);
+    const revoked = await withTenantTx(app, A.merchant,
+      (client) => resolveWalletQrToken(client, A.principal, issue.qrToken));
+    assert.equal(revoked, undefined);
+    const current = await withTenantTx(app, A.merchant,
+      (client) => resolveWalletQrToken(client, A.principal, next.qrToken));
+    assert.equal(current, A.membership);
+
+    const replay = await withTenantTx(app, A.merchant, (client) =>
+      rotateWalletQr(client, A.principal, { membershipId: A.membership, idempotencyKey: key2 }));
+    assert.equal(replay.membershipId, A.membership);
+    assert.equal(replay.qrToken, undefined, 'Ne stocke jamais le QR brut dans idempotency_requests');
+    assert.equal(await count('wallet_qr_rotations', A), 2);
+    const active = await admin.query(`select count(*)::integer as n from taply.wallet_qr_tokens
+      where membership_id=$1 and revoked_at is null`, [A.membership]);
+    assert.equal(active.rows[0].n, 1);
+    const cross = await withTenantTx(app, B.merchant, (client) =>
+      rotateWalletQr(client, B.principal,
+        { membershipId: A.membership, idempotencyKey: randomUUID() }));
+    assert.equal(cross, undefined);
+    const access = await admin.query(`select has_table_privilege('taply_app',
+      'taply.wallet_qr_rotations','DELETE') as can_delete`);
+    assert.equal(access.rows[0].can_delete, false);
   });
 
   console.log('CERTIFICATION PG17 OK:', passed, 'vérifications dynamiques');
