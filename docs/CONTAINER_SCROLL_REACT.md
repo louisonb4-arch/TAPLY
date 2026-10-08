@@ -23,3 +23,11 @@ Les icônes marketing restent les SVG existants de Taply ; aucun `lucide-react` 
 `npm run check`, `npm run build:static` et `TAPLY_TEST_SITE_URL=http://127.0.0.1:PORT npx playwright test -c tests/visual/playwright.config.ts dashboard-story.spec.ts`.
 
 La capture est **illustrative** : les nombres affichés dans le dashboard de démonstration ne doivent pas être présentés comme des résultats réels de clients.
+
+## Paramètres Aceternity d'origine restaurés (08/10/2026)
+- Utilisation de `useScroll({ target: containerRef })`, sans offset personnalisé.
+- `rotateX: 20° → 0°`, `scale: 1.05 → 1.0` sur ordinateur.
+- Valeurs mobiles d'origine conservées dans le composant (`0.7 → 0.9`) mais animation désactivée sur mobile pour préserver la lisibilité et la structure existantes.
+- Translation originale `0 → −100 px` appliquée à l'introduction éditoriale HTML via variable CSS, sans dupliquer son titre dans React.
+- Zone d'animation desktop de `80rem`, perspective `1000px` et ombres d'origine ; ajustement des marges visuelles uniquement pour éviter un espace blanc disproportionné.
+- Tests de retour en arrière, valeurs exactes, mobile et `prefers-reduced-motion` dans `tests/visual/dashboard-story.spec.ts`.

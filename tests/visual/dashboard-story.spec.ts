@@ -22,18 +22,18 @@ test('l’effet Aceternity pivote et grandit au scroll, puis revient en arrière
   await page.emulateMedia({ reducedMotion:'no-preference' });
   await page.goto(base + '/index.html');
   const story=page.locator('[data-dashboard-story]');
-  const sectionY=await story.evaluate(el=>el.getBoundingClientRect().top+scrollY);
-  await page.evaluate(y=>scrollTo({top:y,behavior:'instant'}),sectionY-690);
+  await story.scrollIntoViewIfNeeded();
   const card=page.locator('[data-scroll-card]');
   await expect(card).toBeAttached({timeout:12000});
+  const stageY=await page.locator('.dashboard-scroll-container').evaluate(el=>el.getBoundingClientRect().top+scrollY);
   async function pose(y:number) {
     await page.evaluate(v=>scrollTo({top:v,behavior:'instant'}),y);
     await page.waitForTimeout(240);
     return card.evaluate(el=>getComputedStyle(el).transform);
   }
-  const first=await pose(sectionY-690);
-  const midway=await pose(sectionY+140);
-  const rewind=await pose(sectionY-690);
+  const first=await pose(stageY-250);
+  const midway=await pose(stageY+180);
+  const rewind=await pose(stageY-250);
   expect(first).toContain('matrix3d');
   expect(midway).toContain('matrix3d');
   expect(first).not.toEqual(midway);
@@ -132,4 +132,49 @@ test('mobile et tablette : garder les bénéfices avant le visuel', async ({ pag
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
     expect(overflow).toBeLessThanOrEqual(2);
   }
+});
+
+test('animation Aceternity originale : 20° → 0°, 105 % → 100 %, titre 0 → -100 px', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion:'no-preference' });
+  await page.goto(base + '/index.html');
+  const story = page.locator('[data-dashboard-story]');
+  await story.scrollIntoViewIfNeeded();
+  const stage = page.locator('.dashboard-scroll-container');
+  await expect(stage).toBeAttached({timeout:12000});
+  const stageBounds = await stage.evaluate(el => ({ top: el.getBoundingClientRect().top + scrollY, height: el.offsetHeight }));
+  expect(stageBounds.height).toBe(1280); // h-[80rem] de la référence.
+  const card = page.locator('[data-scroll-card]');
+  const title = page.locator('.dashboard-story__intro-motion');
+  const pose = async (position: number) => {
+    await page.evaluate(y => window.scrollTo({ top:y, behavior:'instant' }), position);
+    await page.waitForTimeout(180);
+    return {
+      transform: await card.evaluate(el => el.style.transform),
+      titleShift: await title.evaluate(el => getComputedStyle(el).transform),
+    };
+  };
+  const start = await pose(stageBounds.top - 250);
+  expect(start.transform).toContain('scale(1.05)');
+  expect(start.transform).toContain('rotateX(20deg)');
+  expect(start.titleShift).toMatch(/matrix\(1, 0, 0, 1, 0, 0\)/);
+  const middle = await pose(stageBounds.top + 180);
+  expect(middle.transform).not.toEqual(start.transform);
+  const end = await pose(stageBounds.top + 520);
+  expect(end.transform).toBe('none'); // Matrix identitaire : rotate=0, scale=1.
+  expect(end.titleShift).toContain('-100)');
+  const backwards = await pose(stageBounds.top - 250);
+  expect(backwards.transform).toEqual(start.transform);
+});
+
+test('mobile : conserver le dashboard et le titre sans animation 3D', async ({ page }) => {
+  await page.setViewportSize({width:390,height:844});
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.goto(base + '/index.html');
+  const story=page.locator('[data-dashboard-story]');
+  await story.scrollIntoViewIfNeeded();
+  const card=page.locator('[data-scroll-card]');
+  await expect(card).toBeVisible({timeout:12000});
+  expect(await card.evaluate(el=>getComputedStyle(el).transform)).toBe('none');
+  expect(await story.locator('.dashboard-story__intro-motion').evaluate(el=>getComputedStyle(el).transform)).toBe('matrix(1, 0, 0, 1, 0, 0)');
 });

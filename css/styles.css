@@ -622,6 +622,8 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .dashboard-story__copy { min-width: 0; }
 .dashboard-story__eyebrow { display: inline-flex; padding: .65rem 1.1rem; border-radius: 999px; background: var(--c-lime-soft); color: var(--c-ink); }
 .dashboard-story__title { margin-top: 1.7rem; max-width: 15ch; }
+/* Le texte éditorial reste accessible en HTML et suit le mouvement vertical d'origine. */
+.dashboard-story__intro-motion { transform: translateY(var(--dashboard-title-y, 0px)); }
 .dashboard-story__lead { margin-top: 1.5rem; max-width: 51ch; }
 .dashboard-story__features { margin-top: clamp(2rem, 4.6vw, 3.6rem); }
 .dashboard-story__features h3 { margin-bottom: .25rem; }
@@ -631,7 +633,7 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 .dashboard-story__react-root { width: 100%; }
 .dashboard-story__fallback { overflow: hidden; border: 7px solid #242424; border-radius: 24px; box-shadow: 0 18px 40px rgba(0,0,0,.13); }
 .dashboard-story__fallback img { display: block; width: 100%; height: auto; }
-.dashboard-scroll-container { min-height: clamp(29rem, 73vh, 43rem); padding-block: 1rem; }
+.dashboard-scroll-container { height: 60rem; padding: .5rem; }
 .dashboard-scroll-perspective { transform-style: preserve-3d; padding: 0 2%; }
 .dashboard-scroll-card { transform-origin: center center; }
 .dashboard-scroll-screen { aspect-ratio: 1440 / 910; }
@@ -677,10 +679,9 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
     justify-self: center;
     align-self: start;
   }
-  .dashboard-scroll-container {
-    min-height: clamp(33rem, 69vw, 47rem);
-    padding-block: 1rem;
-  }
+  /* Même durée immersive que l'Aceternity original (80 rem sur desktop). */
+  .dashboard-scroll-container { height: 80rem; padding: 1rem; margin-block: -7.5rem; }
+  .dashboard-scroll-perspective { padding-block: 10rem; }
   .dashboard-story__features {
     grid-area: features;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -703,10 +704,13 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 @media (max-width: 1023.98px) {
   .dashboard-story__title { max-width: 16ch; }
   .dashboard-story__visual { margin-top: .6rem; }
-  .dashboard-scroll-container { min-height: unset; padding-block: 2rem; }
+  /* Conserve l'agencement compact historique sur petit écran. */
+  .dashboard-scroll-container { height: auto; min-height: unset; padding-block: 2rem; margin-block: 0; }
+  .dashboard-scroll-perspective { padding-block: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .dashboard-scroll-card { transform: none !important; }
+  .dashboard-story__intro-motion { transform: none !important; }
 }
 
 /* — Tarifs — */
