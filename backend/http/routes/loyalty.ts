@@ -362,3 +362,14 @@ loyaltyRoutes.post('/loyalty/enrollment/confirm', originCheck, async (c) => {
   if (operation.result.status !== 'confirmed') throw new AppError('NOT_FOUND');
   return c.json(operation.result, 201);
 });
+
+loyaltyRoutes.get('/loyalty/identity', async (c) => {
+  checkPreview(c);
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const identity = await authenticated(c, cookie, async (_client, principal) => ({
+    merchantUserId: principal.merchantUserId,
+    merchantId: principal.merchantId,
+    role: principal.role,
+  }));
+  return c.json(identity);
+});

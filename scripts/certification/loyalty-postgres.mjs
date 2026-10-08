@@ -673,6 +673,11 @@ async function certify() {
       }, { Origin: 'https://attacker.example' });
       assert.equal(invalidOrigin.status, 403);
 
+      const whoami = await web.request('/api/loyalty/identity', {
+        headers: { Cookie: cookies },
+      });
+      assert.equal(whoami.status, 200);
+      assert.equal((await whoami.json()).merchantUserId, A.principal.merchantUserId);
       const overview = await web.request('/api/loyalty/overview', {
         headers: { Cookie: cookies },
       });

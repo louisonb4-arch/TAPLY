@@ -85,3 +85,15 @@ it('refuse la pré-inscription publique si VERCEL_ENV=production même avec APP_
   });
   expect(res.status).toBe(503);
 });
+
+it('GET identity: refus sans session même lorsque preview est activée', async () => {
+  vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+  const res = await app('test').request('/api/loyalty/identity');
+  expect(res.status).toBe(401);
+});
+
+it('GET identity: production désactivée', async () => {
+  vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+  const res = await app('production').request('/api/loyalty/identity');
+  expect(res.status).toBe(503);
+});
