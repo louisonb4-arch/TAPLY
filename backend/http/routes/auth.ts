@@ -97,6 +97,9 @@ authRoutes.post('/auth/login', originCheck, async (c) => {
       password: parsed.data.password,
       idleSeconds: config.auth.sessionIdleSeconds,
       absoluteSeconds: config.auth.sessionAbsoluteSeconds,
+      allowOnboarding: config.appEnv !== 'production' &&
+        process.env['VERCEL_ENV'] !== 'production' &&
+        process.env['TAPLY_LOYALTY_PREVIEW'] === 'enabled',
     });
 
     setSessionCookie(c, config.appEnv, result.rawToken, config.auth.sessionAbsoluteSeconds);

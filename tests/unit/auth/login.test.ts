@@ -56,10 +56,22 @@ describe('loginWithPassword', () => {
       return { data:MERCHANT_ID,error:null };
     });
     signOut.mockResolvedValueOnce({ error:null });
-    const result = await loginWithPassword(fakePool(scenario), captureLogger().logger, PARAMS);
+    const result = await loginWithPassword(fakePool(scenario), captureLogger().logger, { ...PARAMS,allowOnboarding:true });
     expect(result.role).toBe('owner');
     expect(rpc).toHaveBeenCalledWith('taply_complete_merchant_signup_v1');
     expect(signOut).toHaveBeenCalledWith({scope:'local'});
+  });
+
+  it('ne provisionne pas sans autorisation explicite du mode Preview', async () => {
+    rpc.mockClear();
+    signInWithPassword.mockResolvedValueOnce({ data:{ user:{
+      id:AUTH_USER_ID,email_confirmed_at:new Date().toISOString(),
+      user_metadata:{taply_onboarding_v1:true},
+    } },error:null });
+    signOut.mockResolvedValueOnce({error:null});
+    await expect(loginWithPassword(fakePool({}),captureLogger().logger,PARAMS))
+      .rejects.toThrow(AuthInvalidCredentialsError);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('ne provisionne jamais un utilisateur non confirmé ou non inscrit via Taply', async () => {

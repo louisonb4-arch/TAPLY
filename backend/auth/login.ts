@@ -16,6 +16,7 @@ export interface LoginParams {
   readonly password: string;
   readonly idleSeconds: number;
   readonly absoluteSeconds: number;
+  readonly allowOnboarding?: boolean;
 }
 
 export interface LoginResult {
@@ -47,7 +48,7 @@ export async function loginWithPassword(pool: Pool, log: Logger, params: LoginPa
     // peuvent provisionner leur propre boutique au premier login.
     // L'API RPC reçoit le JWT de l'utilisateur connecté depuis Supabase,
     // calcule auth.uid() en SQL et ignore tout authUserId arbitraire.
-    if (!merchantUser &&
+    if (!merchantUser && params.allowOnboarding === true &&
         data.user.email_confirmed_at &&
         data.user.user_metadata?.['taply_onboarding_v1'] === true) {
       const { error: provisioningError } = await client.rpc('taply_complete_merchant_signup_v1');
