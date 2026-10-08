@@ -16,8 +16,8 @@
 
 - Avant le dernier garde d'environnement : 508/508 tests TypeScript/Vitest, 28/28 vérifications PostgreSQL 17 GitHub Actions (dont fonction d'onboarding réelle contre cluster isolé). Aucun accès anon ni taply_app à la fonction.
 - **28 tests Playwright** desktop + mobile : navigation de connexion vers Créer un compte, erreurs de validation, écran de succès, aucune persistance de mots de passe. Réponses e-mail **simulées en Playwright**.
-- Après garde anti-production supplémentaire : 509 tests locaux, CI à revérifier avec le commit final.
-- Preview Vercel a confirmé le chargement de la page et `POST /api/auth/signup` répond `400 VALIDATION_FAILED` à un corps vide.
+- Après garde anti-production supplémentaire : **509 tests locaux et certification CI verte** [GitHub Actions #37759263361](https://github.com/louisonb4-arch/TAPLY/actions/runs/37759263361).
+- Preview Vercel a confirmé le chargement de `connexion.html` avec le bon lien, de `creer-compte.html` avec le vrai formulaire et `POST /api/auth/signup` répond `400 VALIDATION_FAILED` à un corps vide. Déploiement final sur l'alias staging uniquement.
 
 ## Limites et précautions
 
