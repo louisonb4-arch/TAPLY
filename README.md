@@ -33,7 +33,7 @@ Tout est dans `css/tokens.css` (couleurs, typo, espacements, rayons, ombres, mou
 - Les actions disponibles en mode preview : validation de visite/cadeau par employé avec PIN, création de carte, mise à jour propriétaire du programme, invitation/activation d'appareil.
 - `join.html?code=<token-public>` : écran de pré-inscription client disponible en **preview seulement** (prénom + consentement, création d'un claim de 10 minutes, aucun passage automatique) ; l'employé confirme le code depuis le dashboard avec PIN et vérification de l'achat. L'envoi du QR personnel au téléphone client n'est pas encore finalisé.
 - UI de scanner caméra, NFC physique, passes Wallet et envoi de notifications : **pas encore terminés**. Certaines opérations préliminaires utilisent une saisie manuelle de QR pour les tests.
-- Le backend fidélité est désactivé en production par `TAPLY_LOYALTY_PREVIEW` + vérification de `APP_ENV` et `VERCEL_ENV`. Le projet Supabase staging contient 13/21 migrations ; les 8 dernières sont en attente d'une sauvegarde de préproduction vérifiée.
+- Le backend fidélité est désactivé en production par `TAPLY_LOYALTY_PREVIEW` + vérification de `APP_ENV` et `VERCEL_ENV`. **Staging : 21/21 migrations installées (2026-10-08)**, lecture réelle du dashboard certifiée contre la Preview Vercel + Supabase. Rapport : `docs/certification/LIVE_DASHBOARD_STAGING_2026-10-08.md`. Attention : aucune sauvegarde physique disponible sur staging ; une reprise après sinistre doit être préparée avant production.
 - Prototype historique privé : `docs/prototype-dashboard/` ; aucun JS de démo dans le `dist/` publié.
 - La page est non indexée (`noindex`).
 

@@ -125,9 +125,7 @@ Exiger le PASS GitHub Actions après chaque modification. La PR reste
   actions comptoir via PIN et activation d'appareil. Aucun fallback
   localStorage/données fictives. L'ancien prototype est conservé en privé
   sous `docs/prototype-dashboard/` pour référence.
-  **Non encore testé de bout en bout sur le Supabase distant** : les huit
-  migrations Loyalty restent à y installer après sauvegarde vérifiée,
-  et les écrans scanner caméra, QR public et Wallet natifs restent incomplets.
+  **La connexion/lecture ont désormais été testées de bout en bout sur le Supabase distant** : les 21 migrations sont installées en staging et les réponses du dashboard ont été vérifiées sur la vraie Preview Vercel. Les opérations d'écriture du programme n'y ont pas encore été certifiées de bout en bout et les écrans scanner caméra et Wallet natifs restent incomplets. Voir `docs/certification/LIVE_DASHBOARD_STAGING_2026-10-08.md`.
 - Le QR public possède maintenant un flux de **pré-inscription** avec écran `join.html?code=<token-public>` et confirmation employé dans le dashboard :
   `POST /api/loyalty/enrollment/prepare` produit un code de 10 minutes
   (maximum 20 inscriptions en attente / 10 minutes par commerce).
