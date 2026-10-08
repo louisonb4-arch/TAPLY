@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Créer un compte commerçant — Taply</title>
+  <meta name="description" content="Créez votre compte commerçant Taply et commencez votre programme de fidélité.">
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    body{margin:0;min-height:100svh;background:var(--c-paper);color:var(--c-ink);font-family:var(--f-sans);-webkit-font-smoothing:antialiased}
+    a{color:inherit} [hidden]{display:none!important}
+    :focus-visible{outline:2px solid var(--c-lime-text);outline-offset:3px}
+    .layout{min-height:100svh;display:grid}
+    .panel{display:flex;flex-direction:column;padding:1.75rem clamp(1.25rem,5vw,4rem) 2rem}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:1rem}
+    .logo{display:inline-flex;align-items:flex-start;font-size:1.75rem;font-weight:900;line-height:1;text-decoration:none;letter-spacing:-.045em;color:inherit}
+    .logo__tick{width:.3em;height:.48em;margin:-.12em 0 0 .05em;color:var(--c-lime);flex:none}
+    .back{color:var(--c-muted);text-decoration:none;font-size:.9rem}
+    .card{width:100%;max-width:28rem;margin:auto;padding:2rem 0}
+    .eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.2em;color:var(--c-muted)}
+    h1{font-weight:700;line-height:1.05;letter-spacing:-.035em;font-size:clamp(2.4rem,1.8rem + 2.6vw,3.4rem);margin:.85rem 0}
+    h1 span{color:var(--c-lime-text)}
+    .lead{color:var(--c-muted);font-size:1.05rem;line-height:1.45;margin:0}
+    form{display:grid;gap:.9rem;margin-top:1.8rem}
+    .field{display:grid;gap:.35rem}
+    .field label{color:var(--c-ink);font-size:.86rem;font-weight:500}
+    .field input{width:100%;min-height:3.6rem;border-radius:16px;border:1px solid #e1e2dc;background:#fff;padding:.8rem 1rem;font:inherit;color:inherit}
+    .field input:focus{outline:0;border-color:var(--c-ink);box-shadow:0 0 0 4px var(--c-lime-soft)}
+    .field input::placeholder{color:#8a8e88}
+    .check{display:flex;gap:.65rem;align-items:flex-start;font-size:.86rem;line-height:1.5;margin:.25rem 0}
+    .check input{accent-color:#2f8a1f;width:1.1rem;height:1.1rem;margin:.15rem 0 0;flex-shrink:0}
+    .check a{text-underline-offset:2px}
+    button{font:inherit}
+    .btn{min-height:3.75rem;border:0;border-radius:999px;background:#2f8a1f;color:white;font-size:1.07rem;cursor:pointer}
+    .btn:hover{background:#26741a}
+    .btn:disabled{opacity:.7;cursor:wait}
+    .sep{text-align:center;color:var(--c-muted);margin:1.5rem 0}
+    .sep a{font-weight:600;text-underline-offset:3px}
+    .notice{border-radius:15px;padding:1rem;background:var(--c-paper-2);color:var(--c-muted);font-size:.85rem;line-height:1.6}
+    .error{color:#b42318;font-size:.9rem;line-height:1.45}
+    .success{color:#245c17;background:#e6f4dd;border-radius:15px;padding:1.2rem;font-size:1rem;line-height:1.5}
+    .media{position:relative;min-height:15rem;overflow:hidden;background:#1a120c}
+    .media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:60% 50%}
+    .media:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,17,12,.1),rgba(6,17,12,.6))}
+    .note{position:absolute;left:1.5rem;bottom:1.4rem;z-index:1;color:white;font-family:var(--f-script),cursive;font-size:1.7rem;line-height:1.1;transform:rotate(-4deg)}
+    .note:after{content:"";display:block;height:3px;width:4.5rem;margin-top:.5rem;background:var(--c-lime)}
+    @media(min-width:900px){
+      .layout{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}
+      .media{order:2;position:sticky;top:0;margin:.75rem;border-radius:40px;height:calc(100svh - 1.5rem)}
+      .note{left:2.5rem;bottom:2.5rem;font-size:2.3rem}
+    }
+
+/* Logo Taply image approuvée, noir/vert et blanc/vert sur fond sombre. */
+.logo__asset { display: block; width: auto; height: 1em; max-width: none; flex: none; }
+.logo .logo__asset--light { display: none; }
+.logo--on-deep .logo__asset--dark { display: none; }
+.logo--on-deep .logo__asset--light { display: block; }
+
+</style>
+</head>
+<body>
+<main class="layout">
+  <div class="media" aria-hidden="true">
+    <img src="images/step-1.webp" alt="">
+    <p class="note">Vos clients reviennent.<br>On s'occupe du reste.</p>
+  </div>
+  <div class="panel">
+    <div class="top">
+      <a class="logo" href="index.html" aria-label="Taply — accueil"><img class="logo__asset logo__asset--dark" src="images/taply-wordmark-noir.png" width="1697" height="644" alt="" aria-hidden="true"><img class="logo__asset logo__asset--light" src="images/taply-wordmark-blanc.png" width="1697" height="644" alt="" aria-hidden="true"></a>
+      <a class="back" href="index.html">← Retour au site</a>
+    </div>
+    <div class="card">
+      <p class="eyebrow">Espace commerçant</p>
+      <h1>Bienvenue chez <span>Taply.</span></h1>
+      <p class="lead">Créez votre compte et démarrez votre programme de fidélité.</p>
+      <form novalidate data-signup>
+        <div class="field">
+          <label for="businessName">Nom de votre commerce</label>
+          <input id="businessName" name="businessName" type="text" placeholder="Ex. Le Comptoir" autocomplete="organization" minlength="2" maxlength="80" required>
+        </div>
+        <div class="field">
+          <label for="email">Adresse e-mail</label>
+          <input id="email" name="email" type="email" placeholder="vous@votrecommerce.fr" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="pwd">Mot de passe</label>
+          <input id="pwd" name="password" type="password" placeholder="12 caractères minimum" autocomplete="new-password" minlength="12" maxlength="128" required>
+        </div>
+        <div class="field">
+          <label for="pwdConfirm">Confirmer le mot de passe</label>
+          <input id="pwdConfirm" name="passwordConfirm" type="password" placeholder="Retapez votre mot de passe" autocomplete="new-password" required>
+        </div>
+        <label class="check">
+          <input name="termsAccepted" type="checkbox" required>
+          <span>J'accepte les <a href="cgu.html">conditions générales</a> et la <a href="confidentialite.html">politique de confidentialité</a>.</span>
+        </label>
+        <button class="btn" type="submit">Créer mon compte →</button>
+      </form>
+      <p class="error" data-signup-error role="alert" hidden></p>
+      <div class="success" data-signup-result role="status" hidden>
+        <strong>Vérifiez votre boîte e-mail.</strong>
+        <p>Suivez le lien de confirmation reçu, puis <a href="connexion.html">connectez-vous à Taply</a> pour activer votre commerce.</p>
+      </div>
+      <p class="sep">Déjà un compte ? <a href="connexion.html">Se connecter</a></p>
+      <p class="notice">Votre commerce et sa carte de fidélité seront créés après confirmation de l'e-mail et première connexion. Aucun paiement pour le moment.</p>
+    </div>
+  </div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const form=document.querySelector('[data-signup]');
+  const error=document.querySelector('[data-signup-error]');
+  const result=document.querySelector('[data-signup-result]');
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    error.hidden=true;
+    const email=form.elements.namedItem('email').value.trim();
+    const businessName=form.elements.namedItem('businessName').value.trim();
+    const password=form.elements.namedItem('password').value;
+    const passwordConfirm=form.elements.namedItem('passwordConfirm').value;
+    const termsAccepted=form.elements.namedItem('termsAccepted').checked;
+    if(businessName.length<2||businessName.length>80||
+       !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)||
+       password.length<12||password.length>128||
+       password!==passwordConfirm||!termsAccepted){
+      error.textContent=password!==passwordConfirm?
+        'Les mots de passe ne correspondent pas.':
+        'Vérifiez les champs, le mot de passe (12 caractères minimum) et les conditions.';
+      error.hidden=false;return;
+    }
+    const button=form.querySelector('button[type=submit]');
+    button.disabled=true;
+    try{
+      const res=await fetch('/api/auth/signup',{
+        method:'POST',credentials:'same-origin',cache:'no-store',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({businessName,email,password,termsAccepted}),
+      });
+      if(!res.ok)throw new Error(res.status===429?
+        'Trop de demandes. Réessayez dans quelques minutes.':
+        res.status===503?'Les inscriptions sont temporairement indisponibles.':
+        "Inscription impossible. Réessayez.");
+      form.elements.namedItem('password').value='';
+      form.elements.namedItem('passwordConfirm').value='';
+      form.hidden=true;result.hidden=false;
+    }catch(err){
+      form.elements.namedItem('password').value='';
+      form.elements.namedItem('passwordConfirm').value='';
+      error.textContent=err.message;error.hidden=false;
+      button.disabled=false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

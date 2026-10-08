@@ -79,7 +79,14 @@
       .login__note { left: 2.5rem; bottom: 2.5rem; font-size: 2.2rem; }
     }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-  </style>
+
+/* Logo Taply image approuvée, noir/vert et blanc/vert sur fond sombre. */
+.logo__asset { display: block; width: auto; height: 1em; max-width: none; flex: none; }
+.logo .logo__asset--light { display: none; }
+.logo--on-deep .logo__asset--dark { display: none; }
+.logo--on-deep .logo__asset--light { display: block; }
+
+</style>
 </head>
 <body>
 <main class="login">
@@ -90,7 +97,7 @@
 
   <div class="login__panel">
     <div class="login__top">
-      <a class="logo" href="index.html" aria-label="Taply — retour au site">Taply<svg class="logo__tick" viewBox="0 0 10 16" aria-hidden="true"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></a>
+      <a class="logo" href="index.html" aria-label="Taply — retour au site"><img class="logo__asset logo__asset--dark" src="images/taply-wordmark-noir.png" width="1697" height="644" alt="" aria-hidden="true"><img class="logo__asset logo__asset--light" src="images/taply-wordmark-blanc.png" width="1697" height="644" alt="" aria-hidden="true"></a>
       <a class="login__site" href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Retour au site</a>
     </div>
 
@@ -121,9 +128,9 @@
       </form>
 
       <p class="terms">En vous connectant, vous acceptez les <a href="cgu.html">conditions générales d'utilisation</a>.</p>
-      <p class="sep">Pas encore de compte ? <a href="index.html#demo">Demander une démo</a></p>
-      <!-- PROTOTYPE : aucune authentification réelle. À brancher sur le vrai service de connexion. -->
-      <p class="demo">Version de démonstration : n'importe quel e-mail et mot de passe ouvrent l'espace d'exemple (Roll in Love). Rien n'est envoyé.</p>
+      <p class="sep">Pas encore de compte ? <a href="creer-compte.html">Créer un compte</a></p>
+      <p class="demo">Connexion sécurisée à votre compte commerçant Taply. L'accès nécessite un compte actif.</p>
+      <p class="err" data-login-error role="alert" hidden>Connexion impossible. Vérifiez vos identifiants ou réessayez ultérieurement.</p>
     </div>
   </div>
 </main>
@@ -147,15 +154,32 @@
     if (ok) input.removeAttribute('aria-describedby'); else input.setAttribute('aria-describedby', `${id}-err`);
     return ok;
   };
-  form.addEventListener('submit', e => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const okMail = check('email', /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.value.trim()));
     const okPwd = check('pwd', form.password.value.length > 0);
     if (!okMail) return form.email.focus();
     if (!okPwd) return form.password.focus();
-    form.querySelector('.btn').setAttribute('aria-busy', 'true');
-    // Prototype : redirection directe vers l'espace d'exemple
-    location.href = 'dashboard/#/accueil';
+    const submit = form.querySelector('.btn');
+    const message = document.querySelector('[data-login-error]');
+    message.hidden = true;
+    submit.disabled = true;
+    submit.setAttribute('aria-busy', 'true');
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email.value.trim(), password: form.password.value }),
+      });
+      if (!res.ok) throw new Error('login_failed');
+      form.password.value = '';
+      location.replace('dashboard/#/accueil');
+    } catch (_err) {
+      form.password.value = '';
+      message.hidden = false;
+      submit.disabled = false;
+      submit.removeAttribute('aria-busy');
+    }
   });
 })();
 </script>

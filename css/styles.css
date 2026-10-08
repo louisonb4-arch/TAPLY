@@ -1101,3 +1101,17 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   .js [data-reveal] { opacity: 1; transform: none; clip-path: none; }
   .tap-ring { display: none; }
 }
+
+
+/* Logo Taply image approuvée, noir/vert et blanc/vert sur fond sombre. */
+.logo__asset { display: block; width: auto; height: 1em; max-width: none; flex: none; }
+.logo .logo__asset--light { display: none; }
+.logo--on-deep .logo__asset--dark { display: none; }
+.logo--on-deep .logo__asset--light { display: block; }
+
+/* En-tête transparent posé sur la photo sombre : logo blanc. */
+.nav:not(.is-solid) .logo__asset--dark { display: none; }
+.nav:not(.is-solid) .logo__asset--light { display: block; }
+/* Pages légales : fond toujours clair, même avant scroll. */
+.legal-page .nav .logo__asset--dark { display: block; }
+.legal-page .nav .logo__asset--light { display: none; }

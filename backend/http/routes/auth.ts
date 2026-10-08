@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { setSessionCookie, clearSessionCookie, getSessionCookie } from '../../auth/cookie.js';
 import { AuthInvalidCredentialsError, SessionInvalidError } from '../../auth/errors.js';
 import { loginWithPassword } from '../../auth/login.js';
+import { createAuthClient } from '../../auth/supabase-client.js';
 import { revokeSession, withAuthenticatedTx } from '../../auth/session.js';
 import { getPool } from '../../db/pool.js';
 import { AppError } from '../../core/errors.js';
@@ -23,6 +24,53 @@ export const authRoutes = new Hono<AppEnvBindings>();
 const loginBodySchema = z.object({
   email: z.string().trim().min(1).max(255).pipe(z.email()),
   password: z.string().min(1).max(512),
+});
+
+const signupBodySchema = z.strictObject({
+  businessName: z.string().trim().min(2).max(80).refine(n => !/[\x00-\x1F\x7F]/.test(n)),
+  email: z.string().trim().max(255).pipe(z.email()),
+  password: z.string().min(12).max(128),
+  termsAccepted: z.literal(true),
+});
+
+/**
+ * Inscription commerçant en préproduction uniquement.
+ * Seul Supabase gère le mot de passe et l'envoi de la confirmation.
+ * Le rattachement au commerce intervient APRÈS vérification de l'email,
+ * au premier login, grâce au JWT Supabase (voir login.ts / RPC).
+ */
+authRoutes.post('/auth/signup', originCheck, async (c) => {
+  const cfg = c.get('config');
+  if (cfg.appEnv === 'production' || process.env['VERCEL_ENV'] === 'production' ||
+      process.env['TAPLY_LOYALTY_PREVIEW'] !== 'enabled') {
+    throw new AppError('SERVICE_UNAVAILABLE');
+  }
+  let raw: unknown;
+  try { raw = await c.req.json(); } catch { throw new AppError('VALIDATION_FAILED'); }
+  const parsed = signupBodySchema.safeParse(raw);
+  if (!parsed.success) throw new AppError('VALIDATION_FAILED');
+  if (!cfg.auth.appOrigin) throw new AppError('SERVICE_UNAVAILABLE');
+
+  const client = createAuthClient();
+  const { error } = await client.auth.signUp({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    options: {
+      emailRedirectTo: cfg.auth.appOrigin + '/connexion.html?confirmation=ok',
+      data: {
+        taply_onboarding_v1: true,
+        taply_business_name: parsed.data.businessName,
+      },
+    },
+  });
+  if (error?.status === 429) throw new AppError('RATE_LIMITED');
+  if (error && !['User already registered', 'Email address already registered'].some(
+      m => error.message.includes(m))) {
+    c.get('log').warn('auth.signup.provider_failed', { status: error.status || 0 });
+    throw new AppError('SERVICE_UNAVAILABLE');
+  }
+  // Uniforme : un email déjà inscrit ne révèle pas l'existence de son compte.
+  return c.json({ emailSent: true }, 202);
 });
 
 // originCheck passé explicitement par route (jamais un `.use('*', …)` sur
@@ -49,6 +97,9 @@ authRoutes.post('/auth/login', originCheck, async (c) => {
       password: parsed.data.password,
       idleSeconds: config.auth.sessionIdleSeconds,
       absoluteSeconds: config.auth.sessionAbsoluteSeconds,
+      allowOnboarding: config.appEnv !== 'production' &&
+        process.env['VERCEL_ENV'] !== 'production' &&
+        process.env['TAPLY_LOYALTY_PREVIEW'] === 'enabled',
     });
 
     setSessionCookie(c, config.appEnv, result.rawToken, config.auth.sessionAbsoluteSeconds);

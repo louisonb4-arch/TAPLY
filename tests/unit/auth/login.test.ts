@@ -12,9 +12,10 @@ import { captureLogger } from '../../helpers/capture-logger.js';
 
 const signInWithPassword = vi.fn();
 const signOut = vi.fn();
+const rpc = vi.fn();
 
 vi.mock('../../../backend/auth/supabase-client.js', () => ({
-  createAuthClient: () => ({ auth: { signInWithPassword, signOut } }),
+  createAuthClient: () => ({ auth: { signInWithPassword, signOut }, rpc }),
 }));
 
 const { AuthInvalidCredentialsError } = await import('../../../backend/auth/errors.js');
@@ -47,6 +48,40 @@ function fakePool(scenario: Scenario): Pool {
 const PARAMS = { email: 'owner@example.com', password: 'correct-password', idleSeconds: 7_200, absoluteSeconds: 43_200 };
 
 describe('loginWithPassword', () => {
+  it('premier login après email vérifié : RPC signée par la session Auth puis mapping sécurisé', async () => {
+    const scenario: { merchantUser?: { id: string; merchant_id: string; role: string; status: string } } = {};
+    signInWithPassword.mockResolvedValueOnce({ data:{ user:{ id:AUTH_USER_ID, email_confirmed_at:new Date().toISOString(), user_metadata:{taply_onboarding_v1:true} } }, error:null });
+    rpc.mockImplementationOnce(async () => {
+      scenario.merchantUser = { id:MERCHANT_USER_ID, merchant_id:MERCHANT_ID, role:'owner', status:'active' };
+      return { data:MERCHANT_ID,error:null };
+    });
+    signOut.mockResolvedValueOnce({ error:null });
+    const result = await loginWithPassword(fakePool(scenario), captureLogger().logger, { ...PARAMS,allowOnboarding:true });
+    expect(result.role).toBe('owner');
+    expect(rpc).toHaveBeenCalledWith('taply_complete_merchant_signup_v1');
+    expect(signOut).toHaveBeenCalledWith({scope:'local'});
+  });
+
+  it('ne provisionne pas sans autorisation explicite du mode Preview', async () => {
+    rpc.mockClear();
+    signInWithPassword.mockResolvedValueOnce({ data:{ user:{
+      id:AUTH_USER_ID,email_confirmed_at:new Date().toISOString(),
+      user_metadata:{taply_onboarding_v1:true},
+    } },error:null });
+    signOut.mockResolvedValueOnce({error:null});
+    await expect(loginWithPassword(fakePool({}),captureLogger().logger,PARAMS))
+      .rejects.toThrow(AuthInvalidCredentialsError);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('ne provisionne jamais un utilisateur non confirmé ou non inscrit via Taply', async () => {
+    rpc.mockClear();
+    signInWithPassword.mockResolvedValueOnce({ data:{ user:{id:AUTH_USER_ID, email_confirmed_at:null,user_metadata:{taply_onboarding_v1:true}} }, error:null });
+    signOut.mockResolvedValueOnce({error:null});
+    await expect(loginWithPassword(fakePool({}),captureLogger().logger,PARAMS)).rejects.toThrow(AuthInvalidCredentialsError);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it('succès : signInWithPassword puis signOut({scope:"local"}) puis session créée, jamais de token Supabase renvoyé', async () => {
     signInWithPassword.mockResolvedValueOnce({ data: { user: { id: AUTH_USER_ID } }, error: null });
     signOut.mockResolvedValueOnce({ error: null });
