@@ -21,7 +21,8 @@
     "db:push:dry": "supabase db push --dry-run",
     "db:push": "supabase db push",
     "db:lint": "supabase db lint --linked --schema taply --fail-on error",
-    "db:reliability": "node --import ./scripts/dev-ts-hooks.mjs scripts/certification/db-runtime-reliability.ts"
+    "db:reliability": "node --import ./scripts/dev-ts-hooks.mjs scripts/certification/db-runtime-reliability.ts",
+    "db:loyalty:cert": "node --import ./scripts/dev-ts-hooks.mjs scripts/certification/loyalty-postgres.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",

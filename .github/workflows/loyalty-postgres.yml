@@ -1,0 +1,50 @@
+name: Loyalty PostgreSQL certification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'scripts/certification/**'
+      - 'supabase/migrations/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/loyalty-postgres.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  loyalty-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: taply_cert
+        ports:
+          - 54329:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taply_cert"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Installer les dépendances sans hooks
+        run: npm ci --ignore-scripts
+      - name: Tests TypeScript et unitaires
+        run: npm run check
+      - name: PostgreSQL réel isolé — migrations, RLS, transactions
+        env:
+          TAPLY_PG_CERT_ACK: isolated-postgres-cluster
+          POSTGRES_CERT_URL: postgresql://postgres:postgres@127.0.0.1:54329/taply_cert
+        run: npm run db:loyalty:cert
