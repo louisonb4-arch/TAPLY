@@ -107,12 +107,12 @@ export async function getLoyaltyCard(
     visit_count: number; reward_pending: boolean; cycle_number: number;
     rules: { threshold: number }; first_name: string;
   }>(`select s.visit_count,s.reward_pending,s.cycle_number,v.rules,
-       profile.first_name
+       coalesce(profile.first_name, 'Client') as first_name
      from taply.membership_states s
      join taply.memberships m on m.id=s.membership_id and m.merchant_id=s.merchant_id
      join taply.program_rule_versions v on v.id=m.current_rule_version_id
        and v.merchant_id=m.merchant_id
-     join taply.customer_profiles profile on profile.customer_id=m.customer_id
+     left join taply.customer_profiles profile on profile.customer_id=m.customer_id
        and profile.merchant_id=m.merchant_id
      where s.membership_id=$1 and s.merchant_id=$2`, [id, principal.merchantId]);
   const row = r.rows[0];
