@@ -378,26 +378,39 @@
   </div>
 </section>
 
-<!-- =============================== NOTIFICATIONS =============================== -->
-<section class="section notify" id="notifications" aria-labelledby="notify-title">
-  <div class="container notify__grid">
-    <div class="notify__copy">
+<!-- ========================= DASHBOARD COMMERÇANT ========================= -->
+<section class="section dashboard-story" id="dashboard-commercant" aria-labelledby="dashboard-story-title" data-dashboard-story>
+  <div class="container dashboard-story__grid">
+    <div class="dashboard-story__copy">
       <div data-reveal>
-        <p class="eyebrow">Notifications</p>
-        <h2 class="h2" id="notify-title">Restez en contact <br class="br-md">avec <span class="accent">vos clients.</span></h2>
-        <p class="lead">Envoyez facilement des notifications à vos clients depuis votre espace Taply. Annoncez vos nouveautés, vos offres spéciales ou rappelez-leur leurs récompenses disponibles.</p>
+        <p class="eyebrow dashboard-story__eyebrow">Dashboard commerçant</p>
+        <h2 class="h2 dashboard-story__title" id="dashboard-story-title">Piloter votre fidélité,<br><span class="accent">mesurer</span> ce qui compte.</h2>
+        <p class="lead dashboard-story__lead">Suivez vos clients, vos passages et vos récompenses depuis un espace clair et complet. Toutes les données essentielles pour piloter votre fidélité au quotidien.</p>
       </div>
-      <ul class="feature-list feature-list--lime">
-        <li data-reveal style="--i:0"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-send"/></svg></span><div><h3>Promotions et offres spéciales</h3><p>Informez vos clients en temps réel.</p></div></li>
-        <li data-reveal style="--i:1"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-gift"/></svg></span><div><h3>Nouveautés et événements</h3><p>Remplissez votre établissement plus facilement.</p></div></li>
-        <li data-reveal style="--i:2"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-team"/></svg></span><div><h3>Clients ciblés</h3><p>Envoyez des messages à tous vos clients ou seulement aux plus fidèles.</p></div></li>
-        <li data-reveal style="--i:3"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-bars"/></svg></span><div><h3>Des résultats concrets</h3><p>Suivez l'ouverture de vos notifications et leur impact sur vos visites.</p></div></li>
+      <ul class="feature-list feature-list--lime dashboard-story__features">
+        <li data-reveal style="--i:0"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-team"/></svg></span><div><h3>Piloter votre fidélité</h3><p>Suivez vos clients, leurs visites et leurs récompenses en temps réel.</p></div></li>
+        <li data-reveal style="--i:1"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-bars"/></svg></span><div><h3>Mesurer ce qui compte</h3><p>Accédez à des statistiques claires pour comprendre vos performances.</p></div></li>
+        <li data-reveal style="--i:2"><span class="feature-list__icon" aria-hidden="true"><svg><use href="#i-check"/></svg></span><div><h3>Garder le contrôle</h3><p>Paramétrez vos programmes, validez les récompenses et gérez vos règles facilement.</p></div></li>
       </ul>
     </div>
 
-    <!-- IMAGE : config.js → images.notifications -->
-    <figure class="media media--r notify__media" data-img="notifications" data-sizes="(min-width: 1024px) 55vw, 92vw" data-alt="Sur un ordinateur, l'espace Taply permet d'envoyer une notification « -20 % sur toutes les pâtisseries ce week-end ! » ; elle s'affiche sur l'écran verrouillé d'un iPhone" data-reveal="media">
-      <span class="ph ph--warm" aria-hidden="true"><span class="ph__bokeh"></span><span class="ph__tag"><svg><use href="#i-camera"/></svg><span>Photo — espace Taply + iPhone<small>images/notifications.webp</small></span></span></span>
+    <figure class="dashboard-story__visual" data-macbook aria-label="Aperçu du dashboard commerçant Taply dans un MacBook qui s'ouvre au défilement">
+      <div class="macbook-stage">
+        <div class="macbook">
+          <div class="macbook__lid">
+            <div class="macbook__frame">
+              <span class="macbook__camera" aria-hidden="true"></span>
+              <img class="macbook__screen" src="images/dashboard-real-demo-preview.png"
+                   width="1440" height="910" loading="lazy" decoding="async"
+                   alt="Exemple du dashboard Taply actuel : clients fidèles, visites, récompenses et graphique des visites.">
+            </div>
+          </div>
+          <div class="macbook__hinge" aria-hidden="true"></div>
+          <div class="macbook__base" aria-hidden="true"><span class="macbook__base-notch"></span></div>
+          <div class="macbook__shadow" aria-hidden="true"></div>
+        </div>
+      </div>
+      <figcaption class="dashboard-story__caption">Aperçu illustratif du tableau de bord · données de démonstration</figcaption>
     </figure>
   </div>
 </section>

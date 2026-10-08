@@ -153,6 +153,36 @@
     }
   }
 
+  /* ---- MacBook : ouverture réversible synchronisée au scroll ----------- */
+  const dashboardStory = $('[data-dashboard-story]');
+  if (dashboardStory) {
+    const mac = $('[data-macbook]', dashboardStory);
+    const desktop = matchMedia('(min-width: 1024px)');
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    let pending = false;
+    const updateMac = () => {
+      pending = false;
+      // Mobile et mouvement réduit : écran ouvert et entièrement lisible.
+      let progress = 1;
+      if (desktop.matches && !motion.matches) {
+        const top = dashboardStory.getBoundingClientRect().top;
+        const start = innerHeight * .83;
+        const end = -innerHeight * .3;
+        progress = Math.max(0, Math.min(1, (start - top) / (start - end)));
+      }
+      mac.style.setProperty('--mac-progress', progress.toFixed(4));
+      mac.style.setProperty('--mac-angle', (-76 * (1 - progress)).toFixed(2) + 'deg');
+    };
+    const requestMac = () => {
+      if (!pending) { pending = true; requestAnimationFrame(updateMac); }
+    };
+    addEventListener('scroll', requestMac, { passive: true });
+    addEventListener('resize', requestMac);
+    desktop.addEventListener('change', requestMac);
+    motion.addEventListener('change', requestMac);
+    updateMac();
+  }
+
   /* ---- Carte "Comment ça marche" : se remplit étape par étape ----------- */
   const howCard = $('[data-how-card]');
   if (howCard && 'IntersectionObserver' in window) {
