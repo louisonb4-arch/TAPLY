@@ -12,16 +12,16 @@ Date : 2026-10-08. Branche `feat/taply-qr-v1-20261008`.
 
 ## Validation exécutée
 
-- `npm run check` : **547 PASS / 0 FAIL** (dont test PostgreSQL PGlite local réel pour migrations 10010–10012, publication, inscription, QR, récupération, isolation et révocation).
+- `npm run check` : **548 PASS / 0 FAIL** (dont test PostgreSQL PGlite local réel pour migrations 10010–10013, publication, inscription, QR, récupération, isolation et révocation).
 - `node scripts/qr-v1-browser-smoke.mjs` : formulaires merchant/client desktop + mobile, zéro erreur JS, pas de débordement; mocks explicites pour API navigateur.
-- Supabase staging `jfkcrpbrdrzwhjtkdmxx`: migrations 10011/10012 appliquées; historique distant concordant. Migration 10010 déjà présente avant cette étape.
+- Supabase staging `jfkcrpbrdrzwhjtkdmxx`: migrations 10011/10012 appliquées; migration 10013 également appliquée et vérifiée sur staging. Migration 10010 déjà présente avant cette étape.
 - Drapeau `TAPLY_QR_ANONYMOUS_V1=enabled` ajouté à Vercel Preview uniquement. Publication / création anonymes impossibles en production avec le double verrou `APP_ENV/VERCEL_ENV`.
 
 ## Points qui restent avant production
 
 - Tests bout en bout authentifiés sur staging avec un compte commerçant réel et un mobile client réel. Les tests API locaux ne remplacent pas cette validation.
 - Sécurité publique : WAF/défi adaptatif contre inscriptions distribuées, limites et rétention de données, politique de confidentialité, demande de suppression de carte.
-- Concurrence navigateur sans cookie : un même visiteur qui déclenche deux premières requêtes simultanément peut encore avoir deux adhésions. Renforcer la déduplication serveur avant production.
+- Première inscription concurrente : nonce temporaire HttpOnly (20 min), hash unique en DB, seconde requête identique rattachée à la même adhésion. La création sur navigateurs différents reste possible sans identité vérifiée.
 - Mot de récupération : 100 bits, secret affiché une fois, rotation à récupération; WAF recommandé pour contrecarrer l'épuisement délibéré du quota commun.
 - Wallet natif, notifications et personnalisation du logo hors du lot QR Web.
 - L'export de sauvegarde via Supabase CLI demande Docker, indisponible sur le Mac. Aucun point PITR vérifié ; les migrations appliquées sont uniquement additives.
@@ -31,7 +31,7 @@ Date : 2026-10-08. Branche `feat/taply-qr-v1-20261008`.
 
 - Public QR token non secret : inscription seulement.
 - Staff QR client 256 bits : présentation seulement; visites toujours appareil approuvé, PIN, confirmation achat, délai serveur 2h et idempotence.
-- Cookies client indépendants par programme, Secure sur Preview/Production, HttpOnly, SameSite Strict. Code de récupération jamais stocké en clair.
+- Cookies client indépendants par programme, Secure sur Preview/Production, HttpOnly, SameSite Strict ; nonce d’inscription initiale éphémère et vérifié côté serveur. Code de récupération jamais stocké en clair.
 - Routes QR expérimentales explicitement désactivées dans la production via checkPreview.
 - Ne pas modifier les données client ni migrer la production sans nouvelle certification.
 

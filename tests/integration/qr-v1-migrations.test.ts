@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import type { PoolClient } from 'pg';
 import { saveMerchantSetup, publishMerchantSetup, readMerchantSetup } from '../../backend/loyalty/merchant-setup.js';
-import { createAnonymousCard, existingAnonymousCard, publicProgram, presentAnonymousCard, generateRecovery, recoverAnonymousCard } from '../../backend/loyalty/anonymous-cards.js';
+import { createAnonymousCard, existingAnonymousCard, publicProgram, presentAnonymousCard, generateRecovery, recoverAnonymousCard, newEnrollmentNonce } from '../../backend/loyalty/anonymous-cards.js';
 
 const migration = (name: string) =>
   readFileSync(new URL('../../supabase/migrations/' + name, import.meta.url), 'utf8');
@@ -101,6 +101,7 @@ describe('PostgreSQL executable migration validation — Taply QR V1', () => {
         '20261008100010_program_publications.sql',
         '20261008100011_program_enrollment_links.sql',
         '20261008100012_anonymous_card_sessions.sql',
+        '20261008100013_anonymous_enrollment_idempotency.sql',
       ]) await db.exec(migration(name));
 
       const first = await db.query<{ public_token:string;status:string }>(
@@ -174,7 +175,8 @@ describe('PostgreSQL executable migration validation — Taply QR V1', () => {
       expect(details).toMatchObject({merchantName:'Café Un',threshold:7,
         rewardTitle:'Un café offert'});
 
-      const enrolled = await createAnonymousCard(client,m1,p1,undefined);
+      const nonce = newEnrollmentNonce();
+      const enrolled = await createAnonymousCard(client,m1,p1,undefined,nonce);
       expect(enrolled.status).toBe('created');
       if(enrolled.status!=='created')throw new Error('Expected created anonymous membership');
       expect(enrolled.card.visits).toBe(0);
@@ -185,8 +187,11 @@ describe('PostgreSQL executable migration validation — Taply QR V1', () => {
       const reopened = await existingAnonymousCard(client,m1,p1,session);
       expect(reopened?.membershipId).toBe(enrolled.card.membershipId);
       expect(reopened?.visits).toBe(0);
-      const reused = await createAnonymousCard(client,m1,p1,session);
+      const reused = await createAnonymousCard(client,m1,p1,session,nonce);
       expect(reused.status).toBe('existing');
+      const parallel = await createAnonymousCard(client,m1,p1,undefined,nonce);
+      expect(parallel.status).toBe('existing');
+      if (parallel.status === 'existing') expect(parallel.card.membershipId).toBe(enrolled.card.membershipId);
       const people = await db.query('select id from taply.customers');
       expect(people.rows).toHaveLength(1);
       const visits = await db.query("select count(*)::integer as n from taply.membership_states where visit_count>0");

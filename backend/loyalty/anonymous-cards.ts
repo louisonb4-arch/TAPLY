@@ -8,12 +8,26 @@ import type { PoolClient } from 'pg';
 import { generateWalletQrToken, hashWalletQrToken } from './qr-token.js';
 
 const ANON_DOMAIN = 'taply:anonymous-session:v1:';
+const ENROLL_DOMAIN = 'taply:anonymous-first-enroll:v1:';
 const RECOVERY_DOMAIN = 'taply:recovery:v1:';
 const SECRET_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_ENROLLS_10MIN = 100;
 
 export function newAnonymousSession(): string {
   return randomBytes(32).toString('base64url');
+}
+export function newEnrollmentNonce(): string {
+  return randomBytes(32).toString('base64url');
+}
+export function isEnrollmentNonce(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
+}
+export function hashEnrollmentNonce(raw: string): string {
+  if (!isEnrollmentNonce(raw)) throw new TypeError('Invalid enrollment nonce');
+  return createHash('sha256').update(ENROLL_DOMAIN + raw).digest('hex');
+}
+export function enrollmentNonceCookieName(programId: string): string {
+  return 'taply_enroll_' + clientSessionCookieName(programId).replace('taply_card_', '');
 }
 export function hashAnonymousSession(token: string): string {
   return createHash('sha256').update(ANON_DOMAIN + token).digest('hex');
@@ -41,14 +55,15 @@ interface PublicCardRow {
   threshold: number;
   reward_title: string;
   reward_terms: string;
+  card_color: string; text_color: string;
 }
 
 export async function publicProgram(
   db: PoolClient, merchantId: string, programId: string,
-): Promise<{ merchantName: string; threshold: number; rewardTitle: string; rewardTerms: string } | undefined> {
+): Promise<{ merchantName: string; threshold: number; rewardTitle: string; rewardTerms: string; cardColor:string; textColor:string } | undefined> {
   const data = await db.query<PublicCardRow>(`
     select p.id,mer.name as merchant_name,(v.rules->>'threshold')::integer as threshold,
-      pub.reward_title,pub.reward_terms
+      pub.reward_title,pub.reward_terms,pub.card_color,pub.text_color
     from taply.loyalty_programs p
     join taply.merchants mer on mer.id=p.merchant_id
     join taply.program_publications pub on pub.program_id=p.id
@@ -60,7 +75,8 @@ export async function publicProgram(
   const row = data.rows[0];
   if (!row || row.threshold < 5 || row.threshold > 10) return undefined;
   return { merchantName: row.merchant_name, threshold: row.threshold,
-    rewardTitle: row.reward_title, rewardTerms: row.reward_terms };
+    rewardTitle: row.reward_title, rewardTerms: row.reward_terms,
+    cardColor:row.card_color,textColor:row.text_color };
 }
 
 export async function existingAnonymousCard(
@@ -89,29 +105,47 @@ export async function existingAnonymousCard(
 
 async function issueSession(
   db: PoolClient, merchantId: string, programId: string, membershipId: string,
+  enrollmentNonceHash?: string,
 ): Promise<string> {
   const secret = newAnonymousSession();
   const written = await db.query(
     `insert into taply.anonymous_card_sessions
-      (merchant_id,program_id,membership_id,token_hash,expires_at)
-      values($1,$2,$3,$4,now()+interval '365 days')`,
-    [merchantId, programId, membershipId, hashAnonymousSession(secret)]);
+      (merchant_id,program_id,membership_id,token_hash,expires_at,enrollment_nonce_hash)
+      values($1,$2,$3,$4,now()+interval '365 days',$5)`,
+    [merchantId, programId, membershipId, hashAnonymousSession(secret), enrollmentNonceHash ?? null]);
   if (written.rowCount !== 1) throw new Error('Could not establish card session');
   return secret;
 }
 
 export async function createAnonymousCard(
-  db: PoolClient, merchantId: string, programId: string, priorSession: string | undefined,
+  db: PoolClient, merchantId: string, programId: string,
+  priorSession: string | undefined, rawNonce: string | undefined,
 ): Promise<{ status: 'existing' | 'created'; session?: string; card: NonNullable<Awaited<ReturnType<typeof existingAnonymousCard>>> }
-  | { status: 'rate_limited' | 'not_published' }> {
+  | { status: 'rate_limited' | 'not_published' | 'invalid_nonce' }> {
   const published = await publicProgram(db, merchantId, programId);
   if (!published) return { status: 'not_published' };
   const existing = await existingAnonymousCard(db, merchantId, programId, priorSession);
   if (existing) return { status: 'existing', card: existing };
+  if (!isEnrollmentNonce(rawNonce)) return { status: 'invalid_nonce' };
+  const nonceHash = hashEnrollmentNonce(rawNonce);
 
   // Serializing per program prevents quota bypass by parallel requests.
   await db.query('select pg_advisory_xact_lock(hashtextextended($1,0))',
     ['taply:anonymous-enroll:' + programId]);
+  // A second simultaneous POST carrying the same first-visit nonce is
+  // bound to the SAME membership. It receives a fresh session cookie only.
+  const prior = await db.query<{ membership_id: string }>(
+    `select membership_id from taply.anonymous_card_sessions
+      where merchant_id=$1 and program_id=$2 and enrollment_nonce_hash=$3
+        and created_at > now() - interval '20 minutes'`,
+    [merchantId, programId, nonceHash]);
+  const priorId = prior.rows[0]?.membership_id;
+  if (priorId) {
+    const session = await issueSession(db, merchantId, programId, priorId);
+    const card = await existingAnonymousCard(db, merchantId, programId, session);
+    if (!card) throw new Error('Original anonymous membership unavailable');
+    return { status: 'existing', session, card };
+  }
   const counts = await db.query<{ total: number }>(
     `select count(*)::integer as total from taply.memberships
       where merchant_id=$1 and program_id=$2 and created_at>now()-interval '10 minutes'`,
@@ -140,7 +174,7 @@ export async function createAnonymousCard(
   // Defaults are 0 visits, false reward, cycle 1. No visit_ledger insert.
   await db.query('insert into taply.membership_states(membership_id,merchant_id) values($1,$2)',
     [membershipId, merchantId]);
-  const session = await issueSession(db, merchantId, programId, membershipId);
+  const session = await issueSession(db, merchantId, programId, membershipId, nonceHash);
   return { status: 'created', session, card: {
     membershipId, visits: 0, rewardPending: false, cycleNumber: 1,
     threshold: published.threshold,

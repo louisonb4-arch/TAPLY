@@ -2,7 +2,8 @@ import type { PoolClient } from 'pg';
 import { describe, expect, it, vi } from 'vitest';
 import {
   newAnonymousSession,hashAnonymousSession,newRecoveryCode,recoveryHash,
-  normaliseRecovery,clientSessionCookieName,createAnonymousCard,
+  normaliseRecovery,clientSessionCookieName,createAnonymousCard,newEnrollmentNonce,
+  hashEnrollmentNonce,isEnrollmentNonce,
   existingAnonymousCard,
 } from '../../../backend/loyalty/anonymous-cards.js';
 
@@ -16,6 +17,7 @@ function mockDB(rate=0) {
     if (sql.includes('as merchant_name')) return { rows: [{
       id: program, merchant_name: 'Café test', threshold: 7,
       reward_title: 'Un café offert', reward_terms: '1 passage par achat',
+      card_color:'#10241A',text_color:'#FFFFFF',
     }] };
     if (sql.includes('from taply.anonymous_card_sessions s')) return { rows: [] };
     if (sql.includes('count(*)::integer as total')) return { rows: [{total:rate}] };
@@ -41,9 +43,21 @@ describe('QR V1 anonymous cards',()=>{
     expect(clientSessionCookieName(program)).not.toBe(clientSessionCookieName(merchant));
   });
 
+  it('first enrollment nonce is high entropy, hashed, and mandatory',async()=>{
+    const nonces=Array.from({length:100},newEnrollmentNonce);
+    expect(new Set(nonces).size).toBe(nonces.length);
+    expect(nonces.every(isEnrollmentNonce)).toBe(true);
+    expect(hashEnrollmentNonce(nonces[0]!)).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashEnrollmentNonce(nonces[0]!)).not.toBe(hashAnonymousSession(nonces[0]!));
+    const {db,sqls}=mockDB();
+    const result=await createAnonymousCard(db,merchant,program,undefined,undefined);
+    expect(result.status).toBe('invalid_nonce');
+    expect(sqls.some(sql=>sql.includes('insert into taply.customers'))).toBe(false);
+  });
+
   it('creates membership at zero without any name/profile, visit, or reward write',async()=>{
     const {db,query,sqls}=mockDB();
-    const result=await createAnonymousCard(db,merchant,program,undefined);
+    const result=await createAnonymousCard(db,merchant,program,undefined,newEnrollmentNonce());
     expect(result.status).toBe('created');
     if(result.status!=='created')return;
     expect(result.card.visits).toBe(0);
@@ -62,7 +76,7 @@ describe('QR V1 anonymous cards',()=>{
 
   it('rejects enrollment once quota is reached without creating a customer',async()=>{
     const {db,sqls}=mockDB(100);
-    const result=await createAnonymousCard(db,merchant,program,undefined);
+    const result=await createAnonymousCard(db,merchant,program,undefined,newEnrollmentNonce());
     expect(result.status).toBe('rate_limited');
     expect(sqls.some(sql=>sql.includes('insert into taply.customers'))).toBe(false);
   });

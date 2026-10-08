@@ -34,6 +34,7 @@ import { withTenantTx } from '../../db/tenant-context.js';
 import {
   publicProgram, existingAnonymousCard, createAnonymousCard, presentAnonymousCard,
   generateRecovery, recoverAnonymousCard, clientSessionCookieName,
+  newEnrollmentNonce, isEnrollmentNonce, enrollmentNonceCookieName,
 } from '../../loyalty/anonymous-cards.js';
 
 import { originCheck } from '../origin.js';
@@ -324,6 +325,15 @@ loyaltyRoutes.get('/loyalty/public-card', async (c) => {
     return { ...program, card };
   });
   if (!data) throw new AppError('NOT_FOUND');
+  if (!data.card) {
+    const nonceCookie = enrollmentNonceCookieName(target.programId);
+    if (!isEnrollmentNonce(getCookie(c, nonceCookie))) {
+      setCookie(c, nonceCookie, newEnrollmentNonce(), {
+        path:'/api/loyalty',httpOnly:true,sameSite:'Strict',
+        secure:c.get('config').appEnv !== 'test', maxAge:20*60,
+      });
+    }
+  }
   return c.json(data);
 });
 
@@ -332,9 +342,11 @@ loyaltyRoutes.post('/loyalty/public-card/enroll', originCheck, async (c) => {
   const body = await parseBody(c, anonymousBodySchema);
   const { pool, target } = await publicTarget(c, body.publicToken);
   const session = getCookie(c, clientSessionCookieName(target.programId));
+  const nonce = getCookie(c, enrollmentNonceCookieName(target.programId));
   const result = await withTenantTx(pool, target.merchantId, db =>
-    createAnonymousCard(db, target.merchantId, target.programId, session));
+    createAnonymousCard(db, target.merchantId, target.programId, session, nonce));
   if (result.status === 'not_published') throw new AppError('NOT_FOUND');
+  if (result.status === 'invalid_nonce') throw new AppError('VALIDATION_FAILED');
   if (result.status === 'rate_limited') throw new AppError('RATE_LIMITED');
   if (!('card' in result)) throw new AppError('SERVICE_UNAVAILABLE');
   if (result.session) writeAnonymousCookie(c, target.programId, result.session, c.get('config').appEnv);

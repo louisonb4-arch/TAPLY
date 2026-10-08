@@ -64,7 +64,7 @@ try {
       const json=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
       if(path==='/api/loyalty/public-card')return json({
         merchantName:'Café Quartier',threshold:7,rewardTitle:'Un café offert',
-        rewardTerms:'1 passage par achat éligible',
+        rewardTerms:'1 passage par achat éligible',cardColor:'#10241A',textColor:'#FFFFFF',
         card:hasCard?{membershipId:'m1',visits:0,rewardPending:false,cycleNumber:1,threshold:7}:null,
       });
       if(path==='/api/loyalty/public-card/enroll'){
