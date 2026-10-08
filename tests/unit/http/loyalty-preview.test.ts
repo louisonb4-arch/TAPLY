@@ -97,3 +97,23 @@ it('GET identity: production désactivée', async () => {
   const res = await app('production').request('/api/loyalty/identity');
   expect(res.status).toBe(503);
 });
+
+describe('GET /api/loyalty/security', () => {
+  it('est désactivé par défaut', async () => {
+    const res = await app('test').request('/api/loyalty/security');
+    expect(res.status).toBe(503);
+  });
+
+  it('refuse sans session même en mode preview', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const res = await app('test').request('/api/loyalty/security');
+    expect(res.status).toBe(401);
+  });
+
+  it('est interdit sur Vercel Production même si APP_ENV=test', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    const res = await app('test').request('/api/loyalty/security');
+    expect(res.status).toBe(503);
+  });
+});

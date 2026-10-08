@@ -24,6 +24,7 @@ import { redeemReward } from '../../loyalty/redeem.js';
 import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgram } from '../../loyalty/operations.js';
 import { rotateWalletQr } from '../../loyalty/rotation.js';
 import { preparePublicEnrollment, confirmPublicEnrollment } from '../../loyalty/enrollment.js';
+import { securityOverview } from '../../loyalty/security-overview.js';
 import { originCheck } from '../origin.js';
 import type { AppEnvBindings } from '../types.js';
 
@@ -372,4 +373,17 @@ loyaltyRoutes.get('/loyalty/identity', async (c) => {
     role: principal.role,
   }));
   return c.json(identity);
+});
+
+/**
+ * Tableau de sécurité propriétaire : appareils + journal récent + pics de
+ * visites. Lecture seule, pas de PIN nécessaire et aucune donnée secrète.
+ */
+loyaltyRoutes.get('/loyalty/security', async (c) => {
+  checkPreview(c);
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const result = await authenticated(c, cookie, (client, principal) =>
+    securityOverview(client, principal));
+  if (result === undefined) throw new AppError('AUTH_FORBIDDEN');
+  return c.json(result);
 });

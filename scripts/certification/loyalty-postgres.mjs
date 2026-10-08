@@ -30,6 +30,7 @@ import { loadConfig } from '../../backend/core/config.ts';
 import { createLogger } from '../../backend/core/logger.ts';
 import { generateSessionToken, hashSessionToken } from '../../backend/auth/token.ts';
 import { preparePublicEnrollment, confirmPublicEnrollment } from '../../backend/loyalty/enrollment.ts';
+import { securityOverview } from '../../backend/loyalty/security-overview.ts';
 
 const ACK = 'isolated-postgres-cluster';
 const DB_NAME = 'taply_cert';
@@ -684,6 +685,16 @@ async function certify() {
       assert.equal(overview.status, 200);
       assert.equal((await overview.json()).programs[0].threshold, 7);
 
+      const security = await web.request('/api/loyalty/security', {
+        headers: { Cookie: cookies },
+      });
+      assert.equal(security.status, 200);
+      const securityBody = await security.json();
+      assert.ok(securityBody.devices.some(device => device.id === ownerDevice.deviceId));
+      assert.ok(!JSON.stringify(securityBody).includes('pin_verifier'));
+      const noAuthSecurity = await web.request('/api/loyalty/security');
+      assert.equal(noAuthSecurity.status, 401);
+
       const reg = await post('customers/register', {
         firstName: 'Manon', programId: A.program,
         idempotencyKey: randomUUID(), privacyAccepted: true,
@@ -798,6 +809,30 @@ async function certify() {
       if (old === undefined) delete process.env[envKey];
       else process.env[envKey] = old;
     }
+  });
+
+  await test('Surveillance propriétaire: employés, appareil et journaux RLS sans secret', async () => {
+    const ownerView = await withTenantTx(app, A.merchant, client =>
+      securityOverview(client, A.principal));
+    assert.ok(ownerView.devices.length >= 1, 'Un appareil owner activé doit être listé');
+    assert.ok(ownerView.recentActivity.length >= 1, 'Les passages sont audités');
+    assert.ok(ownerView.recentActivity.some(event =>
+      event.kind === 'reward' && event.performedBy === A.principal.merchantUserId));
+    assert.ok(ownerView.recentActivity.some(event =>
+      event.kind === 'visit' && event.performedBy === A.principal.merchantUserId));
+    assert.ok(ownerView.devices.every(device => device.merchantUserId !== B.principal.merchantUserId));
+    assert.ok(ownerView.recentActivity.every(event => event.membershipId !== B.membership));
+    const serialized = JSON.stringify(ownerView);
+    for (const sensitive of ['token_hash', 'pin_verifier', 'pin_salt', 'idempotency_key']) {
+      assert.ok(!serialized.includes(sensitive), sensitive + ' ne doit pas être divulgué');
+    }
+    const staffDenied = await withTenantTx(app, A.merchant, client =>
+      securityOverview(client, { ...A.principal, role: 'staff' }));
+    assert.equal(staffDenied, undefined);
+    const otherView = await withTenantTx(app, B.merchant, client =>
+      securityOverview(client, B.principal));
+    assert.equal(otherView.devices.length, 0);
+    assert.ok(otherView.recentActivity.every(event => event.membershipId !== A.membership));
   });
 
   console.log('CERTIFICATION PG17 OK:', passed, 'vérifications dynamiques');

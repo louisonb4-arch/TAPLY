@@ -58,6 +58,13 @@ et `credentials: 'same-origin'` dans `fetch`.
    sur un autre compte est refusée.
 4. `GET /api/loyalty/overview` — propriétaire, programmes, seuil,
    nombre d'inscrits, cadeaux en attente, options de notification.
+   `GET /api/loyalty/security` — propriétaire uniquement : jusqu'à 100
+   appareils, 100 événements récents de passages/cadeaux et les employés
+   ayant au moins 15 passages dans les dix dernières minutes (signal à
+   examiner, pas preuve de fraude). Les réponses excluent QR, PIN, salts,
+   hashes de session/appareil et données personnelles clients. Vérifier
+   qu'un employé simple obtient 403 et que deux commerçants ne voient
+   jamais les événements/appareils de l'autre.
 5. `POST /api/loyalty/customers/register` — `firstName`,
    `programId`, `privacyAccepted: true`, `customerPresent: true`,
    `idempotencyKey` (UUID), `pin`. Résultat : identifiants et un
