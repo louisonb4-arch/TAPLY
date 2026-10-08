@@ -67,6 +67,22 @@ test('sur téléphone : carte plate lisible, sans débordement horizontal', asyn
   expect(overflow).toBeLessThanOrEqual(2);
 });
 
+test('la section dashboard reprend le fond creme et reste compacte sans toucher au visuel', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(base + '/index.html');
+  const section = page.locator('[data-dashboard-story]');
+  const metrics = await section.evaluate(el => ({
+    background: getComputedStyle(el).backgroundColor,
+    height: el.getBoundingClientRect().height,
+    paddingTop: parseFloat(getComputedStyle(el).paddingTop),
+  }));
+  expect(metrics.background).toBe('rgb(247, 247, 243)'); // --c-paper officiel
+  expect(metrics.height).toBeLessThan(1700); // La section occupait ~1935px auparavant.
+  expect(metrics.paddingTop).toBeLessThan(80);
+  await section.scrollIntoViewIfNeeded();
+  await expect(section.locator('[data-scroll-card]')).toBeVisible({ timeout: 12000 });
+});
+
 test('le widget React est différé et ne bloque pas la première visite en haut de page', async ({ page }) => {
   const requested:string[]=[];
   page.on('request',r=>{
@@ -143,7 +159,7 @@ test('animation Aceternity originale : 20° → 0°, 105 % → 100 %, titre 0 �
   const stage = page.locator('.dashboard-scroll-container');
   await expect(stage).toBeAttached({timeout:12000});
   const stageBounds = await stage.evaluate(el => ({ top: el.getBoundingClientRect().top + scrollY, height: (el as HTMLElement).offsetHeight }));
-  expect(stageBounds.height).toBe(1280); // h-[80rem] de la référence.
+  expect(stageBounds.height).toBe(1280); // Animation d'origine conservée (80rem) ; marges resserrées.
   const card = page.locator('[data-scroll-card]');
   const title = page.locator('.dashboard-story__intro-motion');
   const pose = async (position: number) => {
