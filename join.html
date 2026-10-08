@@ -13,7 +13,8 @@
     *,*::before,*::after{box-sizing:border-box}
     body{margin:0;min-height:100svh;background:#F7F6F2;color:#1E251C;font-family:"Satoshi",system-ui,sans-serif}
     main{width:min(100% - 2rem,28rem);margin:3.5rem auto;padding-bottom:2rem}
-    a{color:inherit} .brand{text-decoration:none;font-size:1.75rem;letter-spacing:-.07em;font-weight:900}
+    a{color:inherit} .logo{display:inline-flex;align-items:flex-start;text-decoration:none;font-size:1.75rem;letter-spacing:-.045em;line-height:1;font-weight:900;color:inherit}
+    .logo__tick{width:.3em;height:.48em;margin:-.12em 0 0 .05em;color:var(--c-lime);flex:none}
     .eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.15em;color:#657360;margin-block:2.5rem 1rem}
     h1{font-size:clamp(2.5rem,8vw,3.5rem);letter-spacing:-.045em;line-height:1.05;margin:0}
     .lead{font-size:1.06rem;color:#566352;line-height:1.55;margin:1rem 0 2rem}
@@ -33,7 +34,7 @@
 </head>
 <body>
   <main>
-    <a class="brand" href="index.html" aria-label="Taply — Accueil">Taply.</a>
+    <a class="logo" href="index.html" aria-label="Taply — accueil">Taply<svg class="logo__tick" viewBox="0 0 10 16" aria-hidden="true"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></a>
     <p class="eyebrow">Programme fidélité · Préproduction</p>
     <h1>Votre fidélité, en toute simplicité.</h1>
     <p class="lead">Inscrivez-vous avec votre prénom. Votre premier passage sera confirmé par le personnel au comptoir après votre achat.</p>

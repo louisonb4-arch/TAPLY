@@ -20,8 +20,8 @@
     .layout{min-height:100svh;display:grid}
     .panel{display:flex;flex-direction:column;padding:1.75rem clamp(1.25rem,5vw,4rem) 2rem}
     .top{display:flex;justify-content:space-between;align-items:center;gap:1rem}
-    .logo{font-size:1.8rem;font-weight:900;line-height:1;text-decoration:none;letter-spacing:-.045em}
-    .logo span{color:var(--c-lime-text)}
+    .logo{display:inline-flex;align-items:flex-start;font-size:1.75rem;font-weight:900;line-height:1;text-decoration:none;letter-spacing:-.045em;color:inherit}
+    .logo__tick{width:.3em;height:.48em;margin:-.12em 0 0 .05em;color:var(--c-lime);flex:none}
     .back{color:var(--c-muted);text-decoration:none;font-size:.9rem}
     .card{width:100%;max-width:28rem;margin:auto;padding:2rem 0}
     .eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.2em;color:var(--c-muted)}
@@ -66,7 +66,7 @@
   </div>
   <div class="panel">
     <div class="top">
-      <a class="logo" href="index.html" aria-label="Taply — accueil">Taply<span>’</span></a>
+      <a class="logo" href="index.html" aria-label="Taply — accueil">Taply<svg class="logo__tick" viewBox="0 0 10 16" aria-hidden="true"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></a>
       <a class="back" href="index.html">← Retour au site</a>
     </div>
     <div class="card">
