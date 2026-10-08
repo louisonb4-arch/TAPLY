@@ -1,6 +1,7 @@
-/* Tailwind v4, sans Preflight pour préserver toute la DA Taply existante. */
-@import "tailwindcss/theme.css";
-@import "tailwindcss/utilities.css";
+/* Tailwind v4 restreint explicitement aux composants React du dashboard.
+   Pas de Preflight, pas de scan automatique du site HTML historique. */
+@import "tailwindcss/theme.css" source(none);
+@import "tailwindcss/utilities.css" source(none);
 @source "../components/ui/container-scroll-animation.tsx";
-@source "../components/dashboard-scroll.tsx";
 @source "../components/ui/demo.tsx";
+@source "../components/dashboard-scroll.tsx";

@@ -144,6 +144,12 @@ describe('build statique (dist/)', () => {
     const generated = ['css/dashboard-scroll.css', 'js/dashboard-scroll-react.js'];
     expect([...copied].sort()).toEqual([...expected, ...generated].sort());
     for(const asset of generated) expect(statSync(join(out, asset)).size).toBeGreaterThan(1000);
+    // Les styles Tailwind ne doivent PAS redéfinir la grille historique du site.
+    const reactCss = readFileSync(join(out, 'css/dashboard-scroll.css'), 'utf8');
+    expect(reactCss).toContain('.rounded-2xl');
+    expect(reactCss).toContain('.border-4');
+    expect(reactCss).not.toContain('.container{');
+    expect(reactCss).not.toContain('.fixed{');
     for (const file of expected) {
       expect(sha256(join(out, file)), file).toBe(sha256(join(ROOT, file)));
     }
