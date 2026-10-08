@@ -54,7 +54,10 @@ const activateSchema = z.strictObject({
 });
 
 function checkPreview(c: { get(name: 'config'): { appEnv: string } }): void {
-  if (c.get('config').appEnv === 'production' || process.env['TAPLY_LOYALTY_PREVIEW'] !== 'enabled') {
+  // Double verrou : une variable APP_ENV mal configurée ne peut PAS activer
+  // ces endpoints sur un déploiement Vercel Production réel.
+  if (c.get('config').appEnv === 'production' || process.env['VERCEL_ENV'] === 'production' ||
+      process.env['TAPLY_LOYALTY_PREVIEW'] !== 'enabled') {
     throw new AppError('SERVICE_UNAVAILABLE');
   }
 }

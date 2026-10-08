@@ -227,9 +227,9 @@ export async function creditVisit(
 
       const inserted = await client.query(
         `insert into taply.visit_ledger
-           (membership_id, merchant_id, cycle_number, source, idempotency_key)
-         values ($1, $2, $3, $4, $5)`,
-        [params.membershipId, principal.merchantId, row.cycle_number, params.source, params.idempotencyKey],
+           (membership_id, merchant_id, cycle_number, source, idempotency_key, performed_by)
+         values ($1, $2, $3, $4, $5, $6)`,
+        [params.membershipId, principal.merchantId, row.cycle_number, params.source, params.idempotencyKey, principal.merchantUserId],
       );
       if (inserted.rowCount !== 1) throw new Error('loyalty ledger insert failed');
 

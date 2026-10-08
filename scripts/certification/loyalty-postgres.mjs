@@ -145,6 +145,10 @@ async function seed(pool, slug) {
     sessionId: randomUUID(), merchantId: f.merchant,
     merchantUserId: randomUUID(), authUserId: randomUUID(), role: 'owner',
   };
+  await pool.query('insert into auth.users(id) values($1)', [f.principal.authUserId]);
+  await pool.query(`insert into taply.merchant_users
+    (id, merchant_id, auth_user_id, role) values($1,$2,$3,'owner')`,
+    [f.principal.merchantUserId, f.merchant, f.principal.authUserId]);
   return f;
 }
 
@@ -376,6 +380,27 @@ async function certify() {
     );
   });
 
+  await test('Audit anti-fraude: employé exact sur passages/remises, FK inter-commerces', async () => {
+    const visit = await admin.query(`select performed_by from taply.visit_ledger
+      where membership_id=$1 order by credited_at limit 1`, [A.membership]);
+    assert.equal(visit.rows[0].performed_by, A.principal.merchantUserId);
+    const gift = await admin.query(`select performed_by from taply.redemption_ledger
+      where membership_id=$1 order by redeemed_at limit 1`, [A.membership]);
+    assert.equal(gift.rows[0].performed_by, A.principal.merchantUserId);
+    await assert.rejects(() => withTenantTx(app, A.merchant, (client) =>
+      client.query(`insert into taply.visit_ledger
+        (membership_id,merchant_id,cycle_number,source,idempotency_key,performed_by)
+        values($1,$2,999,'QR_EMPLOYEE',$3,$4)`,
+        [A.membership,A.merchant,randomUUID(),B.principal.merchantUserId])),
+    (err) => err.code === '23503');
+    await assert.rejects(() => withTenantTx(app, A.merchant, (client) =>
+      client.query(`insert into taply.visit_ledger
+        (membership_id,merchant_id,cycle_number,source,idempotency_key)
+        values($1,$2,999,'QR_EMPLOYEE',$3)`,
+        [A.membership,A.merchant,randomUUID()])),
+    (err) => err.code === '23514');
+  });
+
   await test('Appareils: approbation owner, activation staff, PIN, blocage et révocation', async () => {
     const staff = {
       ...A.principal,
@@ -383,11 +408,10 @@ async function certify() {
       authUserId: randomUUID(),
       role: 'staff',
     };
-    await admin.query('insert into auth.users(id) values($1),($2)', [A.principal.authUserId, staff.authUserId]);
+    await admin.query('insert into auth.users(id) values($1)', [staff.authUserId]);
     await admin.query(`insert into taply.merchant_users
-      (id, merchant_id, auth_user_id, role) values ($1, $3, $2, 'owner'), ($4, $3, $5, 'staff')`,
-      [A.principal.merchantUserId, A.principal.authUserId, A.merchant,
-        staff.merchantUserId, staff.authUserId]);
+      (id, merchant_id, auth_user_id, role) values ($1, $2, $3, 'staff')`,
+      [staff.merchantUserId, A.merchant, staff.authUserId]);
     const unauthorizedPairing = await withTenantTx(app, A.merchant,
       (client) => createStaffDevicePairing(client, staff, staff.merchantUserId));
     assert.equal(unauthorizedPairing, undefined);

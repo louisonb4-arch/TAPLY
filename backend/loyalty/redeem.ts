@@ -239,9 +239,9 @@ export async function redeemReward(
       // INSERT redemption_ledger (timestamp serveur via now())
       const inserted = await client.query(
         `insert into taply.redemption_ledger
-           (membership_id, merchant_id, cycle_number)
-         values ($1, $2, $3)`,
-        [params.membershipId, principal.merchantId, completedCycle],
+           (membership_id, merchant_id, cycle_number, performed_by)
+         values ($1, $2, $3, $4)`,
+        [params.membershipId, principal.merchantId, completedCycle, principal.merchantUserId],
       );
       if (inserted.rowCount !== 1) throw new Error('redemption ledger insert failed');
 

@@ -70,3 +70,18 @@ describe('Loyalty API est fail-closed', () => {
     });
   }
 });
+
+it('refuse la pré-inscription publique si VERCEL_ENV=production même avec APP_ENV=test', async () => {
+  vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+  vi.stubEnv('VERCEL_ENV', 'production');
+  const res = await app('test').request('/api/loyalty/enrollment/prepare', {
+    method: 'POST',
+    headers: { Origin: ORIGIN, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      publicToken: 'AAAAAAAAAAAAAAAAAAAAAA',
+      firstName: 'Juliette',
+      privacyAccepted: true,
+    }),
+  });
+  expect(res.status).toBe(503);
+});
