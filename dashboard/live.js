@@ -22,6 +22,7 @@
   const field = (name, label, type = 'text', value = '') =>
     `<label style="display:grid;gap:.4rem;margin-block:.8rem">${esc(label)}
        <input class="input" name="${esc(name)}" type="${esc(type)}" value="${esc(value)}"
+        ${name === 'pin' ? 'inputmode="numeric" pattern="[0-9]{6,10}" minlength="6" maxlength="10"' : ''}
         autocomplete="off" required></label>`;
   const nav = () => location.hash.replace(/^#\/?/, '') || 'accueil';
   const link = (text, route) => `<a class="btn btn--ghost" href="#/${route}">${esc(text)} ${ico('arrow')}</a>`;
@@ -205,8 +206,8 @@
       `<form data-action="pair-device" class="card" style="padding:1.5rem">
         <h2>Activer mon appareil</h2><p>Revérifiez votre mot de passe propriétaire et choisissez un PIN de 6 à 10 chiffres.
         Aucune information secrète n’est conservée dans le navigateur.</p>
-        ${field('targetMerchantUserId', 'Identifiant employé (laisser vide pour votre propre appareil)', 'text', s.identity?.merchantUserId || '')}
-        ${field('ownerEmail', 'Email propriétaire', 'email')}
+        <p>L’appareil utilisé maintenant sera associé automatiquement à votre compte propriétaire.</p>
+        ${field('ownerEmail', 'Adresse e-mail de connexion', 'email')}
         ${field('ownerPassword', 'Mot de passe propriétaire', 'password')}
         ${field('pin', 'Nouveau PIN (6–10 chiffres)', 'password')}
         ${btn('Approuver cet appareil')}</form>
@@ -350,11 +351,11 @@
         return 'Appareil employé activé.';
       }
       case 'pair-device': {
-        if (!/^[0-9]{6,10}$/.test(pin) || !s.identity?.merchantUserId) {
-          throw new Error('PIN invalide ou identifiant employé indisponible.');
+        if (!/^[0-9]{6,10}$/.test(pin)) {
+          throw new Error('Choisissez un code PIN contenant uniquement 6 à 10 chiffres.');
         }
+        // Le backend dérive automatiquement l'identité du propriétaire depuis sa session.
         const x = await api('loyalty/devices/approve', {
-          targetMerchantUserId:value('targetMerchantUserId') || s.identity.merchantUserId,
           ownerEmail:value('ownerEmail'), ownerPassword:value('ownerPassword')
         });
         await api('loyalty/devices/activate', { pairingToken:x.pairingToken, pin });

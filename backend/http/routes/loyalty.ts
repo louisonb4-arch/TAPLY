@@ -47,7 +47,8 @@ const redeemSchema = z.strictObject({
   giftHandedOver: z.literal(true),
 });
 const approveSchema = z.strictObject({
-  targetMerchantUserId: z.uuid(),
+  // Aucun identifiant technique requis pour approuver son propre appareil.
+  targetMerchantUserId: z.uuid().optional(),
   ownerEmail: z.email().max(255),
   ownerPassword: z.string().min(1).max(512),
 });
@@ -108,7 +109,7 @@ loyaltyRoutes.post('/loyalty/devices/approve', originCheck, async (c) => {
   const result = await authenticated(c, cookie, async (client, principal) => {
     if (principal.role !== 'owner') return undefined;
     if (!await ownerPasswordValid(principal, body.ownerEmail, body.ownerPassword)) return undefined;
-    return createStaffDevicePairing(client, principal, body.targetMerchantUserId);
+    return createStaffDevicePairing(client, principal, body.targetMerchantUserId ?? principal.merchantUserId);
   });
   if (!result) throw new AppError('AUTH_FORBIDDEN');
   return c.json({ pairingToken: result, expiresInSeconds: 300 }, 200);

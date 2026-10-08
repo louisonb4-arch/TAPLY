@@ -176,3 +176,34 @@ describe('GET /api/loyalty/home — privacy and feature gates', () => {
     expect(response.status).toBe(503);
   });
 });
+
+describe('POST /api/loyalty/devices/approve — activation de son propre appareil', () => {
+  const post = (body: unknown) => app('test').request('/api/loyalty/devices/approve', {
+    method: 'POST',
+    headers: { Origin: ORIGIN, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  it('accepte le contrat sans identifiant technique, puis exige la session', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const res = await post({ ownerEmail: 'owner@taply.test', ownerPassword: 'secret-not-shared' });
+    expect(res.status).toBe(401);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe('AUTH_REQUIRED');
+  });
+
+  it('rejette un identifiant explicite invalide avant toute authentification', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const res = await post({ ownerEmail: 'owner@taply.test', ownerPassword: 'secret-not-shared', targetMerchantUserId: 'not-a-uuid' });
+    expect(res.status).toBe(400);
+  });
+
+  it('reste inactif en production même sans identifiant technique', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const res = await app('production').request('/api/loyalty/devices/approve', {
+      method: 'POST',
+      headers: { Origin: ORIGIN, 'content-type': 'application/json' },
+      body: JSON.stringify({ ownerEmail: 'owner@taply.test', ownerPassword: 'secret-not-shared' }),
+    });
+    expect(res.status).toBe(503);
+  });
+});
