@@ -1,5 +1,5 @@
 /* Taply dashboard LIVE — toutes les données proviennent des routes API authentifiées.
- * Aucune donnée de démonstration, aucun jeton/PIN/session dans localStorage.
+ * Aucune donnée inventée, aucun jeton/PIN/session dans localStorage.
  * Les fonctions non livrées sont annoncées comme indisponibles, jamais simulées.
  */
 (() => {

@@ -394,7 +394,6 @@ button.row { width: 100%; text-align: left; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
 
 .empty { padding: 2.5rem 1rem; text-align: center; color: var(--d-muted); }
-.demo-note { margin-top: 1rem; font-size: .8rem; color: var(--d-muted); text-align: center; }
 
 /* ---- Mises en page de pages ------------------------------------------ */
 .home-grid, .stats-grid, .notif-grid, .client-grid, .form-grid { display: grid; gap: 1.25rem; }
