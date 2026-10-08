@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Ma carte de fidélité — Taply (préproduction)</title>
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    body{margin:0;min-height:100svh;background:#F7F6F2;color:#1E251C;font-family:"Satoshi",system-ui,sans-serif}
+    main{width:min(100% - 2rem,28rem);margin:3.5rem auto;padding-bottom:2rem}
+    a{color:inherit} .brand{text-decoration:none;font-size:1.75rem;letter-spacing:-.07em;font-weight:900}
+    .eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.15em;color:#657360;margin-block:2.5rem 1rem}
+    h1{font-size:clamp(2.5rem,8vw,3.5rem);letter-spacing:-.045em;line-height:1.05;margin:0}
+    .lead{font-size:1.06rem;color:#566352;line-height:1.55;margin:1rem 0 2rem}
+    .panel{background:white;border:1px solid #E2E6DF;border-radius:1.5rem;padding:1.5rem;box-shadow:0 15px 35px #0A2A0A0A}
+    label{display:grid;gap:.55rem;font-weight:600}
+    input[type=text]{width:100%;font:inherit;border:1px solid #C9D1C5;background:white;border-radius:.8rem;padding:.95rem;margin-bottom:1.4rem}
+    .consent{display:flex;align-items:flex-start;gap:.65rem;font-size:.92rem;font-weight:400;line-height:1.4}
+    input[type=checkbox]{width:1.25rem;height:1.25rem;accent-color:#2F8A1F;flex-shrink:0}
+    button{border:0;cursor:pointer;font:inherit;border-radius:999px;background:#2F8A1F;color:white;font-weight:700;min-height:3.4rem;width:100%;margin-top:1.5rem}
+    button:disabled{opacity:.65;cursor:wait} button.secondary{background:#ECEFE8;color:#1E251C}
+    .code{overflow-wrap:anywhere;letter-spacing:.035em;line-height:1.6;background:#F6F8F3;padding:1rem;border-radius:.9rem;font-family:ui-monospace,monospace;font-size:.8rem}
+    .status{padding:.8rem 0;font-size:.9rem;line-height:1.4}
+    .error{color:#B42318} .foot{font-size:.82rem;color:#657360;line-height:1.5;margin-top:1.5rem}
+    :focus-visible{outline:3px solid #206820;outline-offset:3px}
+    [hidden]{display:none !important}
+  </style>
+</head>
+<body>
+  <main>
+    <a class="brand" href="index.html" aria-label="Taply — Accueil">Taply.</a>
+    <p class="eyebrow">Programme fidélité · Préproduction</p>
+    <h1>Votre fidélité, en toute simplicité.</h1>
+    <p class="lead">Inscrivez-vous avec votre prénom. Votre premier passage sera confirmé par le personnel au comptoir après votre achat.</p>
+    <form class="panel" data-enroll>
+      <label for="firstName">Votre prénom
+        <input id="firstName" name="firstName" type="text" autocomplete="given-name" minlength="1" maxlength="40" placeholder="Ex. Camille" required>
+      </label>
+      <label class="consent">
+        <input type="checkbox" name="privacyAccepted" required>
+        <span>J'accepte l'utilisation de mon prénom pour ma carte de fidélité.
+          <a href="confidentialite.html" target="_blank" rel="noopener noreferrer">Confidentialité</a>
+        </span>
+      </label>
+      <button type="submit">Commencer</button>
+    </form>
+    <section class="panel" data-prepared hidden>
+      <h2>Présentez ce code au comptoir</h2>
+      <p>L'employé vérifiera votre achat et activera votre carte. Ce code expire au bout de 10 minutes.</p>
+      <p class="code" data-claim></p>
+      <button type="button" class="secondary" data-copy>Copier mon code</button>
+      <p class="status" data-copy-feedback role="status"></p>
+      <p class="foot">La carte Apple Wallet / Google Wallet n'est pas encore activée sur cette version de test. Aucune visite n'est accordée sans confirmation au comptoir.</p>
+    </section>
+    <p class="status error" data-error role="alert" hidden></p>
+    <p class="foot">Version de test, sans paiement et sans connexion aux cartes Wallet définitives. Une inscription ne donne jamais automatiquement droit à un cadeau.</p>
+  </main>
+  <script>
+  (() => {
+    'use strict';
+    const form = document.querySelector('[data-enroll]');
+    const prepared = document.querySelector('[data-prepared]');
+    const claim = document.querySelector('[data-claim]');
+    const error = document.querySelector('[data-error]');
+    const copyStatus = document.querySelector('[data-copy-feedback]');
+    // Le token public imprimé sur le présentoir est un identifiant d'accès,
+    // pas le QR personnel du client. Aucun secret personnel dans l'URL.
+    const publicToken = new URLSearchParams(location.search).get('code') || '';
+    let claimToken = null;
+    if (!/^[A-Za-z0-9_-]{16,512}$/.test(publicToken)) {
+      error.textContent = 'Code du présentoir absent ou incorrect. Demandez de l’aide au commerçant.';
+      error.hidden = false;
+      form.hidden = true;
+      return;
+    }
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      error.hidden = true;
+      const button = form.querySelector('button[type=submit]');
+      button.disabled = true;
+      try {
+        const response = await fetch('/api/loyalty/enrollment/prepare', {
+          method:'POST', credentials:'same-origin', cache:'no-store',
+          headers:{ 'Content-Type':'application/json' },
+          body:JSON.stringify({
+            publicToken, firstName:form.elements.namedItem('firstName').value.trim(),
+            privacyAccepted:form.elements.namedItem('privacyAccepted').checked,
+          }),
+        });
+        if (!response.ok) throw new Error(response.status === 429 ?
+          'Trop de demandes : veuillez réessayer plus tard.' :
+          'Inscription indisponible pour le moment. Demandez de l’aide au commerçant.');
+        const data = await response.json();
+        if (data.status !== 'prepared' || !/^[A-Za-z0-9_-]{43}$/.test(data.claimToken)) {
+          throw new Error('Réponse du serveur non valide.');
+        }
+        claimToken = data.claimToken; // mémoire JS seulement, pas de storage / URL
+        claim.textContent = claimToken;
+        form.hidden = true;
+        prepared.hidden = false;
+      } catch (err) {
+        error.textContent = err.message;
+        error.hidden = false;
+        button.disabled = false;
+      }
+    });
+    document.querySelector('[data-copy]').addEventListener('click', async () => {
+      if (!claimToken) return;
+      try {
+        await navigator.clipboard.writeText(claimToken);
+        copyStatus.textContent = 'Code copié.';
+      } catch (_) {
+        copyStatus.textContent = 'Sélectionnez le code affiché pour le copier.';
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

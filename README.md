@@ -27,13 +27,15 @@ Tout est dans `css/tokens.css` (couleurs, typo, espacements, rayons, ombres, mou
 - Pages légales : champs `[…]` surlignés en vert
 - Formulaires : `formEndpoint` / `newsletterEndpoint` dans config.js (sinon envoi simulé)
 
-## Espace commerçant (prototype)
-- `connexion.html` : page de connexion (lien « Connexion » dans la nav du site). **Aucune authentification réelle** : n'importe quel identifiant ouvre la démo.
-- `dashboard/` : tableau de bord (Accueil, Clients, fiche client, Récompenses, Nouvelle récompense, Notifications, Statistiques, Paramètres, Mon établissement, Ma carte, Intégrations).
-  - Données de démo (Roll in Love, chiffres fictifs) : `dashboard/data.js` — à remplacer par l'API.
-  - Les modifications faites dans la démo sont gardées dans le navigateur (localStorage) ; « Réinitialiser la démo » dans Paramètres.
-  - Couleurs du commerce connecté : variables `--brand*` en haut de `dashboard/dashboard.css`.
-  - Non indexé (`noindex`).
+## Espace commerçant (interface réelle, préproduction non encore certifiée)
+- `connexion.html` utilise `POST /api/auth/login` avec Supabase Auth côté serveur. Aucun identifiant fictif ne permet de se connecter.
+- `dashboard/live.js` exige `GET /api/auth/me` puis interroge les routes sécurisées Loyalty (programmes, 50 dernières cartes, journaux, appareils). Aucune donnée fictive ou token stocké dans localStorage.
+- Les actions disponibles en mode preview : validation de visite/cadeau par employé avec PIN, création de carte, mise à jour propriétaire du programme, invitation/activation d'appareil.
+- `join.html?code=<token-public>` : écran de pré-inscription client disponible en **preview seulement** (prénom + consentement, création d'un claim de 10 minutes, aucun passage automatique) ; l'employé confirme le code depuis le dashboard avec PIN et vérification de l'achat. L'envoi du QR personnel au téléphone client n'est pas encore finalisé.
+- UI de scanner caméra, NFC physique, passes Wallet et envoi de notifications : **pas encore terminés**. Certaines opérations préliminaires utilisent une saisie manuelle de QR pour les tests.
+- Le backend fidélité est désactivé en production par `TAPLY_LOYALTY_PREVIEW` + vérification de `APP_ENV` et `VERCEL_ENV`. Le projet Supabase staging contient 13/21 migrations ; les 8 dernières sont en attente d'une sauvegarde de préproduction vérifiée.
+- Prototype historique privé : `docs/prototype-dashboard/` ; aucun JS de démo dans le `dist/` publié.
+- La page est non indexée (`noindex`).
 
 ## Backend (phase 1 — socle)
 

@@ -31,6 +31,7 @@ import { createLogger } from '../../backend/core/logger.ts';
 import { generateSessionToken, hashSessionToken } from '../../backend/auth/token.ts';
 import { preparePublicEnrollment, confirmPublicEnrollment } from '../../backend/loyalty/enrollment.ts';
 import { securityOverview } from '../../backend/loyalty/security-overview.ts';
+import { merchantCustomers } from '../../backend/loyalty/dashboard-read.ts';
 
 const ACK = 'isolated-postgres-cluster';
 const DB_NAME = 'taply_cert';
@@ -704,7 +705,14 @@ async function certify() {
       assert.equal(reg.status, 201);
       assert.match(registered.qrToken, /^[A-Za-z0-9_-]{43}$/);
       // Le QR brut n'est envoyé qu'une fois, dans la réponse confidentielle.
-      // Verify staff route persisted the registration through the overview.
+      // Verify staff route persisted the registration in the live customer list.
+      const customersHTTP = await web.request('/api/loyalty/customers', {
+        headers: { Cookie: cookies },
+      });
+      assert.equal(customersHTTP.status, 200);
+      const customersJSON = await customersHTTP.json();
+      assert.ok(customersJSON.customers.some(x => x.membershipId === registered.membershipId));
+      assert.equal(customersJSON.limit, 50);
       const afterReg = await web.request('/api/loyalty/overview', {
         headers: { Cookie: cookies },
       });
@@ -809,6 +817,20 @@ async function certify() {
       if (old === undefined) delete process.env[envKey];
       else process.env[envKey] = old;
     }
+  });
+
+  await test('Dashboard clients: prénom, état réel, aucune fuite inter-commerce', async () => {
+    const alice = await withTenantTx(app, A.merchant, client =>
+      merchantCustomers(client, A.principal));
+    assert.ok(alice.length >= 1);
+    assert.ok(alice.every(customer => customer.programId === A.program));
+    assert.ok(alice.every(customer => !Object.hasOwn(customer, 'qrToken')));
+    assert.ok(alice.every(customer => !Object.hasOwn(customer, 'email')));
+    const bob = await withTenantTx(app, B.merchant, client =>
+      merchantCustomers(client, B.principal));
+    assert.ok(bob.every(customer => customer.programId === B.program));
+    assert.equal(await withTenantTx(app, A.merchant, client =>
+      merchantCustomers(client, { ...A.principal, role: 'staff' })), undefined);
   });
 
   await test('Surveillance propriétaire: employés, appareil et journaux RLS sans secret', async () => {

@@ -25,6 +25,7 @@ import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgr
 import { rotateWalletQr } from '../../loyalty/rotation.js';
 import { preparePublicEnrollment, confirmPublicEnrollment } from '../../loyalty/enrollment.js';
 import { securityOverview } from '../../loyalty/security-overview.js';
+import { merchantCustomers } from '../../loyalty/dashboard-read.js';
 import { originCheck } from '../origin.js';
 import type { AppEnvBindings } from '../types.js';
 
@@ -386,4 +387,14 @@ loyaltyRoutes.get('/loyalty/security', async (c) => {
     securityOverview(client, principal));
   if (result === undefined) throw new AppError('AUTH_FORBIDDEN');
   return c.json(result);
+});
+
+/** Liste bornée, lecture seule, réservée au propriétaire de la boutique. */
+loyaltyRoutes.get('/loyalty/customers', async (c) => {
+  checkPreview(c);
+  const cookie = getSessionCookie(c, c.get('config').appEnv);
+  const result = await authenticated(c, cookie, (client, principal) =>
+    merchantCustomers(client, principal));
+  if (result === undefined) throw new AppError('AUTH_FORBIDDEN');
+  return c.json({ customers: result, limit: 50 });
 });

@@ -12,6 +12,9 @@ import { PNG } from 'pngjs';
 const BEFORE_URL = process.env['BEFORE_URL'];
 const AFTER_URL = process.env['AFTER_URL'];
 
+// Les pages Auth/Dashboard ont volontairement changé : ne PAS leur
+// imposer l'ancien pixel baseline de démonstration. Elles sont couvertes
+// par auth-ui.spec.ts avec des contrôles de flux et de sécurité réels.
 const PAGES = [
   '/',
   '/mentions-legales.html',
@@ -19,19 +22,7 @@ const PAGES = [
   '/cgu.html',
   '/confidentialite.html',
   '/cookies.html',
-  '/connexion.html',
   '/404.html',
-  '/dashboard/#/accueil',
-  '/dashboard/#/clients',
-  '/dashboard/#/clients/lea-d',
-  '/dashboard/#/recompenses',
-  '/dashboard/#/recompenses/nouvelle',
-  '/dashboard/#/notifications',
-  '/dashboard/#/statistiques',
-  '/dashboard/#/parametres',
-  '/dashboard/#/parametres/etablissement',
-  '/dashboard/#/parametres/carte',
-  '/dashboard/#/parametres/integrations',
 ] as const;
 
 interface Capture {

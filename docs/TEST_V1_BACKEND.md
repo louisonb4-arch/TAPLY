@@ -120,9 +120,15 @@ Exiger le PASS GitHub Actions après chaque modification. La PR reste
 
 ## Ce qui n'est PAS terminé et bloque une utilisation commerciale
 
-- Le dashboard visuel existant (`dashboard/app.js`) est encore une
-  **démo localStorage** : il ne reflète pas les données PostgreSQL.
-- Le QR public possède maintenant un flux de **pré-inscription** :
+- L'interface publique charge maintenant `dashboard/live.js` : connexion réelle,
+  données serveur uniquement (programmes, 50 dernières cartes, journaux),
+  actions comptoir via PIN et activation d'appareil. Aucun fallback
+  localStorage/données fictives. L'ancien prototype est conservé en privé
+  sous `docs/prototype-dashboard/` pour référence.
+  **Non encore testé de bout en bout sur le Supabase distant** : les huit
+  migrations Loyalty restent à y installer après sauvegarde vérifiée,
+  et les écrans scanner caméra, QR public et Wallet natifs restent incomplets.
+- Le QR public possède maintenant un flux de **pré-inscription** avec écran `join.html?code=<token-public>` et confirmation employé dans le dashboard :
   `POST /api/loyalty/enrollment/prepare` produit un code de 10 minutes
   (maximum 20 inscriptions en attente / 10 minutes par commerce).
   Aucune carte et aucun passage ne sont créés avant

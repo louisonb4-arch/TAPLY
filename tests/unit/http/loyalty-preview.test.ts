@@ -117,3 +117,20 @@ describe('GET /api/loyalty/security', () => {
     expect(res.status).toBe(503);
   });
 });
+
+describe('GET /api/loyalty/customers', () => {
+  it('reste désactivé si preview non activée', async () => {
+    const res = await app('test').request('/api/loyalty/customers');
+    expect(res.status).toBe(503);
+  });
+  it('exige une session authentifiée', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const res = await app('test').request('/api/loyalty/customers');
+    expect(res.status).toBe(401);
+  });
+  it('n’est jamais exposé en production', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    const res = await app('production').request('/api/loyalty/customers');
+    expect(res.status).toBe(503);
+  });
+});

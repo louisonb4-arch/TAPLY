@@ -59,11 +59,13 @@ jetable** servent uniquement à créer des fixtures sans attendre deux heures.
 
 ## Restent NON certifiés
 
-Ce job ne prouve pas le comportement d'un Supabase hébergé ni les
-permissions propres aux rôles administratifs Supabase. Il n'exécute
-pas de scan au comptoir, ne valide ni PIN individuel, ni appareil
-approuvé, ni présence/achat, ni route HTTP employé, ni Wallet,
-ni déploiement E2E. Aucun scan QR public ne doit jamais créditer.
+Ce job valide désormais aussi le PIN et les appareils employés,
+les routes HTTP authentifiées sur base PostgreSQL jetable, l'accès aux
+clients, et les journaux propriétaires en RLS. En revanche, il **ne prouve
+pas le comportement du Supabase hébergé**, ni une présence physique ou
+un achat réellement observé, ni le NFC matériel, ni le Wallet natif,
+ni un déploiement complet E2E sur téléphone. Aucun QR public seul ne doit
+créditer un passage.
 
 **Interdit de passer la PR en Ready ou de fusionner tant que ces garde-fous
 et les vérifications staging n'ont pas été validés séparément.**
