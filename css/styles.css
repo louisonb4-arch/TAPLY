@@ -1101,3 +1101,17 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   .js [data-reveal] { opacity: 1; transform: none; clip-path: none; }
   .tap-ring { display: none; }
 }
+
+
+/* Logo Taply validé : versions noire et blanche selon le contraste. */
+.logo__asset { display:block; width:auto; height:1em; max-width:none; flex:none; }
+.logo .logo__asset--light { display:none; }
+.logo--on-deep .logo__asset--dark { display:none; }
+.logo--on-deep .logo__asset--light { display:block; }
+
+/* Sur le hero sombre, version blanche ; sur navigation solide, noire. */
+.nav:not(.is-solid) .logo__asset--dark { display:none; }
+.nav:not(.is-solid) .logo__asset--light { display:block; }
+/* Pages légales toujours sur fond clair. */
+.legal-page .nav .logo__asset--dark { display:block; }
+.legal-page .nav .logo__asset--light { display:none; }

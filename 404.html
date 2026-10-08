@@ -34,12 +34,19 @@
     .btn--ghost:hover { background: rgba(255,255,255,.08); }
     .btn svg { width: 1.1rem; height: 1.1rem; }
     :focus-visible { outline: 2px solid var(--c-lime); outline-offset: 3px; border-radius: 8px; }
-  </style>
+
+/* Logo Taply validé : versions noire et blanche selon le contraste. */
+.logo__asset { display:block; width:auto; height:1em; max-width:none; flex:none; }
+.logo .logo__asset--light { display:none; }
+.logo--on-deep .logo__asset--dark { display:none; }
+.logo--on-deep .logo__asset--light { display:block; }
+
+</style>
 </head>
 <body>
   <div class="glow" aria-hidden="true"></div>
   <main class="wrap">
-    <a class="logo" href="/" aria-label="Taply — accueil">Taply<svg viewBox="0 0 10 16" aria-hidden="true"><path d="M4.6 0h4.9L6 10.6C5 13.6 3.4 15.3 0 16l.8-2.3c1.6-.8 2.4-2 2.4-3.6V0Z" fill="currentColor"/></svg></a>
+    <a class="logo logo--on-deep" href="/" aria-label="Taply — accueil"><img class="logo__asset logo__asset--dark" src="/images/taply-wordmark-noir.png" width="1697" height="644" alt="" aria-hidden="true"><img class="logo__asset logo__asset--light" src="/images/taply-wordmark-blanc.png" width="1697" height="644" alt="" aria-hidden="true"></a>
     <div class="card" aria-hidden="true">
       <span class="dots"><i></i><i></i><i></i><i></i><i class="miss"></i></span>
       <strong>Erreur 404</strong>

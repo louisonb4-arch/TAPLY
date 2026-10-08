@@ -495,3 +495,10 @@ button.row { width: 100%; text-align: left; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* Logo Taply validé : versions noire et blanche selon le contraste. */
+.logo__asset { display:block; width:auto; height:1em; max-width:none; flex:none; }
+.logo .logo__asset--light { display:none; }
+.logo--on-deep .logo__asset--dark { display:none; }
+.logo--on-deep .logo__asset--light { display:block; }
