@@ -22,6 +22,14 @@ import { creditVisit } from '../../backend/loyalty/credit.ts';
 import { redeemReward } from '../../backend/loyalty/redeem.ts';
 import { createStaffDevicePairing, activateStaffDevice, authorizeStaffAction } from '../../backend/auth/staff-device.ts';
 import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgram } from '../../backend/loyalty/operations.ts';
+import { updateProgramContract } from '../../backend/loyalty/merchant-setup.ts';
+import { withTx } from '../../backend/db/tenant-context.ts';
+import { handleNfcTap } from '../../backend/nfc/tap.ts';
+import { deriveTagKeys } from '../../backend/nfc/keys.ts';
+import { ensureIdentity, issueRecoveryCode, recoverIdentity } from '../../backend/customer/identity.ts';
+import { enrollCard, presentCardQr } from '../../backend/customer/cards.ts';
+import { processStripeEvent } from '../../backend/billing/service.ts';
+import { simulateSunUrlParams } from '../../tests/helpers/ntag424-sim.ts';
 import { scanWalletQrAndCredit } from '../../backend/loyalty/scan.ts';
 import { rotateWalletQr } from '../../backend/loyalty/rotation.ts';
 import { resolveWalletQrToken } from '../../backend/loyalty/qr-token.ts';
@@ -596,22 +604,30 @@ async function certify() {
     assert.equal(reset.ok, true);
   });
 
-  await test('Changement de seuil: 30 jours et version épinglée au cycle', async () => {
+  await test('Changement de contrat: 30 jours (app + trigger SQL), version épinglée au cycle', async () => {
+    // Programme publié : la publication fige le contrat (contract_changed_at).
+    await admin.query(`insert into taply.program_publications
+        (program_id, merchant_id, reward_title, published_at, contract_changed_at)
+      values ($1, $2, 'Café offert', now(), now())
+      on conflict (program_id) do update set published_at = now(), contract_changed_at = now()`,
+      [A.program, A.merchant]);
     const tooSoon = await withTenantTx(app, A.merchant, (client) =>
+      updateProgramContract(client, A.principal, { threshold: 7, rewards: ['Café offert'] }));
+    assert.equal(tooSoon.status, 'too_soon');
+    const legacy = await withTenantTx(app, A.merchant, (client) =>
       updateMerchantProgram(client, A.principal, {
         programId: A.program, status: 'active', notificationsEnabled: false, threshold: 7,
       }));
-    assert.deepEqual(tooSoon, { ok: false, reason: 'change_too_soon' });
-    await admin.query(`update taply.program_rule_versions
-      set created_at=now() - interval '31 days'
-      where id=(select id from taply.program_rule_versions
-        where merchant_id=$1 and program_id=$2 and is_active=true)`,
-      [A.merchant, A.program]);
+    assert.deepEqual(legacy, { ok: false, reason: 'use_contract_update' });
+    // Défense en profondeur : une insertion directe est refusée par le trigger.
+    await assert.rejects(withTenantTx(app, A.merchant, (client) => client.query(
+      `insert into taply.program_rule_versions (merchant_id, program_id, version_no, rules, is_active)
+       values ($1, $2, 99, '{"threshold":3}'::jsonb, false)`, [A.merchant, A.program])), /contract_locked/);
+    await admin.query(`update taply.program_publications set contract_changed_at = now() - interval '31 days'
+      where program_id = $1 and merchant_id = $2`, [A.program, A.merchant]);
     const changed = await withTenantTx(app, A.merchant, (client) =>
-      updateMerchantProgram(client, A.principal, {
-        programId: A.program, status: 'active', notificationsEnabled: false, threshold: 7,
-      }));
-    assert.deepEqual(changed, { ok: true, nextThreshold: 7 });
+      updateProgramContract(client, A.principal, { threshold: 7, rewards: ['Café offert', 'Jus pressé'] }));
+    assert.equal(changed.status, 'updated');
     const current = await withTenantTx(app, A.merchant,
       (client) => merchantOverview(client, A.principal));
     assert.equal(current[0].threshold, 7);
@@ -619,6 +635,9 @@ async function certify() {
       from taply.program_rule_versions v join taply.memberships m
        on m.current_rule_version_id=v.id where m.id=$1`, [A.membership]);
     assert.equal(previouslyPinned.rows[0].threshold, '5');
+    const again = await withTenantTx(app, A.merchant, (client) =>
+      updateProgramContract(client, A.principal, { threshold: 8, rewards: ['Café offert'] }));
+    assert.equal(again.status, 'too_soon');
     const cross = await withTenantTx(app, B.merchant, (client) =>
       updateMerchantProgram(client, B.principal, {
         programId: A.program, status: 'paused', notificationsEnabled: true,
@@ -772,7 +791,7 @@ async function certify() {
       assert.equal(customersHTTP.status, 200);
       const customersJSON = await customersHTTP.json();
       assert.ok(customersJSON.customers.some(x => x.membershipId === registered.membershipId));
-      assert.equal(customersJSON.limit, 50);
+      assert.equal(customersJSON.limit, 100);
       const afterReg = await web.request('/api/loyalty/overview', {
         headers: { Cookie: cookies },
       });
@@ -915,6 +934,133 @@ async function certify() {
       securityOverview(client, B.principal));
     assert.equal(otherView.devices.length, 0);
     assert.ok(otherView.recentActivity.every(event => event.membershipId !== A.membership));
+  });
+
+
+  // ── SaaS V1 : concurrence réelle (connexions PostgreSQL parallèles) ────
+  const nfcMaster = randomBytes(32);
+  const nfcKeys = { master: nfcMaster, keyVersion: 1 };
+  const uid = Buffer.from('04C0FFEE123456', 'hex');
+  const tagKeys = deriveTagKeys(nfcMaster, uid, 1);
+  let readCtr = 0;
+  const proof = (ctr = ++readCtr) => simulateSunUrlParams({
+    sdmMetaReadKey: tagKeys.sdmMetaReadKey, sdmFileReadKey: tagKeys.sdmFileReadKey, uid, readCtr: ctr });
+  const tapInput = (p, identityToken) => ({ e: p.e, c: p.c, identityToken, identityNonce: undefined,
+    merchantSessionToken: undefined, sessionIdleSeconds: 3600, ipHash: 'a'.repeat(64) });
+  const C = await seed(admin, 'cafe-saas-concurrence');
+  await admin.query(`insert into taply.program_publications
+      (program_id, merchant_id, reward_title, published_at, contract_changed_at)
+    values ($1, $2, 'Café offert', now(), now())`, [C.program, C.merchant]);
+  await admin.query(`update taply.public_enrollment_links set status = 'active' where program_id = $1`, [C.program]);
+  const [loc] = (await admin.query(`select id from taply.locations where merchant_id = $1 limit 1`, [C.merchant])).rows;
+  const [tag] = (await admin.query(`insert into taply.nfc_tags (merchant_id, program_id, location_id, uid_hex, label, created_by)
+    values ($1, $2, $3, $4, 'Comptoir', $5) returning id`, [C.merchant, C.program, loc.id, uid.toString('hex').toUpperCase(), C.principal.merchantUserId])).rows;
+  await admin.query(`insert into taply.program_preferences (merchant_id, program_id, nfc_auto_enabled) values ($1, $2, true)`,
+    [C.merchant, C.program]);
+  const nfcVisits = async () => (await admin.query('select count(*)::integer n from taply.visit_ledger where nfc_tag_id = $1', [tag.id])).rows[0].n;
+  let aliceToken;
+
+  await test('NFC concurrence réelle : 8 envois simultanés de la même preuve SUN = 1 passage, 1 identité', async () => {
+    const p = proof();
+    const results = await Promise.all(Array.from({ length: 8 }, () => handleNfcTap(app, nfcKeys, tapInput(p, undefined))));
+    const credited = results.filter((r) => r.status === 'credited');
+    assert.equal(credited.length, 1);
+    assert.ok(results.filter((r) => r.status === 'denied').every((r) => r.reason === 'replay'));
+    assert.equal(await nfcVisits(), 1);
+    aliceToken = credited[0].identityToken;
+    assert.match(aliceToken, /^[A-Za-z0-9_-]{43}$/);
+    const ids = await admin.query('select count(*)::integer n from taply.customer_identities');
+    assert.equal(ids.rows[0].n, 1);
+    const used = await admin.query('select last_read_ctr from taply.nfc_tags where id = $1', [tag.id]);
+    assert.equal(used.rows[0].last_read_ctr, readCtr);
+  });
+
+  await test('NFC concurrence réelle : 6 lectures neuves simultanées, même carte = 1 passage (délai 2 h)', async () => {
+    await admin.query(`update taply.membership_states set last_credited_at = last_credited_at - interval '3 hours'
+      where merchant_id = $1`, [C.merchant]);
+    const results = await Promise.all(Array.from({ length: 6 }, () => handleNfcTap(app, nfcKeys, tapInput(proof(), aliceToken))));
+    assert.equal(results.filter((r) => r.status === 'credited').length, 1);
+    // Les autres : délai de 2 h, ou compteur devenu obsolète parce qu'une
+    // lecture plus récente de la même puce a été consommée avant elle.
+    assert.equal(results.filter((r) => r.status === 'denied' && ['cooldown', 'replay'].includes(r.reason)).length, 5);
+    assert.equal(await nfcVisits(), 2);
+    const events = await admin.query('select count(*)::integer n from taply.nfc_tap_events where tag_id = $1', [tag.id]);
+    assert.ok(events.rows[0].n >= 6 + 1, 'chaque compteur consommé est journalisé');
+  });
+
+  await test('QR + NFC simultanés sur la même carte = 1 seul passage', async () => {
+    await admin.query(`update taply.membership_states set last_credited_at = last_credited_at - interval '3 hours'
+      where merchant_id = $1`, [C.merchant]);
+    const [link] = (await admin.query(`select membership_id from taply.identity_memberships where merchant_id = $1`, [C.merchant])).rows;
+    const qr = await withTenantTx(app, C.merchant, (client) => presentCardQr(client, C.merchant, link.membership_id));
+    const [nfc, scan] = await Promise.all([
+      handleNfcTap(app, nfcKeys, tapInput(proof(), aliceToken)),
+      withTenantTx(app, C.merchant, (client) => scanWalletQrAndCredit(client, C.principal, qr.qrToken, randomUUID())),
+    ]);
+    assert.equal([nfc.status === 'credited', scan.credited === true].filter(Boolean).length, 1);
+  });
+
+  await test('Identité anonyme : 8 premières requêtes simultanées avec le même nonce = 1 identité', async () => {
+    const before = (await admin.query('select count(*)::integer n from taply.customer_identities')).rows[0].n;
+    const nonce = randomBytes(32).toString('base64url');
+    const results = await Promise.all(Array.from({ length: 8 }, () =>
+      withTx(app, (client) => ensureIdentity(client, undefined, nonce, 'b'.repeat(64)))));
+    assert.equal(new Set(results.map((r) => r.identity.identityId)).size, 1);
+    const after = (await admin.query('select count(*)::integer n from taply.customer_identities')).rows[0].n;
+    assert.equal(after, before + 1);
+  });
+
+  await test('Carte anonyme : 8 inscriptions simultanées de la même identité = 1 carte', async () => {
+    const created = await withTx(app, (client) => ensureIdentity(client, undefined, undefined, 'c'.repeat(64)));
+    const id = created.identity.identityId;
+    const results = await Promise.all(Array.from({ length: 8 }, () => withTx(app, async (client) => {
+      await client.query('select set_config($1, $2, true)', ['app.merchant_id', C.merchant]);
+      await client.query('select set_config($1, $2, true)', ['app.identity_id', id]);
+      return enrollCard(client, { identityId: id, merchantId: C.merchant, programId: C.program, ipHash: 'c'.repeat(64) });
+    })));
+    assert.equal(new Set(results.map((r) => r.membershipId)).size, 1);
+    assert.equal(results.filter((r) => r.status === 'created').length, 1);
+    const links = await admin.query('select count(*)::integer n from taply.identity_memberships where identity_id = $1', [id]);
+    assert.equal(links.rows[0].n, 1);
+  });
+
+  await test('Récupération : 5 tentatives simultanées du même code = 1 succès, code à usage unique', async () => {
+    const owner = await withTx(app, (client) => ensureIdentity(client, undefined, undefined, 'd'.repeat(64)));
+    const code = await withTx(app, async (client) => {
+      await client.query('select set_config($1, $2, true)', ['app.identity_id', owner.identity.identityId]);
+      return issueRecoveryCode(client, owner.identity);
+    });
+    const results = await Promise.all(Array.from({ length: 5 }, (_, i) =>
+      withTx(app, (client) => recoverIdentity(client, code, String(i).repeat(64).slice(0, 64).replace(/\d/g, 'e')))));
+    assert.equal(results.filter((r) => r.status === 'recovered').length, 1);
+    const stored = await admin.query('select recovery_hash from taply.customer_identities where id = $1', [owner.identity.identityId]);
+    assert.doesNotMatch(stored.rows[0].recovery_hash, new RegExp(code));
+  });
+
+  await test('Webhook Stripe : même événement livré 6 fois en parallèle = appliqué une seule fois', async () => {
+    const sub = { id: 'sub_Cert1', customer: 'cus_Cert1', status: 'active', metadata: { merchant_id: C.merchant },
+      priceId: 'price_cert', currentPeriodEnd: Math.floor(Date.now() / 1000) + 2592000, cancelAtPeriodEnd: false };
+    const stripe = { retrieveSubscription: async () => sub };
+    const log = { info() {}, warn() {}, error() {}, debug() {}, child() { return log; } };
+    const event = { id: 'evt_Cert1', type: 'customer.subscription.updated', created: Math.floor(Date.now() / 1000),
+      object: { id: 'sub_Cert1', customer: 'cus_Cert1', metadata: { merchant_id: C.merchant } } };
+    const outcomes = await Promise.all(Array.from({ length: 6 }, () => processStripeEvent(app, stripe, event, log)));
+    assert.equal(outcomes.filter((o) => o === 'applied').length, 1);
+    assert.ok(outcomes.every((o) => o === 'applied' || o === 'duplicate'));
+    const row = await admin.query('select status, stripe_customer_id from taply.merchant_subscriptions where merchant_id = $1', [C.merchant]);
+    assert.deepEqual(row.rows[0], { status: 'active', stripe_customer_id: 'cus_Cert1' });
+  });
+
+  await test('RLS identité : une identité ne voit jamais les cartes d’une autre', async () => {
+    const other = await withTx(app, (client) => ensureIdentity(client, undefined, undefined, 'f'.repeat(64)));
+    const seen = await withTx(app, async (client) => {
+      await client.query('select set_config($1, $2, true)', ['app.identity_id', other.identity.identityId]);
+      return (await client.query('select membership_id from taply.identity_memberships')).rows;
+    });
+    assert.deepEqual(seen, []);
+    const sessions = await withTx(app, async (client) =>
+      (await client.query('select id from taply.identity_sessions')).rows);
+    assert.deepEqual(sessions, []);
   });
 
   console.log('CERTIFICATION PG17 OK:', passed, 'vérifications dynamiques');
