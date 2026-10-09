@@ -63,6 +63,8 @@ describe('invariants du dépôt', () => {
     expect(config['rewrites']).toBeUndefined();
     expect(config['routes']).toEqual([
       { handle: 'filesystem' },
+      // URL courte imprimée sur les puces NFC (page statique, aucun crédit en GET).
+      { src: '^/t$', dest: '/t.html' },
       { src: '^/api(?:/.*)?$', dest: '/api' },
       { src: '^/.*$', status: 404, dest: '/404.html' },
     ]);

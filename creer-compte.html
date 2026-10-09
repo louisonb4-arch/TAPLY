@@ -57,6 +57,10 @@
       .note{left:2.5rem;bottom:2.5rem;font-size:2.3rem}
     }
 
+.journey{display:flex;flex-wrap:wrap;gap:.4rem;margin:1.4rem 0 0;padding:0;list-style:none;font-size:.82rem;color:var(--c-muted)}
+.journey li{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .7rem .3rem .3rem;border-radius:999px;background:var(--c-paper-2)}
+.journey span{display:grid;place-items:center;width:1.4rem;height:1.4rem;border-radius:50%;background:#fff;font-weight:700;font-size:.75rem}
+.journey [aria-current="step"]{background:var(--c-ink);color:#fff}.journey [aria-current="step"] span{background:var(--c-lime);color:var(--c-ink)}
 /* Logo Taply image approuvée, noir/vert et blanc/vert sur fond sombre. */
 .logo__asset { display: block; width: auto; height: 1em; max-width: none; flex: none; }
 .logo .logo__asset--light { display: none; }
@@ -79,7 +83,10 @@
     <div class="card">
       <p class="eyebrow">Espace commerçant</p>
       <h1>Bienvenue chez <span>Taply.</span></h1>
-      <p class="lead">Créez votre compte et démarrez votre programme de fidélité.</p>
+      <p class="lead">Une offre unique à 20 € / mois, sans engagement.</p>
+      <ol class="journey" aria-label="Étapes">
+        <li aria-current="step"><span>1</span>Compte</li><li><span>2</span>E-mail confirmé</li><li><span>3</span>Abonnement</li><li><span>4</span>Votre carte</li>
+      </ol>
       <form novalidate data-signup>
         <div class="field">
           <label for="businessName">Nom de votre commerce</label>
@@ -106,10 +113,10 @@
       <p class="error" data-signup-error role="alert" hidden></p>
       <div class="success" data-signup-result role="status" hidden>
         <strong>Vérifiez votre boîte e-mail.</strong>
-        <p>Suivez le lien de confirmation reçu, puis <a href="connexion.html">connectez-vous à Taply</a> pour activer votre commerce.</p>
+        <p>Suivez le lien de confirmation reçu, puis <a href="connexion.html">connectez-vous</a> : vous activerez votre abonnement (paiement sécurisé Stripe) et créerez votre carte en quelques minutes.</p>
       </div>
       <p class="sep">Déjà un compte ? <a href="connexion.html">Se connecter</a></p>
-      <p class="notice">Votre commerce et sa carte de fidélité seront créés après confirmation de l'e-mail et première connexion. Aucun paiement pour le moment.</p>
+      <p class="notice">Votre espace est créé après confirmation de l’e-mail. Le paiement se fait ensuite, depuis votre espace : l’accès complet est activé dès que Stripe confirme le paiement. Déjà client ? Connectez-vous avec vos identifiants habituels.</p>
     </div>
   </div>
 </main>

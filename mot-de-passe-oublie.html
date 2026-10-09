@@ -3,9 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Connexion commerçant — Taply</title>
-  <meta name="description" content="Accédez à votre espace commerçant Taply : clients, récompenses, notifications et statistiques.">
+  <title>Mot de passe oublié — Taply</title>
+  <meta name="description" content="Réinitialisez le mot de passe de votre compte commerçant Taply.">
   <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
   <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
   <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap">
@@ -71,7 +72,6 @@
     .sep a { color: var(--c-ink); font-weight: 500; text-underline-offset: 3px; }
     .terms { margin-top: 1rem; font-size: .82rem; color: var(--c-muted); text-align: center; }
     .terms a { color: var(--c-ink); text-underline-offset: 2px; }
-    .linkish { padding: 0; border: 0; background: none; color: var(--c-ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font: inherit; }
     .login__notice { margin-top: 2rem; padding: .9rem 1rem; border-radius: 14px; background: var(--c-paper-2); font-size: .85rem; color: var(--c-muted); line-height: 1.45; }
 
     @media (min-width: 900px) {
@@ -104,93 +104,41 @@
 
     <div class="login__card">
       <p class="eyebrow">Espace commerçant</p>
-      <h1>Bon retour <span>parmi nous.</span></h1>
-      <p class="login__lead">Retrouvez vos clients, vos récompenses et vos statistiques.</p>
-
-      <form novalidate data-login>
+      <h1>Mot de passe <span>oublié ?</span></h1>
+      <p class="login__lead">Indiquez l’e-mail de votre compte : nous vous envoyons un lien pour choisir un nouveau mot de passe.</p>
+      <form novalidate data-forgot>
         <div class="field" data-f="email">
           <label class="sr-only" for="email">E-mail</label>
           <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></g></svg>
-          <input id="email" name="email" type="email" placeholder="E-mail" autocomplete="username" inputmode="email" required>
+          <input id="email" name="email" type="email" placeholder="E-mail du compte" autocomplete="username" inputmode="email" required>
         </div>
-        <p class="err" id="email-err" hidden>Indiquez une adresse e-mail valide.</p>
-        <div class="field" data-f="pwd">
-          <label class="sr-only" for="pwd">Mot de passe</label>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></g></svg>
-          <input id="pwd" name="password" type="password" placeholder="Mot de passe" autocomplete="current-password" required>
-          <button class="eye" type="button" aria-label="Afficher le mot de passe" aria-pressed="false" data-eye><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></g></svg></button>
-        </div>
-        <p class="err" id="pwd-err" hidden>Indiquez votre mot de passe.</p>
-        <div class="row">
-          <label class="check"><input type="checkbox" name="remember" checked>Rester connecté</label>
-          <a href="mot-de-passe-oublie.html">Mot de passe oublié ?</a>
-        </div>
-        <button class="btn" type="submit">Se connecter <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="btn" type="submit">Recevoir le lien <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </form>
-
-      <p class="terms">En vous connectant, vous acceptez les <a href="cgu.html">conditions générales d'utilisation</a>.</p>
-      <p class="sep">Pas encore de compte ? <a href="creer-compte.html">Créer un compte</a></p>
-      <p class="login__notice">Connexion sécurisée à votre compte commerçant Taply. L'accès nécessite un compte actif.</p>
-      <p class="err" data-login-error role="alert" hidden>Connexion impossible. Vérifiez vos identifiants ou réessayez ultérieurement. Nouveau compte ? Confirmez d’abord votre e-mail : <button class="linkish" type="button" data-resend>renvoyer l’e-mail de confirmation</button>.</p>
-      <p class="login__notice" data-confirmed hidden role="status">E-mail confirmé. Connectez-vous pour activer votre abonnement et créer votre carte.</p>
-    </div>
+      <p class="login__notice" data-done hidden role="status">Si un compte existe pour cette adresse, un e-mail vient d’être envoyé. Pensez à vérifier vos indésirables. Le lien expire au bout d’une heure.</p>
+      <p class="err" data-error role="alert" hidden></p>
+      <p class="sep"><a href="connexion.html">Retour à la connexion</a></p>
   </div>
 </main>
 
 <script>
 (() => {
-  const form = document.querySelector('[data-login]');
-  const eye = document.querySelector('[data-eye]');
-  const pwd = document.getElementById('pwd');
-  eye.addEventListener('click', () => {
-    const show = pwd.type === 'password';
-    pwd.type = show ? 'text' : 'password';
-    eye.setAttribute('aria-pressed', String(show));
-    eye.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
-  });
-  const check = (id, ok) => {
-    document.querySelector(`[data-f="${id}"]`).classList.toggle('has-error', !ok);
-    document.getElementById(`${id}-err`).hidden = ok;
-    const input = document.getElementById(id);
-    input.setAttribute('aria-invalid', String(!ok));
-    if (ok) input.removeAttribute('aria-describedby'); else input.setAttribute('aria-describedby', `${id}-err`);
-    return ok;
-  };
-  if (new URLSearchParams(location.search).get('confirmation') === 'ok') document.querySelector('[data-confirmed]').hidden = false;
-  document.querySelector('[data-resend]').addEventListener('click', async (ev) => {
-    const email = form.email.value.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { form.email.focus(); return; }
-    ev.target.disabled = true;
-    await fetch('/api/auth/confirmation/resend', { method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }).catch(() => null);
-    ev.target.textContent = 'e-mail renvoyé si le compte existe';
-  });
-  form.addEventListener('submit', async e => {
+  const form = document.querySelector('[data-forgot]');
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const okMail = check('email', /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.value.trim()));
-    const okPwd = check('pwd', form.password.value.length > 0);
-    if (!okMail) return form.email.focus();
-    if (!okPwd) return form.password.focus();
-    const submit = form.querySelector('.btn');
-    const message = document.querySelector('[data-login-error]');
-    message.hidden = true;
-    submit.disabled = true;
-    submit.setAttribute('aria-busy', 'true');
+    const email = form.email.value.trim();
+    const error = document.querySelector('[data-error]');
+    error.hidden = true;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { error.textContent = 'Indiquez une adresse e-mail valide.'; error.hidden = false; return; }
+    const button = form.querySelector('.btn');
+    button.disabled = true;
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST', credentials: 'same-origin', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email.value.trim(), password: form.password.value }),
-      });
-      if (!res.ok) throw new Error('login_failed');
-      form.password.value = '';
-      location.replace('dashboard/#/accueil');
-    } catch (_err) {
-      form.password.value = '';
-      message.hidden = false;
-      submit.disabled = false;
-      submit.removeAttribute('aria-busy');
-    }
+      const res = await fetch('/api/auth/password/forgot', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+      if (res.status === 429) throw new Error('Trop de demandes : réessayez dans quelques minutes.');
+      if (!res.ok) throw new Error('Envoi impossible pour le moment.');
+      form.hidden = true;
+      document.querySelector('[data-done]').hidden = false;
+    } catch (err) { error.textContent = err.message; error.hidden = false; button.disabled = false; }
   });
 })();
 </script>

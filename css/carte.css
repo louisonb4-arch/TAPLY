@@ -1,0 +1,127 @@
+/* ==========================================================================
+   TAPLY — Carte client (join.html, carte.html, t.html)
+   Mobile d'abord. La carte prend les couleurs du commerce ; Taply garde le
+   lime pour les tampons et les états de réussite.
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; min-height: 100svh; display: flex; flex-direction: column; font-family: var(--f-sans);
+  color: var(--c-ink); background: var(--c-paper); -webkit-font-smoothing: antialiased; line-height: 1.5; }
+h1, h2, p, ul { margin: 0; }
+ul { padding: 0; list-style: none; }
+a { color: inherit; }
+button, input { font: inherit; color: inherit; }
+img { display: block; max-width: 100%; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--c-lime-text); outline-offset: 3px; border-radius: 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.c-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem;
+  max-width: 32rem; width: 100%; margin: 0 auto; }
+.logo__asset { height: 1.9rem; width: auto; }
+.logo__asset--light { display: none; }
+.c-top__link { font-size: .9rem; font-weight: 500; text-decoration: none; padding: .5rem .9rem; border-radius: 999px; border: 1px solid var(--c-line); background: var(--c-white); }
+
+.c-main { flex: 1; width: 100%; max-width: 32rem; margin: 0 auto; padding: .5rem 1.25rem 2rem; display: grid; gap: 1rem; align-content: start; }
+.c-foot { max-width: 32rem; margin: 0 auto; padding: 1rem 1.25rem 2rem; font-size: .8rem; color: var(--c-muted); }
+.c-loading { color: var(--c-muted); padding: 3rem 0; text-align: center; }
+
+.c-title { font-size: clamp(1.9rem, 1.4rem + 2.4vw, 2.5rem); line-height: 1.05; letter-spacing: -.04em; font-weight: 700; }
+.c-h2 { font-size: 1.15rem; letter-spacing: -.02em; margin-bottom: .4rem; }
+.c-eyebrow { font-size: .74rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; opacity: .75; }
+.c-muted { font-size: .86rem; color: var(--c-muted); }
+.c-info { font-size: .92rem; padding: .8rem 1rem; border-radius: 14px; background: var(--c-paper-2); }
+.c-back { font-size: .9rem; text-decoration: none; color: var(--c-muted); }
+
+.c-panel { padding: 1.25rem; border-radius: 22px; background: var(--c-white); border: 1px solid var(--c-line); display: grid; gap: .75rem; }
+.c-panel--center { text-align: center; justify-items: center; }
+.c-panel--ok { background: var(--c-lime-soft); border-color: transparent; }
+.c-panel--warn { background: #FFF4DF; border-color: transparent; }
+.c-panel--reward { background: var(--c-deep); color: var(--c-on-deep); border: 0; }
+.c-panel--reward h2 { font-size: 1.5rem; letter-spacing: -.03em; }
+.c-panel--reward .c-muted { color: var(--c-on-deep-muted); }
+.c-check { display: grid; place-items: center; width: 3.2rem; height: 3.2rem; border-radius: 50%; background: var(--c-lime); color: var(--c-deep); font-size: 1.6rem; font-weight: 900; }
+
+/* Boutons */
+.c-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 3.4rem; padding: 0 1.4rem;
+  border: 0; border-radius: 999px; background: var(--c-ink); color: #fff; font-weight: 700; text-decoration: none; cursor: pointer; width: 100%;
+  transition: transform .15s, opacity .15s; }
+.c-btn:active { transform: scale(.98); }
+.c-btn:disabled { opacity: .55; cursor: wait; }
+.c-btn--lg { min-height: 3.9rem; font-size: 1.1rem; }
+.c-btn--ghost { background: var(--c-white); color: var(--c-ink); border: 1px solid var(--c-line); }
+.c-panel--reward .c-btn--ghost { background: transparent; color: var(--c-on-deep); border-color: var(--c-deep-line); }
+.c-btn--sm { min-height: 2.6rem; font-size: .9rem; width: auto; }
+.c-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+/* Bandeau programme */
+.c-hero { padding: 1.6rem 1.4rem; border-radius: 28px; background: var(--card-bg); color: var(--card-fg); display: grid; gap: .6rem; position: relative; overflow: hidden; }
+.c-hero::after { content: ""; position: absolute; width: 6.5rem; aspect-ratio: 1; right: -2.2rem; bottom: -2.8rem; border-radius: 48% 52% 60% 40% / 50% 45% 55% 50%; background: var(--c-lime); opacity: .9; }
+.c-offer { font-size: 1.1rem; position: relative; z-index: 1; max-width: 78%; }
+
+/* La carte */
+.c-card { position: relative; overflow: hidden; isolation: isolate; aspect-ratio: 1.586; padding: 1.25rem 1.3rem; border-radius: 24px;
+  background: var(--card-bg); color: var(--card-fg); display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: 0 18px 40px -22px rgba(6, 17, 12, .55); }
+.c-card::before { content: ""; position: absolute; z-index: -1; width: 46%; aspect-ratio: 1.2; right: -10%; top: -26%; border-radius: 48% 52% 60% 40% / 50% 45% 55% 50%;
+  background: color-mix(in srgb, var(--card-fg) 12%, var(--card-bg)); }
+.c-card__head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.c-card__head strong { font-size: 1.25rem; letter-spacing: -.02em; }
+.c-card__head span { font-size: .8rem; opacity: .8; }
+.c-card__stamps { display: flex; flex-wrap: wrap; gap: .45rem; }
+.c-card__stamps i { width: 2rem; height: 2rem; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--card-fg) 55%, transparent); }
+.c-card__stamps i.on { border-color: var(--c-lime); background: var(--c-lime); box-shadow: 0 2px 6px -2px rgba(0,0,0,.4); animation: stamp .45s cubic-bezier(.34, 1.56, .64, 1) both; }
+.c-card__foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; font-size: .9rem; }
+.c-card__foot strong { font-size: 1.5rem; letter-spacing: -.03em; }
+.c-card__foot span { text-align: right; opacity: .9; }
+.c-card__code { position: absolute; right: 1.3rem; top: 3.1rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .7rem; opacity: .6; }
+@keyframes stamp { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Récompenses */
+.c-choices { display: grid; gap: .5rem; }
+.c-choice { min-height: 3.4rem; border-radius: 16px; border: 1px solid var(--c-deep-line); background: var(--c-deep-2); color: var(--c-on-deep);
+  font-weight: 700; text-align: left; padding: 0 1rem; cursor: pointer; }
+.c-choice:hover { border-color: var(--c-lime); }
+
+/* QR */
+.c-qr { justify-items: center; text-align: center; }
+.c-qr__img { width: min(17rem, 100%); aspect-ratio: 1; background: #fff; border-radius: 18px; padding: .5rem; border: 1px solid var(--c-line); }
+.c-qr__img.is-expired { opacity: .2; }
+.c-qr__timer { font-size: .85rem; color: var(--c-muted); font-variant-numeric: tabular-nums; }
+
+/* Liste de cartes */
+.c-list { display: grid; gap: .6rem; }
+.c-list__item { display: flex; align-items: center; gap: .9rem; padding: 1rem 1.1rem; border-radius: 18px; background: var(--c-white); border: 1px solid var(--c-line); text-decoration: none; }
+.c-list__item > span:nth-child(2) { flex: 1; display: grid; }
+.c-list__item small { color: var(--c-muted); }
+.c-list__dot { width: 2.4rem; height: 2.4rem; border-radius: 12px; background: var(--card-bg); box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--card-fg) 25%, transparent); }
+
+.c-history li { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-top: 1px solid var(--c-line); font-size: .9rem; }
+.c-history li:first-child { border-top: 0; }
+.c-history time { color: var(--c-muted); white-space: nowrap; }
+
+/* Récupération */
+.c-secret { padding: 1rem; border-radius: 16px; background: var(--c-paper-2); display: grid; gap: .5rem; }
+.c-secret__code { font: 700 1.25rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; overflow-wrap: anywhere; user-select: all; }
+.c-form { display: grid; gap: .6rem; }
+.c-form input { min-height: 3.4rem; padding: 0 1rem; border-radius: 14px; border: 1px solid var(--c-line); background: var(--c-white);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .05em; text-transform: uppercase; }
+.c-details { padding: 0; }
+.c-details > summary { padding: 1.1rem 1.25rem; cursor: pointer; font-weight: 700; list-style: none; display: flex; justify-content: space-between; }
+.c-details > summary::after { content: "+"; font-weight: 400; font-size: 1.3rem; line-height: 1; }
+.c-details[open] > summary::after { content: "–"; }
+.c-details > summary::-webkit-details-marker { display: none; }
+.c-details > div { padding: 0 1.25rem 1.25rem; display: grid; gap: .75rem; }
+.c-terms summary { cursor: pointer; font-size: .9rem; font-weight: 500; }
+.c-terms p { margin-top: .5rem; font-size: .88rem; color: var(--c-muted); white-space: pre-line; }
+
+.c-pulse { width: 3.4rem; height: 3.4rem; border-radius: 50%; background: var(--c-lime); animation: c-pulse 1.2s ease-out infinite; }
+@keyframes c-pulse { 0% { box-shadow: 0 0 0 0 rgba(127, 219, 76, .6); } 100% { box-shadow: 0 0 0 22px rgba(127, 219, 76, 0); } }
+
+.c-toast { position: fixed; left: 50%; bottom: max(1.25rem, env(safe-area-inset-bottom)); translate: -50% 0; z-index: 10;
+  width: max-content; max-width: calc(100vw - 2.5rem); text-align: center; padding: .8rem 1.2rem; border-radius: 999px; background: var(--c-ink); color: #fff; font-size: .92rem;
+  box-shadow: 0 12px 30px -12px rgba(0,0,0,.45); }
+
+@media (prefers-reduced-motion: reduce) {
+  .c-card__stamps i.on, .c-pulse { animation: none; }
+}

@@ -10,24 +10,19 @@ describe('Carte unique par commerce, identifiants propres aux clients', () => {
     expect(html).toContain('>Ma carte</a>');
   });
 
-  it('la vue modèle n’exige aucun prénom et ne crée pas de carte client', () => {
+  it('la carte commune ne demande aucune donnée client et ne crée aucune carte', () => {
     const js = read('dashboard/live.js');
-    const template = js.slice(js.indexOf('  function cardTemplate() {'), js.indexOf('  function configCard() {'));
-    expect(template).toContain("s.homeData?.program");
-    expect(template).toContain('Identifiant client');
-    expect(template).not.toContain('firstName');
-    expect(template).not.toContain("api('loyalty/");
-    expect(template).not.toContain('data-action="register"');
-    expect(js).not.toContain("return header('Créer une carte'");
+    const page = js.slice(js.indexOf('  function programPage() {'), js.indexOf('  /* ---- Clients'));
+    expect(page).toContain('Une carte commune à tous vos clients');
+    expect(page).not.toContain('firstName');
+    expect(page).not.toContain("api('loyalty/customers/register'");
+    expect(js).not.toContain('customers/register');
   });
 
-  it('distingue explicitement inscription de client et règles du commerce', () => {
+  it('le commerçant n’inscrit jamais de client à la main : inscription par le client via le QR', () => {
     const js = read('dashboard/live.js');
-    expect(js).toContain("return header('Inscrire un client'");
-    expect(js).toContain("return header('Règles de ma carte'");
-    expect(js).toContain("title: 'Définir ma fidélité'");
-    expect(js).toContain("route:'demarrage'");
-    expect(js).toContain("carte: cardTemplate");
-    expect(js).toContain("api('loyalty/customers/register'");
+    expect(js).toContain("case 'demarrage': html = onboarding()");
+    expect(js).toContain("case 'carte': html = programPage()");
+    expect(js).toContain('Cartes anonymes : aucun nom, e-mail ni téléphone');
   });
 });

@@ -42,21 +42,29 @@ describe('UI Taply — aucun retour silencieux aux données fictives', () => {
     expect(login).not.toContain("n'importe quel e-mail");
   });
 
-  it('le QR public ne transmet jamais un jeton personnel dans les URLs ni le stockage', () => {
-    const join = read('join.html');
-    expect(join).toContain("fetch('/api/loyalty/public-card'+path");
-    expect(join).toContain("privacyAccepted:true");
-    expect(join).not.toContain('firstName');
-    expect(join).not.toContain('claimToken');
-    expect(join).not.toMatch(/localStorage|sessionStorage/);
-    expect(join).toContain('Aucun passage n');
+  it('la carte client ne stocke aucun jeton et n’envoie jamais de jeton dans une URL', () => {
+    const js = read('js/carte.js');
+    expect(js).not.toMatch(/localStorage|sessionStorage|indexedDB/);
+    expect(js).not.toMatch(/firstName|prénom|email/i);
+    // Le QR personnel n'apparaît que dans une image locale (blob), jamais dans l'URL.
+    expect(js).toContain('URL.createObjectURL(new Blob([r.data.qrSvg]');
+    // Les paramètres SUN de la puce sont retirés de l'historique dès la lecture.
+    expect(js).toContain("history.replaceState(null, '', location.pathname)");
+    expect(js).toContain('Aucun passage n’a été ajouté');
+    for (const page of ['join.html', 'carte.html', 't.html']) {
+      expect(read(page), page).toContain('src="js/carte.js"');
+      expect(read(page), page).toContain('name="referrer" content="no-referrer"');
+    }
   });
   it('la page réelle exige auth/me et refuse le mode démo/localStorage', () => {
     const live = read('dashboard/live.js');
     expect(live).toContain("api('auth/me')");
-    expect(live).toContain("api('loyalty/overview')");
-    expect(live).toContain("api('loyalty/customers')");
-    expect(live).not.toMatch(/\b(?:localStorage|sessionStorage)\.(?:getItem|setItem|removeItem)|\bTAPLY_DEMO\b/);
-    expect(live).toContain('Aucune donnée fictive affichée');
+    expect(live).toContain("api('loyalty/dashboard')");
+    expect(live).toContain("api('loyalty/customers'");
+    expect(live).not.toMatch(/\b(?:localStorage|sessionStorage)\.(?:getItem|setItem|removeItem)|\bTAPLY_DEMO\b|data\.demo/);
+    expect(live).toContain('Aucune donnée inventée');
+    // Le scanner ne crédite qu'après une action explicite de l'employé.
+    expect(live).toContain("api('loyalty/card/lookup'");
+    expect(live).toContain('Achat constaté — valider le passage');
   });
 });

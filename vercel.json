@@ -4,8 +4,21 @@
   "buildCommand": "node scripts/build-static.mjs",
   "outputDirectory": "dist",
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "^/api(?:/.*)?$", "dest": "/api" },
-    { "src": "^/.*$", "status": 404, "dest": "/404.html" }
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "^/t$",
+      "dest": "/t.html"
+    },
+    {
+      "src": "^/api(?:/.*)?$",
+      "dest": "/api"
+    },
+    {
+      "src": "^/.*$",
+      "status": 404,
+      "dest": "/404.html"
+    }
   ]
 }

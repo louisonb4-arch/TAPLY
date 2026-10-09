@@ -31,6 +31,8 @@ export function createDevApp({ siteDir }: DevAppOptions = {}): Hono {
   app.all('/api/*', (c) => toApi(c.req.raw));
 
   if (siteDir !== undefined) {
+    // Même réécriture que vercel.json : URL courte des puces NFC.
+    app.get('/t', (c) => c.html(readFileSync(join(siteDir, 't.html'), 'utf8')));
     app.use('*', serveStatic({ root: siteDir }));
     const notFoundPage = readFileSync(join(siteDir, '404.html'), 'utf8');
     app.notFound((c) => c.html(notFoundPage, 404));
