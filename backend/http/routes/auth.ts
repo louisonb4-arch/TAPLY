@@ -14,9 +14,9 @@ import { AuthInvalidCredentialsError, SessionInvalidError } from '../../auth/err
 import { loginWithPassword } from '../../auth/login.js';
 import { createAuthClient } from '../../auth/supabase-client.js';
 import { revokeSession, withAuthenticatedTx } from '../../auth/session.js';
-import { getPool } from '../../db/pool.js';
 import { AppError } from '../../core/errors.js';
 import { originCheck } from '../origin.js';
+import { dbPool, loyaltyEnabled } from '../gates.js';
 import type { AppEnvBindings } from '../types.js';
 
 export const authRoutes = new Hono<AppEnvBindings>();
@@ -41,10 +41,7 @@ const signupBodySchema = z.strictObject({
  */
 authRoutes.post('/auth/signup', originCheck, async (c) => {
   const cfg = c.get('config');
-  if (cfg.appEnv === 'production' || process.env['VERCEL_ENV'] === 'production' ||
-      process.env['TAPLY_LOYALTY_PREVIEW'] !== 'enabled') {
-    throw new AppError('SERVICE_UNAVAILABLE');
-  }
+  if (!loyaltyEnabled(cfg.appEnv)) throw new AppError('SERVICE_UNAVAILABLE');
   let raw: unknown;
   try { raw = await c.req.json(); } catch { throw new AppError('VALIDATION_FAILED'); }
   const parsed = signupBodySchema.safeParse(raw);
@@ -92,14 +89,12 @@ authRoutes.post('/auth/login', originCheck, async (c) => {
   if (!parsed.success) throw new AppError('VALIDATION_FAILED');
 
   try {
-    const result = await loginWithPassword(getPool(), log, {
+    const result = await loginWithPassword(dbPool(c), log, {
       email: parsed.data.email,
       password: parsed.data.password,
       idleSeconds: config.auth.sessionIdleSeconds,
       absoluteSeconds: config.auth.sessionAbsoluteSeconds,
-      allowOnboarding: config.appEnv !== 'production' &&
-        process.env['VERCEL_ENV'] !== 'production' &&
-        process.env['TAPLY_LOYALTY_PREVIEW'] === 'enabled',
+      allowOnboarding: loyaltyEnabled(config.appEnv),
     });
 
     setSessionCookie(c, config.appEnv, result.rawToken, config.auth.sessionAbsoluteSeconds);
@@ -120,7 +115,7 @@ authRoutes.get('/auth/me', async (c) => {
 
   try {
     const principal = await withAuthenticatedTx(
-      getPool(),
+      dbPool(c),
       rawToken,
       config.auth.sessionIdleSeconds,
       async (_client, p) => p,
@@ -140,7 +135,7 @@ authRoutes.post('/auth/logout', originCheck, async (c) => {
   const rawToken = getSessionCookie(c, config.appEnv);
 
   if (rawToken !== undefined) {
-    await revokeSession(getPool(), rawToken);
+    await revokeSession(dbPool(c), rawToken);
     c.get('log').info('auth.logout', {});
   }
 
@@ -148,4 +143,77 @@ authRoutes.post('/auth/logout', originCheck, async (c) => {
   // quand même — jamais de fuite sur l'existence d'une session.
   clearSessionCookie(c, config.appEnv);
   return c.json({ loggedOut: true }, 200);
+});
+
+const emailOnlySchema = z.strictObject({ email: z.string().trim().max(255).pipe(z.email()) });
+
+/**
+ * Mot de passe oublié : Supabase envoie le lien. Réponse uniforme, que le
+ * compte existe ou non (aucune énumération d'adresses).
+ */
+authRoutes.post('/auth/password/forgot', originCheck, async (c) => {
+  const cfg = c.get('config');
+  if (!cfg.auth.appOrigin) throw new AppError('SERVICE_UNAVAILABLE');
+  let raw: unknown;
+  try { raw = await c.req.json(); } catch { throw new AppError('VALIDATION_FAILED'); }
+  const parsed = emailOnlySchema.safeParse(raw);
+  if (!parsed.success) throw new AppError('VALIDATION_FAILED');
+  const { error } = await createAuthClient().auth.resetPasswordForEmail(parsed.data.email, {
+    redirectTo: cfg.auth.appOrigin + '/reinitialiser-mot-de-passe.html',
+  });
+  if (error?.status === 429) throw new AppError('RATE_LIMITED');
+  if (error) c.get('log').warn('auth.password_forgot.provider_failed', { status: error.status || 0 });
+  return c.json({ emailSent: true }, 202);
+});
+
+/** Renvoi de l'e-mail de confirmation (même réponse uniforme). */
+authRoutes.post('/auth/confirmation/resend', originCheck, async (c) => {
+  const cfg = c.get('config');
+  if (!cfg.auth.appOrigin) throw new AppError('SERVICE_UNAVAILABLE');
+  let raw: unknown;
+  try { raw = await c.req.json(); } catch { throw new AppError('VALIDATION_FAILED'); }
+  const parsed = emailOnlySchema.safeParse(raw);
+  if (!parsed.success) throw new AppError('VALIDATION_FAILED');
+  const { error } = await createAuthClient().auth.resend({
+    type: 'signup', email: parsed.data.email,
+    options: { emailRedirectTo: cfg.auth.appOrigin + '/connexion.html?confirmation=ok' },
+  });
+  if (error?.status === 429) throw new AppError('RATE_LIMITED');
+  return c.json({ emailSent: true }, 202);
+});
+
+const resetSchema = z.strictObject({
+  accessToken: z.string().min(20).max(4096).regex(/^[A-Za-z0-9._-]+$/),
+  password: z.string().min(12).max(128),
+});
+
+/**
+ * Nouveau mot de passe depuis le lien de récupération Supabase. Le jeton
+ * d'accès de récupération (fragment d'URL, jamais envoyé au serveur par le
+ * navigateur lors de la navigation) est transmis ici par POST et vérifié
+ * par Supabase. Aucune session Taply n'est ouverte automatiquement.
+ */
+authRoutes.post('/auth/password/reset', originCheck, async (c) => {
+  const cfg = c.get('config');
+  if (!cfg.auth.supabaseUrl || !cfg.auth.supabasePublishableKey) throw new AppError('SERVICE_UNAVAILABLE');
+  let raw: unknown;
+  try { raw = await c.req.json(); } catch { throw new AppError('VALIDATION_FAILED'); }
+  const parsed = resetSchema.safeParse(raw);
+  if (!parsed.success) throw new AppError('VALIDATION_FAILED');
+  const response = await fetch(cfg.auth.supabaseUrl + '/auth/v1/user', {
+    method: 'PUT',
+    headers: {
+      apikey: cfg.auth.supabasePublishableKey,
+      Authorization: 'Bearer ' + parsed.data.accessToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password: parsed.data.password }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (response.status === 401 || response.status === 403) throw new AppError('AUTH_INVALID', { userMessage: 'Lien expiré ou déjà utilisé.' });
+  if (response.status === 422) throw new AppError('VALIDATION_FAILED', { userMessage: 'Mot de passe refusé : choisissez-en un autre.' });
+  if (response.status === 429) throw new AppError('RATE_LIMITED');
+  if (!response.ok) throw new AppError('SERVICE_UNAVAILABLE');
+  c.get('log').info('auth.password_reset.done', {});
+  return c.json({ updated: true });
 });

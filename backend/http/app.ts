@@ -25,6 +25,9 @@ import { requestIdMiddleware } from './request-id.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
 import { loyaltyRoutes } from './routes/loyalty.js';
+import { merchantRoutes } from './routes/merchant.js';
+import { customerRoutes } from './routes/customer.js';
+import { billingRoutes } from './routes/billing.js';
 import type { AppEnvBindings } from './types.js';
 
 export interface AppDependencies {
@@ -112,7 +115,10 @@ export function createApp(deps: AppDependencies): Hono<AppEnvBindings> {
 
   app.route('/', healthRoutes);
   app.route('/', authRoutes);
+  app.route('/', merchantRoutes);
   app.route('/', loyaltyRoutes);
+  app.route('/', customerRoutes);
+  app.route('/', billingRoutes);
 
   app.notFound((c) => {
     const error = new AppError('NOT_FOUND');

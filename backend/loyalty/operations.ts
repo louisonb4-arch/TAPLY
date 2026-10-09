@@ -11,7 +11,6 @@ import { z } from 'zod';
 import type { AuthenticatedPrincipal } from '../auth/session.js';
 import { runIdempotent } from '../db/idempotency.js';
 import { generateWalletQrToken, hashWalletQrToken } from './qr-token.js';
-import { decideRuleChange } from './rules.js';
 import { isValidThreshold } from './rules.js';
 
 const FIRST_NAME = /^[\p{L}\p{M}][\p{L}\p{M}\s.'’-]{0,39}$/u;
@@ -172,26 +171,9 @@ export async function updateMerchantProgram(
   const version = active.rows[0];
   if (!version || !isValidThreshold(version.threshold)) return { ok: false, reason: 'invalid_state' };
   if (input.threshold !== undefined && input.threshold !== version.threshold) {
-    if (!isValidThreshold(input.threshold)) return { ok: false, reason: 'invalid_threshold' };
-    const time = await client.query<{ db_now: Date | string }>('select now() as db_now');
-    const created = new Date(version.created_at).toISOString();
-    const nowRow = time.rows[0];
-    if (!nowRow) throw new Error('Database clock unavailable');
-    const now = new Date(nowRow.db_now).toISOString();
-    const decision = decideRuleChange({ threshold: input.threshold }, created, now);
-    if (!decision.allowed) return { ok: false, reason: decision.reason.kind };
-    const deactivated = await client.query(
-      `update taply.program_rule_versions set is_active=false
-       where id=$1 and merchant_id=$2 and is_active=true`, [version.id, principal.merchantId]);
-    if (deactivated.rowCount !== 1) throw new Error('Active rule update failed');
-    const added = await client.query(
-      `insert into taply.program_rule_versions
-       (id,merchant_id,program_id,version_no,rules,is_active)
-       values($1,$2,$3,$4,$5::jsonb,true)`,
-      [randomUUID(), principal.merchantId, input.programId, version.version_no + 1,
-        JSON.stringify({ threshold: input.threshold })],
-    );
-    if (added.rowCount !== 1) throw new Error('Rule version insert failed');
+    // Un seul chemin de modification contractuelle (seuil + récompenses,
+    // verrou 30 jours, versions) : merchant-setup.updateProgramContract.
+    return { ok: false, reason: 'use_contract_update' };
   }
   await client.query(
     `update taply.loyalty_programs set status=$1,updated_at=now()

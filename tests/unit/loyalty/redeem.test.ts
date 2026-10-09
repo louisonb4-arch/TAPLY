@@ -133,6 +133,11 @@ function fakeClient(
         };
       }
 
+      // ── Choix de récompense du cycle (aucun dans ces scénarios) ─
+      if (text.includes('from taply.reward_claims')) {
+        return { rows: [] };
+      }
+
       // ── STATE_QUERY (SELECT ... FOR UPDATE OF s, m) ─────────────
       if (text.includes('membership_states') && text.includes('for update of s')) {
         return { rows: stateRow === null ? [] : [stateRow] };

@@ -101,6 +101,7 @@ const RESOLVE_QUERY = `
     and t.merchant_id = $2
     and m.merchant_id = $2
     and t.revoked_at is null
+    and (t.expires_at is null or t.expires_at > now())
     and m.status = 'active'
     and lp.status = 'active'
     and mer.status = 'active'

@@ -24,12 +24,17 @@ import type { MembershipState, ProgramRules, RuleVersionInfo, VisitDenialReason 
 
 // ── Types d'entrée / sortie ─────────────────────────────────────────
 
-/** Source de crédit autorisée V1. */
-export type CreditSource = 'QR_EMPLOYEE';
+/** Sources de crédit : QR personnel validé par un employé, ou puce NFC authentifiée. */
+export type CreditSource = 'QR_EMPLOYEE' | 'NFC';
+
+/** Acteur du crédit, dérivé côté serveur (jamais du client HTTP). */
+export type CreditActor =
+  | { readonly kind: 'staff'; readonly merchantUserId: string }
+  | { readonly kind: 'nfc'; readonly tagId: string };
 
 export interface CreditVisitParams {
   readonly membershipId: string;
-  readonly source: CreditSource;
+  readonly source: 'QR_EMPLOYEE';
   readonly idempotencyKey: string;
 }
 
@@ -124,6 +129,10 @@ const creditRequestSchema = z.object({
   idempotencyKey: z.uuid(),
   source: z.literal('QR_EMPLOYEE'),
 });
+const coreRequestSchema = z.object({
+  membershipId: z.uuid(),
+  idempotencyKey: z.uuid(),
+});
 
 function toValidIso(value: Date | string | null): string | null {
   if (value === null) return null;
@@ -131,6 +140,7 @@ function toValidIso(value: Date | string | null): string | null {
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
 }
 
+/** Crédit par un employé (QR personnel). Rôle owner/staff obligatoire. */
 export async function creditVisit(
   client: PoolClient,
   principal: AuthenticatedPrincipal,
@@ -145,12 +155,34 @@ export async function creditVisit(
     return { credited: false, reason: { kind: 'invalid_request' } };
   }
 
-  const fingerprint = computeFingerprint(principal.merchantId, params.membershipId, params.source);
+  return creditVisitAsActor(client, principal.merchantId,
+    { kind: 'staff', merchantUserId: principal.merchantUserId },
+    { membershipId: params.membershipId, idempotencyKey: params.idempotencyKey });
+}
+
+/**
+ * Moteur unique de crédit (QR et NFC). Même verrou, mêmes règles, même
+ * délai de 2 h par carte, même idempotence — seule la colonne d'acteur du
+ * ledger change. L'appelant a déjà authentifié l'acteur (session employé +
+ * appareil + PIN, ou message SUN vérifié + compteur consommé).
+ */
+export async function creditVisitAsActor(
+  client: PoolClient,
+  merchantId: string,
+  actor: CreditActor,
+  params: { readonly membershipId: string; readonly idempotencyKey: string },
+): Promise<CreditVisitResult> {
+  // merchantId est dérivé côté serveur (session ou puce) ; withTenantTx l'a déjà validé.
+  if (!coreRequestSchema.safeParse(params).success) {
+    return { credited: false, reason: { kind: 'invalid_request' } };
+  }
+  const source: CreditSource = actor.kind === 'staff' ? 'QR_EMPLOYEE' : 'NFC';
+  const fingerprint = computeFingerprint(merchantId, params.membershipId, source);
 
   return runIdempotent<CreditVisitResult>(
     client,
     {
-      merchantId: principal.merchantId,
+      merchantId,
       operation: 'credit_visit',
       idempotencyKey: params.idempotencyKey,
       fingerprint,
@@ -159,7 +191,7 @@ export async function creditVisit(
       // ── Lecture état + verrou ────────────────────────────────────────
       const stateResult = await client.query<StateRow>(STATE_QUERY, [
         params.membershipId,
-        principal.merchantId,
+        merchantId,
       ]);
       const row = stateResult.rows[0];
       if (row === undefined) {
@@ -205,7 +237,7 @@ export async function creditVisit(
         activeRuleCreatedAt: pinnedCreatedAt,
       };
 
-      // ── Décision pure ───────────────────────────────────────────────
+      // ── Décision pure — horloge du SERVEUR DE BASE uniquement ───────
       const decision = decideVisitCredit(membership, ruleInfo, dbNow, dbNow, true);
 
       if (!decision.allowed) {
@@ -221,17 +253,29 @@ export async function creditVisit(
              updated_at = now()
          where membership_id = $3
            and merchant_id = $4`,
-        [decision.newVisitCount, decision.rewardUnlocked, params.membershipId, principal.merchantId],
+        [decision.newVisitCount, decision.rewardUnlocked, params.membershipId, merchantId],
       );
       if (updated.rowCount !== 1) throw new Error('loyalty state update failed');
 
       const inserted = await client.query(
         `insert into taply.visit_ledger
-           (membership_id, merchant_id, cycle_number, source, idempotency_key, performed_by)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [params.membershipId, principal.merchantId, row.cycle_number, params.source, params.idempotencyKey, principal.merchantUserId],
+           (membership_id, merchant_id, cycle_number, source, idempotency_key, performed_by, nfc_tag_id)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [params.membershipId, merchantId, row.cycle_number, source, params.idempotencyKey,
+          actor.kind === 'staff' ? actor.merchantUserId : null,
+          actor.kind === 'nfc' ? actor.tagId : null],
       );
       if (inserted.rowCount !== 1) throw new Error('loyalty ledger insert failed');
+
+      if (decision.rewardUnlocked) {
+        // Événement métier à notifier (facultatif) ; dédoublonné par cycle.
+        await client.query(
+          `insert into taply.notification_outbox (merchant_id, membership_id, kind, dedupe_key)
+           values ($1, $2, 'reward_unlocked', $3)
+           on conflict (dedupe_key) do nothing`,
+          [merchantId, params.membershipId, `reward_unlocked:${params.membershipId}:${row.cycle_number}`],
+        );
+      }
 
       return {
         credited: true,

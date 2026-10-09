@@ -18,6 +18,8 @@ const PIN_PATTERN = /^\d{6,10}$/;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const KEY_PATTERN = /^[0-9a-f]{64}$/;
 const LIMIT = 5;
+/** Après un PIN correct, l'appareil reste déverrouillé ce délai (service au comptoir). */
+export const DEVICE_UNLOCK_MINUTES = 15;
 const PEPPER_MIN_LENGTH = 32;
 
 function pepper(): string {
@@ -116,6 +118,7 @@ interface DeviceRow {
   pin_verifier: string;
   failed_attempts: number;
   locked: boolean;
+  unlocked?: boolean;
 }
 
 /**
@@ -128,14 +131,18 @@ export async function authorizeStaffAction(
   rawDeviceToken: string | undefined,
   pin: unknown,
 ): Promise<boolean> {
-  if (!rawDeviceToken || !TOKEN_PATTERN.test(rawDeviceToken) || !pinFormatValid(pin)) {
+  // PIN absent : accepté seulement si l'appareil a été déverrouillé récemment
+  // par un PIN correct (fenêtre DEVICE_UNLOCK_MINUTES, horloge serveur).
+  const withoutPin = pin === undefined;
+  if (!rawDeviceToken || !TOKEN_PATTERN.test(rawDeviceToken) || (!withoutPin && !pinFormatValid(pin))) {
     return false;
   }
   const tokenHash = hashToken('device', rawDeviceToken);
   if (!KEY_PATTERN.test(tokenHash)) return false;
   const result = await client.query<DeviceRow>(
     `select id, pin_salt, pin_verifier, failed_attempts,
-       coalesce(locked_until > now(), false) as locked
+       coalesce(locked_until > now(), false) as locked,
+       coalesce(unlocked_until > now(), false) as unlocked
      from taply.staff_devices
      where merchant_id = $1 and merchant_user_id = $2
        and token_hash = $3 and revoked_at is null
@@ -144,6 +151,15 @@ export async function authorizeStaffAction(
   );
   const row = result.rows[0];
   if (!row || row.locked) return false;
+  if (withoutPin) {
+    if (row.unlocked !== true) return false;
+    const touched = await client.query(
+      `update taply.staff_devices set last_used_at=now() where id=$1 and merchant_id=$2`,
+      [row.id, principal.merchantId],
+    );
+    return touched.rowCount === 1;
+  }
+  if (!pinFormatValid(pin)) return false;
 
   const candidate = await derivePin(pin, row.pin_salt);
   const valid = timingSafeEqual(Buffer.from(candidate, 'hex'), Buffer.from(row.pin_verifier, 'hex'));
@@ -151,7 +167,7 @@ export async function authorizeStaffAction(
     const attempts = Math.min(row.failed_attempts + 1, LIMIT);
     await client.query(
       `update taply.staff_devices
-       set failed_attempts=$1,
+       set failed_attempts=$1, unlocked_until=null,
          locked_until=case when $1 >= 5 then now() + interval '15 minutes' else null end
        where id=$2 and merchant_id=$3`,
       [attempts, row.id, principal.merchantId],
@@ -160,9 +176,10 @@ export async function authorizeStaffAction(
   }
   const update = await client.query(
     `update taply.staff_devices
-     set failed_attempts=0, locked_until=null, last_used_at=now()
+     set failed_attempts=0, locked_until=null, last_used_at=now(),
+       unlocked_until=now() + make_interval(mins => $3)
      where id=$1 and merchant_id=$2`,
-    [row.id, principal.merchantId],
+    [row.id, principal.merchantId, DEVICE_UNLOCK_MINUTES],
   );
   return update.rowCount === 1;
 }

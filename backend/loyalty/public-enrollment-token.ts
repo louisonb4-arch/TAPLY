@@ -31,7 +31,8 @@ export function merchantEnrollmentUrl(origin: string, token: string): string {
   const base = new URL(origin);
   // Seul le domaine HTTPS de confiance doit être passé (provenant de la config,
   // JAMAIS de l'en-tête Host / du client).
-  if (base.protocol !== 'https:' || base.username || base.password
+  const localDev = base.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(base.hostname);
+  if ((base.protocol !== 'https:' && !localDev) || base.username || base.password
       || base.search || base.hash || base.pathname !== '/') {
     throw new TypeError('A clean HTTPS application origin is required');
   }

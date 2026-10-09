@@ -134,6 +134,11 @@ function fakeClient(stateRow: ReturnType<typeof makeStateRow> | null, opts?: { i
         return { rows: [], rowCount: opts?.updateRowCount ?? 1 };
       }
 
+      // ── File de notifications (récompense débloquée) ────────────
+      if (text.includes('insert into taply.notification_outbox')) {
+        return { rows: [], rowCount: 1 };
+      }
+
       // ── INSERT visit_ledger ─────────────────────────────────────
       if (text.includes('insert into taply.visit_ledger')) {
         return { rows: [], rowCount: opts?.insertRowCount ?? 1 };

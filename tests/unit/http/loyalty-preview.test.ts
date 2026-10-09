@@ -208,68 +208,110 @@ describe('POST /api/loyalty/devices/approve — activation de son propre apparei
   });
 });
 
-describe('QR V1 : feature gates, owner setup, CSRF', () => {
-  it('refuse les QR publics avant activation explicite', async () => {
+describe('API client /c/* et configuration : portes, CSRF, validation', () => {
+  it('refuse l’API client publique avant activation explicite', async () => {
     vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
-    const a = await app('test').request('/api/loyalty/public-card?code=' + 'A'.repeat(32));
+    const a = await app('test').request('/api/c/program?code=' + 'A'.repeat(32));
     expect(a.status).toBe(503);
-    const b = await app('test').request('/api/loyalty/public-card/enroll', {
+    const b = await app('test').request('/api/c/enroll', {
       method:'POST',headers:{Origin:ORIGIN,'content-type':'application/json'},
-      body:JSON.stringify({publicToken:'A'.repeat(32),privacyAccepted:true}),
+      body:JSON.stringify({publicToken:'A'.repeat(32)}),
     });
     expect(b.status).toBe(503);
   });
 
-  it('refuse les QR publics en production même si les deux flags sont activés', async () => {
+  it('refuse l’API client en production même si les flags preview sont activés', async () => {
     vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
     vi.stubEnv('TAPLY_QR_ANONYMOUS_V1', 'enabled');
-    const response = await app('production').request('/api/loyalty/public-card?code=' + 'A'.repeat(32));
-    expect(response.status).toBe(503);
+    for (const path of ['/api/c/program?code=' + 'A'.repeat(32), '/api/c/cards']) {
+      const response = await app('production').request(path);
+      expect(response.status).toBe(503);
+    }
   });
 
-  it('ne requiert pas la DB pour rejeter des codes publics invalides', async () => {
+  it('production : ouverture uniquement avec la décision explicite TAPLY_PRODUCTION_RELEASE', async () => {
+    vi.stubEnv('TAPLY_PRODUCTION_RELEASE', 'yes');
+    expect((await app('production').request('/api/c/cards')).status).toBe(503);
+  });
+
+  it('rejette un code public invalide sans interroger la base', async () => {
     vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
     vi.stubEnv('TAPLY_QR_ANONYMOUS_V1', 'enabled');
-    const response = await app('test').request('/api/loyalty/public-card?code=invalid');
+    const response = await app('test').request('/api/c/program?code=invalid');
     expect(response.status).toBe(404);
   });
 
-  it('interdit un enrollement sans Origin exacte (CSRF)', async () => {
+  it('interdit toute mutation client sans Origin exacte (CSRF)', async () => {
     vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
     vi.stubEnv('TAPLY_QR_ANONYMOUS_V1', 'enabled');
-    const response = await app('test').request('/api/loyalty/public-card/enroll', {
-      method:'POST',headers:{Origin:'https://evil.invalid','content-type':'application/json'},
-      body:JSON.stringify({publicToken:'A'.repeat(32),privacyAccepted:true}),
+    for (const [path, body] of [
+      ['/api/c/enroll', { publicToken: 'A'.repeat(32) }],
+      ['/api/c/recover', { recoveryCode: 'ABCDE-FGHJK-LMNPQ-RSTUV' }],
+      ['/api/c/nfc/tap', { e: '0'.repeat(32), c: '0'.repeat(16) }],
+      ['/api/c/recovery', {}],
+    ] as const) {
+      const response = await app('test').request(path, {
+        method:'POST',headers:{Origin:'https://evil.invalid','content-type':'application/json'},
+        body:JSON.stringify(body),
+      });
+      expect(response.status).toBe(403);
+    }
+  });
+
+  it('le GET d’une URL de puce ne crédite rien : aucune route GET NFC', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    vi.stubEnv('TAPLY_QR_ANONYMOUS_V1', 'enabled');
+    const response = await app('test').request('/api/c/nfc/tap?e=' + '0'.repeat(32) + '&c=' + '0'.repeat(16));
+    expect(response.status).toBe(404);
+  });
+
+  it('NFC indisponible sans clé maître serveur', async () => {
+    vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
+    vi.stubEnv('TAPLY_QR_ANONYMOUS_V1', 'enabled');
+    vi.stubEnv('TAPLY_NFC_MASTER_KEY', '');
+    const response = await app('test').request('/api/c/nfc/tap', {
+      method:'POST',headers:{Origin:ORIGIN,'content-type':'application/json'},
+      body:JSON.stringify({ e: '0'.repeat(32), c: '0'.repeat(16) }),
     });
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(503);
   });
 
   it('refuse la configuration commerçante sans session', async () => {
     vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
-    const res = await app('test').request('/api/loyalty/setup');
-    expect(res.status).toBe(401);
+    for (const path of ['/api/loyalty/setup', '/api/loyalty/dashboard', '/api/loyalty/nfc', '/api/billing/status']) {
+      const res = await app('test').request(path);
+      expect(res.status).toBe(401);
+    }
   });
 
-  it('refuse toute publication tant que la nouvelle expérience anonyme n’est pas disponible', async () => {
+  it('refuse la publication sans session', async () => {
     vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
     const response = await app('test').request('/api/loyalty/setup/publish', {
       method:'POST',headers:{Origin:ORIGIN,'content-type':'application/json'},body:'{}',
     });
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(401);
   });
 
-  it('refuse un PATCH sans Origin et tout seuil inférieur à 5', async () => {
+  it('refuse un PATCH sans Origin, un seuil hors 3–10 et une liste de récompenses vide', async () => {
     vi.stubEnv('TAPLY_LOYALTY_PREVIEW', 'enabled');
-    const payload={threshold:4,rewardTitle:'Un café offert',rewardTerms:'Conditions',
+    const payload={threshold:2,rewards:['Un café offert'],rewardTerms:'Conditions',
       cardColor:'#10241A',textColor:'#FFFFFF'};
     const csrf = await app('test').request('/api/loyalty/setup', {
       method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(payload),
     });
     expect(csrf.status).toBe(403);
-    const invalid = await app('test').request('/api/loyalty/setup', {
-      method:'PATCH',headers:{Origin:ORIGIN,'content-type':'application/json'},
-      body:JSON.stringify(payload),
-    });
-    expect(invalid.status).toBe(400);
+    for (const bad of [payload, { ...payload, threshold: 11 }, { ...payload, threshold: 5, rewards: [] },
+      { ...payload, threshold: 5, rewards: ['a','b','c','d','e','f'] }]) {
+      const invalid = await app('test').request('/api/loyalty/setup', {
+        method:'PATCH',headers:{Origin:ORIGIN,'content-type':'application/json'},
+        body:JSON.stringify(bad),
+      });
+      expect(invalid.status).toBe(400);
+    }
+  });
+
+  it('webhook Stripe indisponible sans configuration, sans fuite', async () => {
+    const response = await app('test').request('/api/billing/webhook', { method: 'POST', body: '{}' });
+    expect(response.status).toBe(503);
   });
 });

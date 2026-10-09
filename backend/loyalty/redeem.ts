@@ -19,6 +19,7 @@ import { runIdempotent } from '../db/idempotency.js';
 import { decideRedeem } from './rules.js';
 import { isValidThreshold } from './rules.js';
 import type { MembershipState, ProgramRules, RedeemDenialReason, RuleVersionInfo } from './types.js';
+import { parseStoredContract } from './program-rules.js';
 
 // ── Types d'entrée / sortie ─────────────────────────────────────────
 
@@ -26,6 +27,8 @@ export interface RedeemRewardParams {
   readonly membershipId: string;
   readonly idempotencyKey: string;
   readonly expectedCycleNumber: number;
+  /** Récompense choisie au comptoir si le client n'a pas encore choisi. */
+  readonly rewardKey?: string;
 }
 
 export type RedeemRewardResult =
@@ -35,6 +38,7 @@ export type RedeemRewardResult =
       readonly newCycleNumber: number;
       readonly nextThreshold: number;
       readonly redeemedAt: string;
+      readonly reward?: { readonly key: string; readonly title: string };
     }
   | {
       readonly redeemed: false;
@@ -49,12 +53,16 @@ export type RedeemRewardDenialReason =
   | { readonly kind: 'merchant_not_active' }
   | { readonly kind: 'invalid_request' }
   | { readonly kind: 'cycle_mismatch'; readonly currentCycle: number }
-  | { readonly kind: 'no_active_rule_version' };
+  | { readonly kind: 'no_active_rule_version' }
+  | { readonly kind: 'reward_choice_required'; readonly options: readonly { key: string; title: string }[] }
+  | { readonly kind: 'reward_choice_mismatch'; readonly chosen: { key: string; title: string } }
+  | { readonly kind: 'reward_unknown' };
 
 // ── Fingerprint déterministe ────────────────────────────────────────
 
-function computeFingerprint(merchantId: string, membershipId: string, expectedCycleNumber: number): string {
-  return createHash('sha256').update(`${merchantId}:${membershipId}:${expectedCycleNumber}`).digest('hex');
+function computeFingerprint(merchantId: string, membershipId: string, expectedCycleNumber: number, rewardKey?: string): string {
+  const base = `${merchantId}:${membershipId}:${expectedCycleNumber}`;
+  return createHash('sha256').update(rewardKey === undefined ? base : `${base}:${rewardKey}`).digest('hex');
 }
 
 // ── Requête d'état jointe ───────────────────────────────────────────
@@ -72,6 +80,14 @@ interface StateRow {
   readonly db_now: Date | string;
   readonly active_rule_version_id: string | null;
   readonly active_rules: unknown | null;
+  readonly legacy_reward_title?: string | null;
+}
+
+interface ClaimRow {
+  readonly id: string;
+  readonly reward_key: string;
+  readonly reward_title: string;
+  readonly status: string;
 }
 
 const STATE_QUERY = `
@@ -87,7 +103,9 @@ const STATE_QUERY = `
     pin.created_at as pinned_rule_created_at,
     now()      as db_now,
     active.id    as active_rule_version_id,
-    active.rules as active_rules
+    active.rules as active_rules,
+    (select pub.reward_title from taply.program_publications pub
+      where pub.program_id = m.program_id and pub.merchant_id = m.merchant_id) as legacy_reward_title
   from taply.membership_states s
   join taply.memberships m
     on m.id = s.membership_id
@@ -127,6 +145,7 @@ const redeemRequestSchema = z.object({
   membershipId: z.uuid(),
   idempotencyKey: z.uuid(),
   expectedCycleNumber: z.number().int().positive(),
+  rewardKey: z.string().regex(/^[a-z0-9_-]{1,32}$/).optional(),
 });
 
 function toValidIso(value: Date | string | null): string | null {
@@ -151,7 +170,7 @@ export async function redeemReward(
     return { redeemed: false, reason: { kind: 'invalid_request' } };
   }
 
-  const fingerprint = computeFingerprint(principal.merchantId, params.membershipId, params.expectedCycleNumber);
+  const fingerprint = computeFingerprint(principal.merchantId, params.membershipId, params.expectedCycleNumber, params.rewardKey);
 
   return runIdempotent<RedeemRewardResult>(
     client,
@@ -236,14 +255,65 @@ export async function redeemReward(
       const completedCycle = row.cycle_number;
       const newCycleNumber = completedCycle + 1;
 
-      // INSERT redemption_ledger (timestamp serveur via now())
+      // ── Récompense : choix du client, sinon choix au comptoir ───────
+      const contract = parseStoredContract(row.pinned_rules, row.legacy_reward_title ?? null);
+      const claimResult = await client.query<ClaimRow>(
+        `select id, reward_key, reward_title, status from taply.reward_claims
+          where membership_id = $1 and merchant_id = $2 and cycle_number = $3
+          for update`,
+        [params.membershipId, principal.merchantId, completedCycle],
+      );
+      let claim = claimResult.rows[0];
+      if (claim !== undefined && claim.status !== 'awaiting_handover') {
+        // Cycle déjà soldé : l'état et le ledger auraient dû le refléter.
+        return { redeemed: false, reason: { kind: 'invalid_state' } };
+      }
+      let reward: { key: string; title: string } | undefined;
+      if (claim !== undefined) {
+        if (params.rewardKey !== undefined && params.rewardKey !== claim.reward_key) {
+          return { redeemed: false, reason: { kind: 'reward_choice_mismatch',
+            chosen: { key: claim.reward_key, title: claim.reward_title } } };
+        }
+        reward = { key: claim.reward_key, title: claim.reward_title };
+      } else if (contract !== null && contract.rewards.length > 0) {
+        const options = contract.rewards.map((r) => ({ key: r.key, title: r.title }));
+        const key = params.rewardKey ?? (options.length === 1 ? options[0]?.key : undefined);
+        if (key === undefined) {
+          return { redeemed: false, reason: { kind: 'reward_choice_required', options } };
+        }
+        const option = options.find((o) => o.key === key);
+        if (option === undefined) return { redeemed: false, reason: { kind: 'reward_unknown' } };
+        const createdClaim = await client.query<ClaimRow>(
+          `insert into taply.reward_claims
+             (membership_id, merchant_id, cycle_number, reward_key, reward_title, chosen_by)
+           values ($1, $2, $3, $4, $5, 'staff')
+           returning id, reward_key, reward_title, status`,
+          [params.membershipId, principal.merchantId, completedCycle, option.key, option.title],
+        );
+        claim = createdClaim.rows[0];
+        if (claim === undefined) throw new Error('reward claim insert failed');
+        reward = option;
+      }
+
+      // Horodatage serveur (now()) ; une seule remise par cycle (contrainte unique).
       const inserted = await client.query(
         `insert into taply.redemption_ledger
-           (membership_id, merchant_id, cycle_number, performed_by)
-         values ($1, $2, $3, $4)`,
-        [params.membershipId, principal.merchantId, completedCycle, principal.merchantUserId],
+           (membership_id, merchant_id, cycle_number, performed_by, reward_key, reward_title, claim_id)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [params.membershipId, principal.merchantId, completedCycle, principal.merchantUserId,
+          reward?.key ?? null, reward?.title ?? null, claim?.id ?? null],
       );
       if (inserted.rowCount !== 1) throw new Error('redemption ledger insert failed');
+
+      if (claim !== undefined) {
+        const handed = await client.query(
+          `update taply.reward_claims
+              set status = 'handed_over', handed_over_at = now(), handed_over_by = $3
+            where id = $1 and merchant_id = $2 and status = 'awaiting_handover'`,
+          [claim.id, principal.merchantId, principal.merchantUserId],
+        );
+        if (handed.rowCount !== 1) throw new Error('reward claim handover failed');
+      }
 
       // UPDATE membership_states — reset cycle, SANS toucher last_credited_at
       const updatedState = await client.query(
@@ -275,6 +345,7 @@ export async function redeemReward(
         newCycleNumber,
         nextThreshold: activeRules.threshold,
         redeemedAt: dbNow,
+        ...(reward === undefined ? {} : { reward }),
       };
     },
   );
