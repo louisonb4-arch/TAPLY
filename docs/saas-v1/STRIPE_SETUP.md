@@ -10,7 +10,10 @@ Fait (identifiants non secrets) :
 - webhook `we_1UOwkfA2Tvsebt17WLtDwnAU` « taply-staging-billing » (charge utile instantanée, 12 événements, version `2026-09-30.endive`) ;
 - portail client enregistré (configuration par défaut : moyen de paiement, factures, résiliation en fin de période avec motif).
 
-Reste au titulaire : clé restreinte (§4) et secret du webhook dans Vercel (§5), sans jamais les coller dans une conversation.
+- clé restreinte « Taply serveur (staging) » (4 autorisations) et secret du webhook ajoutés par le titulaire dans Vercel Preview ; `TAPLY_BILLING_MODE=enforced` ;
+- staging redéployé (`taply-pxsynh21w`), smoke 24/24 avec `STAGING_STRIPE=configured` (webhook non signé ou mal signé → 401).
+
+Reste : recette de paiement §6 par le titulaire (carte de test saisie par lui).
 
 ## 1. Produit et prix (mode test)
 
