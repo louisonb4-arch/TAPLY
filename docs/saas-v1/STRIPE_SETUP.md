@@ -15,7 +15,7 @@ Fait (identifiants non secrets) :
 
 - **Recette §6.1–6.2 OK (10 oct. 2026, 10:13 UTC)** : paiement carte 4242 par le titulaire → abonnement Stripe `active` 20,00 €/mois ; en base `merchant_subscriptions` = `active`, bon prix, fin de période 10 nov. 2026, session Checkout effacée ; `stripe_events` : `invoice.paid`, `checkout.session.completed`, `customer.subscription.created`, `invoice.payment_succeeded`, chacun reçu et appliqué **une seule fois**.
 
-Reste (facultatif en test) : §6.3 échec de renouvellement, §6.4 résiliation via le portail, §6.5 renvoi d'un événement. Décision avant production : TVA (Stripe affiche « Calcul des taxes : Aucun »).
+Reste (facultatif en test) : §6.3 échec de renouvellement, §6.4 résiliation via le portail, §6.5 renvoi d'un événement. TVA : titulaire en micro-entreprise, franchise en base (art. 293 B du CGI) → pas de TVA, Stripe Tax **désactivé** ; bas de page par défaut des factures = « TVA non applicable, art. 293 B du CGI. » (mode Test, à refaire en mode production). Si le seuil de franchise est dépassé : activer la TVA et décider du prix (20 € TTC ou 24 € TTC). Factures conformes : compléter Paramètres → Entreprise (nom + « EI », adresse, SIRET).
 
 ## 1. Produit et prix (mode test)
 
