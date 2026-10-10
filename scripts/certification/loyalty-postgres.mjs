@@ -39,7 +39,7 @@ import { createLogger } from '../../backend/core/logger.ts';
 import { generateSessionToken, hashSessionToken } from '../../backend/auth/token.ts';
 import { preparePublicEnrollment, confirmPublicEnrollment } from '../../backend/loyalty/enrollment.ts';
 import { securityOverview } from '../../backend/loyalty/security-overview.ts';
-import { merchantCustomers } from '../../backend/loyalty/dashboard-read.ts';
+import { customerList } from '../../backend/loyalty/merchant-views.ts';
 
 const ACK = 'isolated-postgres-cluster';
 const DB_NAME = 'taply_cert';
@@ -898,18 +898,20 @@ async function certify() {
     }
   });
 
-  await test('Dashboard clients: prénom, état réel, aucune fuite inter-commerce', async () => {
+  await test('Dashboard clients: cartes anonymes, état réel, aucune fuite inter-commerce', async () => {
     const alice = await withTenantTx(app, A.merchant, client =>
-      merchantCustomers(client, A.principal));
+      customerList(client, A.principal));
     assert.ok(alice.length >= 1);
-    assert.ok(alice.every(customer => customer.programId === A.program));
-    assert.ok(alice.every(customer => !Object.hasOwn(customer, 'qrToken')));
-    assert.ok(alice.every(customer => !Object.hasOwn(customer, 'email')));
+    const aIds = new Set((await admin.query('select id from taply.memberships where merchant_id=$1', [A.merchant])).rows.map(r => r.id));
+    assert.ok(alice.every(customer => aIds.has(customer.membershipId)));
+    for (const field of ['qrToken', 'email', 'firstName', 'phone']) {
+      assert.ok(alice.every(customer => !Object.hasOwn(customer, field)), field);
+    }
     const bob = await withTenantTx(app, B.merchant, client =>
-      merchantCustomers(client, B.principal));
-    assert.ok(bob.every(customer => customer.programId === B.program));
+      customerList(client, B.principal));
+    assert.ok(bob.every(customer => !aIds.has(customer.membershipId)));
     assert.equal(await withTenantTx(app, A.merchant, client =>
-      merchantCustomers(client, { ...A.principal, role: 'staff' })), undefined);
+      customerList(client, { ...A.principal, role: 'staff' })), undefined);
   });
 
   await test('Surveillance propriétaire: employés, appareil et journaux RLS sans secret', async () => {

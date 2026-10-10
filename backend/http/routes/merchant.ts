@@ -203,6 +203,7 @@ merchantRoutes.patch('/loyalty/program/preferences', originCheck, async (c) => {
 merchantRoutes.get('/loyalty/customers', async (c) => {
   const search = c.req.query('q');
   const customers = await asMerchant(c, (client, principal) => customerList(client, principal, search));
+  if (!customers) throw new AppError('AUTH_FORBIDDEN');
   return c.json({ customers, limit: 100 });
 });
 

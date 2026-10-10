@@ -104,3 +104,16 @@ backend/db/idempotency.ts   claim + mutation + finalize dans une seule transacti
 - Commandes : `npm run db:migration:new -- <nom>`, `npm run db:migrations:list`, `npm run db:push:dry`, `npm run db:lint`, `npm run db:push` (jamais sans confirmation explicite).
 - Toute table contenant `merchant_id` doit avoir RLS activé **et forcé**, avec policy. Un test dynamique (introspection `pg_class`/`pg_policies`, pas une liste figée de tables) est prévu pour la certification staging — **sera vérifié durant la certification staging**, pas encore exécuté contre le vrai projet.
 - TLS : `DATABASE_CA_CERT` (certificat CA Supabase, PEM) obligatoire en staging/production dès que `DATABASE_URL_APP` est défini — voir `.env.example`.
+
+## SaaS V1 (branche `feat/taply-saas-v1-20261009`)
+
+Documentation : `docs/saas-v1/ARCHITECTURE.md`, `SECURITY.md`, `STRIPE_SETUP.md`, `WALLET_ET_NOTIFICATIONS.md`, `RECETTE_STAGING.md`, et `docs/nfc/NTAG424_PROVISIONING.md`.
+
+| Commande | Usage |
+|---|---|
+| `npm run check` | TypeScript strict + tests unitaires et E2E (PostgreSQL en mémoire, toutes migrations, RLS) |
+| `npm run dev:e2e` | Banc local http://127.0.0.1:4600 : vraie app + PostgreSQL en mémoire ; `/__dev/session` (commerçant, PIN de test affiché), `/__dev/tap` (puce simulée), `/__dev/rewind` |
+| `npm run db:loyalty:cert` | Certification sur un PostgreSQL 17 jetable (CI GitHub ou cluster local port 54329) : RLS, transactions, concurrence réelle |
+| `STAGING_URL=… node --import ./scripts/dev-ts-hooks.mjs scripts/certification/staging-smoke.ts` | Smoke test du déploiement (option `TAPLY_NFC_MASTER_KEY_FILE` pour la vérification SUN) |
+
+Staging : https://taply-staging-louisondu44000-7822.vercel.app (Vercel Preview + Supabase `taply-staging`). La production (`taply-theta.vercel.app`, branche `main`) n'est pas modifiée par cette branche.

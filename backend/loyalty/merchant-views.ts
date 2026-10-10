@@ -79,7 +79,9 @@ interface CustomerRow {
   claim_title: string | null; redeemed: number; total_visits: number; status: string;
 }
 
+/** Liste des cartes : réservée au propriétaire (les employés n'ont besoin que du scanner). */
 export async function customerList(client: PoolClient, principal: AuthenticatedPrincipal, search?: string) {
+  if (principal.role !== 'owner') return undefined;
   const code = search?.replace(/[^0-9A-Fa-f]/g, '').toLowerCase().slice(0, 6) ?? '';
   const result = await client.query<CustomerRow>(
     `select m.id, m.created_at, s.visit_count, s.reward_pending, s.cycle_number, s.last_credited_at,
@@ -111,6 +113,7 @@ export async function customerList(client: PoolClient, principal: AuthenticatedP
 }
 
 export async function customerHistory(client: PoolClient, principal: AuthenticatedPrincipal, membershipId: string) {
+  if (principal.role !== 'owner') return undefined;
   const exists = await client.query('select 1 from taply.memberships where id = $1 and merchant_id = $2',
     [membershipId, principal.merchantId]);
   if (exists.rowCount !== 1) return undefined;

@@ -25,7 +25,6 @@ import { registerCustomer, getLoyaltyCard, merchantOverview, updateMerchantProgr
 import { rotateWalletQr } from '../../loyalty/rotation.js';
 import { preparePublicEnrollment, confirmPublicEnrollment } from '../../loyalty/enrollment.js';
 import { securityOverview } from '../../loyalty/security-overview.js';
-import { merchantCustomers } from '../../loyalty/dashboard-read.js';
 import { merchantHome } from '../../loyalty/merchant-home.js';
 import { canOperate, merchantAccess } from '../../billing/access.js';
 import { checkLoyalty, customerApiEnabled, dbPool, secureCookies } from '../gates.js';
