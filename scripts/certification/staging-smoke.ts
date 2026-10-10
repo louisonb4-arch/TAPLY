@@ -73,6 +73,11 @@ if (stripeConfigured) {
     assert.equal((await get('/api/billing/start/cs_test_inconnue0000000000')).status, 404));
 }
 
+await check('tâche planifiée : refusée sans secret', async () =>
+  assert.equal((await get('/api/cron/signup-followups')).status, 401));
+await check('tâche planifiée : refusée avec un mauvais secret', async () =>
+  assert.equal((await fetch(base + '/api/cron/signup-followups', { headers: { authorization: 'Bearer ' + 'x'.repeat(48) } })).status, 401));
+
 const keyFile = process.env['TAPLY_NFC_MASTER_KEY_FILE'];
 if (keyFile) {
   const master = parseNfcMasterKey(readFileSync(keyFile, 'utf8').trim());

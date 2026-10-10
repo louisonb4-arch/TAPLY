@@ -68,6 +68,8 @@ describe('invariants du dépôt', () => {
       { src: '^/api(?:/.*)?$', dest: '/api' },
       { src: '^/.*$', status: 404, dest: '/404.html' },
     ]);
+    // Une seule tâche planifiée : suivi quotidien des paiements sans compte (CRON_SECRET).
+    expect(config['crons']).toEqual([{ path: '/api/cron/signup-followups', schedule: '0 8 * * *' }]);
   });
 
   it("aucun fichier d'entrée qui déclencherait la détection Hono « zéro-config » de Vercel", () => {

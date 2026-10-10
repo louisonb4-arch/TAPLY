@@ -68,9 +68,11 @@ export async function recordSignupCheckout(pool: Pool, stripe: StripeApi, sessio
   const email = normalizeEmail(session.customerEmail);
   await withTx(pool, async (client) => {
     await client.query('select set_config($1, $2, true)', ['app.checkout_session_id', session.id]);
+    // Sans cible : webhook et page de retour simultanés peuvent heurter la
+    // clé primaire OU l'unicité de l'abonnement ; les deux = même paiement.
     const inserted = await client.query(
       `insert into taply.signup_checkouts (checkout_session_id, email_hash, stripe_customer_id, stripe_subscription_id)
-       values ($1, $2, $3, $4) on conflict (checkout_session_id) do nothing`,
+       values ($1, $2, $3, $4) on conflict do nothing`,
       [session.id, checkoutEmailHash(email), customerId, subscriptionId],
     );
     if (inserted.rowCount === 1) log.info('billing.signup_checkout.recorded', {});

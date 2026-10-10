@@ -20,5 +20,11 @@
       "status": 404,
       "dest": "/404.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/signup-followups",
+      "schedule": "0 8 * * *"
+    }
   ]
 }

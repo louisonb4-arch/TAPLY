@@ -15,11 +15,12 @@ import { createApp } from '../../backend/http/app.js';
 import { hashSessionToken } from '../../backend/auth/token.js';
 import { derivePin } from '../../backend/auth/staff-device.js';
 import { deriveTagKeys } from '../../backend/nfc/keys.js';
-import { setStripeApiForTests } from '../../backend/http/routes/billing.js';
+import { setMailerForTests, setStripeApiForTests } from '../../backend/http/routes/billing.js';
+import type { MailMessage } from '../../backend/notify/mailer.js';
 import {
   signStripePayload, StripeApiError, type StripeApi, type StripeCheckoutSession, type StripeSubscription,
 } from '../../backend/billing/stripe.js';
-import { claimSignupCheckouts } from '../../backend/billing/signup-checkout.js';
+import { claimSignupCheckouts, recordSignupCheckout } from '../../backend/billing/signup-checkout.js';
 import { simulateSunUrlParams } from '../helpers/ntag424-sim.js';
 import { createTestDb, type TestDb } from '../helpers/pglite-db.js';
 import { TestBrowser } from '../helpers/http-client.js';
@@ -101,6 +102,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   setStripeApiForTests(undefined);
+  setMailerForTests(undefined);
   vi.unstubAllEnvs();
   await t?.close();
 });
@@ -594,6 +596,94 @@ describe('Taply SaaS — parcours de bout en bout (PostgreSQL + RLS)', () => {
     expect((await m1.browser.get('/api/billing/status')).json).toMatchObject({ level: 'full', status: 'active' });
     expect(await subOf(m1)).toBe('sub_S3');
     vi.stubEnv('TAPLY_BILLING_MODE', 'disabled');
+  });
+
+  it('suivi quotidien : rappel à 48 h (une fois), signalement à 14 jours, dossier clos si annulé chez Stripe', async () => {
+    const cronSecret = 'cron-'.repeat(8);
+    vi.stubEnv('CRON_SECRET', cronSecret);
+    vi.stubEnv('STRIPE_SECRET_KEY', 'rk_test_' + 'z'.repeat(24));
+    vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_' + 'e'.repeat(32));
+    vi.stubEnv('STRIPE_PRICE_ID', 'price_taply20');
+    vi.stubEnv('RESEND_API_KEY', 're_test_' + 'k'.repeat(20));
+    vi.stubEnv('TAPLY_EMAIL_FROM', 'Taply <noreply@taply.test>');
+    vi.stubEnv('TAPLY_SUPPORT_EMAIL', 'support@taply.test');
+    vi.stubEnv('TAPLY_OPS_EMAIL', 'ops@taply.test');
+    const now = Math.floor(Date.now() / 1000);
+    const sessions = new Map<string, StripeCheckoutSession>();
+    const subs = new Map<string, StripeSubscription>();
+    const fake: StripeApi = {
+      createCheckoutSession: async () => { throw new Error('unused'); },
+      retrieveCheckoutSession: async (id) => { const f = sessions.get(id); if (!f) throw new StripeApiError(404); return f; },
+      retrieveSubscription: async (id) => { const f = subs.get(id); if (!f) throw new StripeApiError(404); return f; },
+      createPortalSession: async () => ({ url: 'https://billing.stripe.test/portal' }),
+    };
+    setStripeApiForTests(fake);
+    const sent: MailMessage[] = [];
+    let failNext = false;
+    setMailerForTests({ send: async (m) => { if (failNext) { failNext = false; throw new Error('provider down'); } sent.push(m); } });
+    const { logger } = captureLogger();
+    /** Paiement sans compte vieux de `hoursAgo` heures. */
+    const paid = async (tag: string, email: string, hoursAgo: number, status = 'active') => {
+      const id = 'cs_test_follow' + tag;
+      sessions.set(id, { id, url: null, status: 'complete', clientReferenceId: null, customer: 'cus_F' + tag, subscription: 'sub_F' + tag,
+        expiresAt: null, paymentStatus: 'paid', customerEmail: email, flow: 'signup' });
+      subs.set('sub_F' + tag, { id: 'sub_F' + tag, customer: 'cus_F' + tag, status, metadata: { taply_flow: 'signup' },
+        priceId: 'price_taply20', currentPeriodEnd: now + 86400, cancelAtPeriodEnd: false });
+      await recordSignupCheckout(t.pool, fake, id, logger);
+      await t.admin(`update taply.signup_checkouts set created_at = now() - make_interval(hours => $2) where checkout_session_id = $1`,
+        [id, hoursAgo]);
+      return id;
+    };
+    const run = (auth = 'Bearer ' + cronSecret) => new TestBrowser(app, ORIGIN).request('GET', '/api/cron/signup-followups',
+      undefined, { authorization: auth, Origin: '' });
+    const row = async (id: string) => (await t.admin<{ status: string; reminder_sent_at: Date | null; flagged_at: Date | null }>(
+      'select status, reminder_sent_at, flagged_at from taply.signup_checkouts where checkout_session_id = $1', [id]))[0]!;
+
+    const a = await paid('A', 'payeur.a@taply.test', 50);
+    const b = await paid('B', 'payeur.b@taply.test', 15 * 24);
+    const c = await paid('C', 'payeur.c@taply.test', 10);
+    const d = await paid('D', 'payeur.d@taply.test', 72, 'canceled');
+
+    expect((await run('')).status).toBe(401);
+    expect((await run('Bearer ' + 'x'.repeat(40))).status).toBe(401);
+    const first = await run();
+    expect(first.json).toMatchObject({ reminded: 1, flagged: 1, closed: 1, failed: 0, mailer: true });
+    expect(sent).toHaveLength(2);
+    const reminder = sent.find((m) => m.to === 'payeur.a@taply.test')!;
+    expect(reminder).toMatchObject({ subject: 'Finalisez votre espace Taply', replyTo: 'support@taply.test',
+      idempotencyKey: 'taply-signup-reminder-' + a });
+    expect(reminder.text).toContain(ORIGIN + '/activer.html');
+    expect(reminder.text).toContain('payeur.a@taply.test');
+    const flag = sent.find((m) => m.to === 'ops@taply.test')!;
+    expect(flag.subject).toContain('remboursement à faire');
+    expect(flag.text).toContain('https://dashboard.stripe.com/test/subscriptions/sub_FB');
+    expect(flag.text).not.toContain('payeur.b@taply.test');
+    expect((await row(a)).reminder_sent_at).not.toBeNull();
+    expect((await row(b))).toMatchObject({ status: 'paid', reminder_sent_at: null });
+    expect((await row(b)).flagged_at).not.toBeNull();
+    expect((await row(c))).toMatchObject({ reminder_sent_at: null, flagged_at: null });
+    expect((await row(d)).status).toBe('canceled');
+
+    // Rejouée (même jour, ou deux exécutions simultanées) : rien n'est renvoyé.
+    const again = await Promise.all([run(), run()]);
+    expect(again.map((r) => r.json.reminded + r.json.flagged)).toEqual([0, 0]);
+    expect(sent).toHaveLength(2);
+
+    // Envoi en échec : la réservation est libérée, le rappel part au passage suivant.
+    const e = await paid('E', 'payeur.e@taply.test', 49);
+    failNext = true;
+    expect((await run()).json).toMatchObject({ reminded: 0, failed: 1 });
+    expect((await row(e)).reminder_sent_at).toBeNull();
+    expect((await run()).json).toMatchObject({ reminded: 1, failed: 0 });
+    expect(sent.filter((m) => m.to === 'payeur.e@taply.test')).toHaveLength(1);
+
+    // Le payeur A crée finalement son espace : rattaché, plus jamais signalé.
+    const late = await provisionMerchant('Épicerie A', 'payeur.a@taply.test');
+    expect(await claimSignupCheckouts(t.pool, fake, { merchantId: late.merchantId, confirmedEmail: 'payeur.a@taply.test' }, logger))
+      .toEqual(['claimed']);
+    await t.admin(`update taply.signup_checkouts set created_at = now() - interval '20 days' where checkout_session_id = $1`, [a]);
+    expect((await run()).json).toMatchObject({ flagged: 0 });
+    expect((await row(a)).status).toBe('claimed');
   });
 
   it('requêtes répétées : deux validations concurrentes ne créditent qu’une fois', async () => {

@@ -30,6 +30,7 @@ import { ensureIdentity, issueRecoveryCode, recoverIdentity } from '../../backen
 import { enrollCard, presentCardQr } from '../../backend/customer/cards.ts';
 import { processStripeEvent } from '../../backend/billing/service.ts';
 import { checkoutEmailHash, claimSignupCheckouts, recordSignupCheckout } from '../../backend/billing/signup-checkout.ts';
+import { runSignupFollowups } from '../../backend/billing/signup-followup.ts';
 import { simulateSunUrlParams } from '../../tests/helpers/ntag424-sim.ts';
 import { scanWalletQrAndCredit } from '../../backend/loyalty/scan.ts';
 import { rotateWalletQr } from '../../backend/loyalty/rotation.ts';
@@ -1082,6 +1083,37 @@ async function certify() {
     assert.deepEqual(row.rows[0], { status: 'active', stripe_subscription_id: 'sub_CertS1' });
     const claim = await admin.query('select status, merchant_id from taply.signup_checkouts where checkout_session_id = $1', [session.id]);
     assert.deepEqual(claim.rows[0], { status: 'claimed', merchant_id: D.merchant });
+  });
+
+  await test('Suivi quotidien : 3 exécutions simultanées = 1 rappel à 48 h, 1 signalement à 14 j, dossier annulé clos', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const log = { info() {}, warn() {}, error() {}, debug() {}, child() { return log; } };
+    const mk = (tag, status) => ({
+      session: { id: 'cs_test_CertF' + tag, url: null, status: 'complete', clientReferenceId: null, customer: 'cus_CertF' + tag,
+        subscription: 'sub_CertF' + tag, expiresAt: null, paymentStatus: 'paid', customerEmail: tag.toLowerCase() + '@cert.test', flow: 'signup' },
+      sub: { id: 'sub_CertF' + tag, customer: 'cus_CertF' + tag, status, metadata: {}, priceId: 'price_cert', currentPeriodEnd: now + 86400, cancelAtPeriodEnd: false },
+    });
+    const all = { A: mk('A', 'active'), B: mk('B', 'active'), D: mk('D', 'canceled') };
+    const stripe = {
+      retrieveCheckoutSession: async (id) => Object.values(all).find((x) => x.session.id === id).session,
+      retrieveSubscription: async (id) => Object.values(all).find((x) => x.sub.id === id).sub,
+    };
+    for (const x of Object.values(all)) await recordSignupCheckout(app, stripe, x.session.id, log);
+    await admin.query(`update taply.signup_checkouts set created_at = now() - interval '50 hours' where checkout_session_id in ($1, $2)`,
+      [all.A.session.id, all.D.session.id]);
+    await admin.query(`update taply.signup_checkouts set created_at = now() - interval '15 days' where checkout_session_id = $1`,
+      [all.B.session.id]);
+    const sent = [];
+    const mailer = { send: async (m) => { await new Promise((r) => setTimeout(r, 20)); sent.push(m); } };
+    const options = { origin: 'https://taply.example', supportEmail: null, opsEmail: 'ops@cert.test', testMode: true };
+    const reports = await Promise.all([0, 1, 2].map(() => runSignupFollowups(app, stripe, mailer, options, log)));
+    assert.equal(reports.reduce((n, r) => n + r.reminded, 0), 1);
+    assert.equal(reports.reduce((n, r) => n + r.flagged, 0), 1);
+    assert.equal(reports.reduce((n, r) => n + r.closed, 0), 1);
+    assert.deepEqual(sent.map((m) => m.to).sort(), ['a@cert.test', 'ops@cert.test']);
+    const rows = await admin.query(`select checkout_session_id, status, reminder_sent_at is not null r, flagged_at is not null f
+      from taply.signup_checkouts where checkout_session_id like 'cs_test_CertF%' order by 1`);
+    assert.deepEqual(rows.rows.map((x) => [x.status, x.r, x.f]), [['paid', true, false], ['paid', false, true], ['canceled', false, false]]);
   });
 
   await test('RLS identité : une identité ne voit jamais les cartes d’une autre', async () => {

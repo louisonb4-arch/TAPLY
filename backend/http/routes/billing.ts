@@ -3,7 +3,7 @@
  * webhook Stripe signé. Le webhook n'utilise ni cookie ni Origin : sa seule
  * authentification est la signature Stripe sur le corps brut.
  */
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Hono, type Context } from 'hono';
 import type { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -14,6 +14,8 @@ import { parseStripeEvent, processStripeEvent, startCheckout, syncCheckoutSessio
 import {
   claimSignupCheckouts, recordSignupCheckout, signupCheckoutParams, SIGNUP_FLOW,
 } from '../../billing/signup-checkout.js';
+import { runSignupFollowups } from '../../billing/signup-followup.js';
+import { mailConfig, resendMailer, type Mailer } from '../../notify/mailer.js';
 import { withTx } from '../../db/tenant-context.js';
 import { clientIp, consumeRateLimit, hashClientIp } from '../../security/rate-limit.js';
 import type { AuthenticatedPrincipal } from '../../auth/session.js';
@@ -27,9 +29,14 @@ export const billingRoutes = new Hono<AppEnvBindings>();
 type C = Context<AppEnvBindings>;
 
 let apiOverride: StripeApi | undefined;
+let mailerOverride: Mailer | undefined;
 /** Tests uniquement : remplace le client HTTP Stripe. */
 export function setStripeApiForTests(api: StripeApi | undefined): void {
   apiOverride = api;
+}
+/** Tests uniquement : remplace l'envoi d'e-mails. */
+export function setMailerForTests(mailer: Mailer | undefined): void {
+  mailerOverride = mailer;
 }
 
 function stripe(): { api: StripeApi; priceId: string; webhookSecret: string } | undefined {
@@ -160,6 +167,34 @@ export async function claimPaidSignupOnLogin(
       merchantId: input.merchantId, error: error instanceof Error ? error.name : 'unknown' });
   }
 }
+
+/** Compare le jeton Bearer au secret de la tâche planifiée (temps constant). */
+function cronAuthorized(header: string | undefined): boolean {
+  const secret = process.env['CRON_SECRET'];
+  if (!secret || secret.length < 32 || !header?.startsWith('Bearer ')) return false;
+  const digest = (v: string) => createHash('sha256').update(v).digest();
+  return timingSafeEqual(digest(header.slice(7)), digest(secret));
+}
+
+/**
+ * Tâche quotidienne (Vercel Cron, en-tête Authorization: Bearer CRON_SECRET) :
+ * rappel à 48 h des paiements sans compte, signalement à 14 jours.
+ */
+billingRoutes.get('/cron/signup-followups', async (c) => {
+  if (!cronAuthorized(c.req.header('authorization'))) throw new AppError('AUTH_REQUIRED');
+  const s = stripe();
+  const origin = c.get('config').auth.appOrigin;
+  if (!s || !origin) throw new AppError('SERVICE_UNAVAILABLE');
+  const mail = mailConfig();
+  const mailer = mailerOverride ?? (mail ? resendMailer(mail) : undefined);
+  if (!mailer) c.get('log').warn('billing.signup_checkout.mailer_not_configured', {});
+  const report = await runSignupFollowups(dbPool(c), s.api, mailer, {
+    origin, supportEmail: mail?.supportEmail ?? null, opsEmail: mail?.opsEmail ?? null,
+    testMode: (process.env['STRIPE_SECRET_KEY'] ?? '').includes('_test_'),
+  }, c.get('log'));
+  c.get('log').info('billing.signup_checkout.followups', { ...report });
+  return c.json({ ...report, mailer: mailer !== undefined });
+});
 
 billingRoutes.post('/billing/webhook', async (c) => {
   const s = stripe();
