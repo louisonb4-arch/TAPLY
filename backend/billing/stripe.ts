@@ -29,7 +29,7 @@ export function stripeConfig(env: Readonly<Record<string, string | undefined>> =
 export const WEBHOOK_TOLERANCE_SECONDS = 300;
 
 /** Version d'API figée : la forme des objets ne change pas avec le compte. */
-export const STRIPE_API_VERSION = '2026-08-26.dahlia';
+export const STRIPE_API_VERSION = '2026-09-30.endive';
 
 /** Vérifie l'en-tête Stripe-Signature sur le corps BRUT. */
 export function verifyStripeSignature(

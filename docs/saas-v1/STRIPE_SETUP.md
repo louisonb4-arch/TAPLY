@@ -2,6 +2,16 @@
 
 Le code est prêt et testé avec un faux client Stripe et des webhooks signés localement. Aucune clé Stripe n'existe dans le projet : ces étapes sont à faire par le titulaire du compte Stripe. Ne collez jamais une clé dans une conversation.
 
+## État au 10 oct. 2026 (compte Stripe « taply », mode Test)
+
+Fait (identifiants non secrets) :
+- compte `acct_1UOwPoA2Tvsebt17` (distinct du compte « flip ») ;
+- produit `prod_VPmHSxB5C5jzmn` « Taply », prix `price_1UOwiXA2Tvsebt174k2DdoLX` (20,00 EUR / mois) ;
+- webhook `we_1UOwkfA2Tvsebt17WLtDwnAU` « taply-staging-billing » (charge utile instantanée, 12 événements, version `2026-09-30.endive`) ;
+- portail client enregistré (configuration par défaut : moyen de paiement, factures, résiliation en fin de période avec motif).
+
+Reste au titulaire : clé restreinte (§4) et secret du webhook dans Vercel (§5), sans jamais les coller dans une conversation.
+
 ## 1. Produit et prix (mode test)
 
 Tableau de bord Stripe → mode **Test** → Catalogue de produits → *Ajouter un produit* :
@@ -12,7 +22,8 @@ Tableau de bord Stripe → mode **Test** → Catalogue de produits → *Ajouter 
 
 Développeurs → Webhooks → *Ajouter une destination* :
 - URL : `https://taply-staging-louisondu44000-7822.vercel.app/api/billing/webhook`
-- Version d'API : `2026-08-26.dahlia` (celle que le serveur fige dans `backend/billing/stripe.ts`).
+- Style de charge utile : **Instantanée** (le serveur lit `data.object`).
+- Version d'API : `2026-09-30.endive` (celle que le serveur fige dans `backend/billing/stripe.ts`).
 - Événements : `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`, `invoice.payment_action_required`.
 - Copier le secret de signature (`whsec_…`).
 
