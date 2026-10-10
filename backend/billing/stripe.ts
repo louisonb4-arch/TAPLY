@@ -28,6 +28,9 @@ export function stripeConfig(env: Readonly<Record<string, string | undefined>> =
 
 export const WEBHOOK_TOLERANCE_SECONDS = 300;
 
+/** Version d'API figée : la forme des objets ne change pas avec le compte. */
+export const STRIPE_API_VERSION = '2026-08-26.dahlia';
+
 /** Vérifie l'en-tête Stripe-Signature sur le corps BRUT. */
 export function verifyStripeSignature(
   rawBody: string, header: string | undefined, secret: string, nowSeconds = Math.floor(Date.now() / 1000),
@@ -135,7 +138,9 @@ function toCheckout(raw: Record<string, unknown>): StripeCheckoutSession {
 
 export function httpStripeApi(config: StripeConfig, fetchImpl: typeof fetch = fetch): StripeApi {
   async function call(method: 'GET' | 'POST', path: string, form?: Record<string, string>, idempotencyKey?: string) {
-    const headers: Record<string, string> = { Authorization: `Bearer ${config.secretKey}` };
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${config.secretKey}`, 'Stripe-Version': STRIPE_API_VERSION,
+    };
     if (form) headers['Content-Type'] = 'application/x-www-form-urlencoded';
     if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
     const response = await fetchImpl(`https://api.stripe.com${path}`, {

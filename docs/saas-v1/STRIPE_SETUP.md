@@ -12,6 +12,7 @@ Tableau de bord Stripe → mode **Test** → Catalogue de produits → *Ajouter 
 
 Développeurs → Webhooks → *Ajouter une destination* :
 - URL : `https://taply-staging-louisondu44000-7822.vercel.app/api/billing/webhook`
+- Version d'API : `2026-08-26.dahlia` (celle que le serveur fige dans `backend/billing/stripe.ts`).
 - Événements : `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`, `invoice.payment_action_required`.
 - Copier le secret de signature (`whsec_…`).
 
@@ -19,7 +20,17 @@ Développeurs → Webhooks → *Ajouter une destination* :
 
 Paramètres → Facturation → Portail client : activer la mise à jour du moyen de paiement, l'historique des factures et la résiliation (fin de période recommandée).
 
-## 4. Variables Vercel (Preview), depuis un terminal
+## 4. Clé API restreinte (recommandée par Stripe plutôt que la clé secrète)
+
+Développeurs → Clés API → *Créer une clé restreinte* (« Taply serveur ») avec uniquement :
+- Checkout Sessions : **Écriture** ;
+- Customer portal : **Écriture** ;
+- Subscriptions : **Lecture** ;
+- Customers : **Lecture**.
+
+Tout le reste : Aucun. La clé `rk_test_…` se met dans `STRIPE_SECRET_KEY` (le serveur accepte `sk_` et `rk_`). Si une action renvoie une erreur 403 Stripe, ajouter la permission que Stripe indique dans Développeurs → Journaux.
+
+## 5. Variables Vercel (Preview), depuis un terminal
 
 ```bash
 npx vercel env add STRIPE_SECRET_KEY preview --sensitive
@@ -39,7 +50,7 @@ npx vercel env add TAPLY_BILLING_MODE preview
 
 (valeur : `enforced`), puis redéployer la Preview et réassigner l'alias staging.
 
-## 5. Recette Stripe (carte de test)
+## 6. Recette Stripe (carte de test)
 
 1. Se connecter à l'espace commerçant → Abonnement → *S'abonner* → carte `4242 4242 4242 4242`, date future, CVC quelconque.
 2. Retour sur le tableau de bord : statut « Actif » (via retour vérifié + webhook).
