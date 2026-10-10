@@ -74,6 +74,26 @@ npx vercel env add TAPLY_BILLING_MODE preview
 4. Résilier depuis le portail → « Résilié » → espace en lecture seule.
 5. Renvoyer un événement depuis Stripe (*Resend*) → aucune double application (`stripe_events`).
 
-## Choix de parcours
+## Parcours « paiement d'abord » (depuis le 10 oct. 2026)
 
-Le compte est créé **avant** le paiement (e-mail confirmé), puis le paiement **active** le compte. Raisons : rattacher chaque paiement à un commerce existant sans clé `service_role` côté serveur, éviter les paiements orphelins et les doublons d'abonnement (session Checkout réutilisée, clé d'idempotence, refus si un abonnement est déjà actif). Un client existant se reconnecte avec ses identifiants habituels.
+1. `creer-compte.html` → **Payer et commencer** → `POST /api/billing/start` (Origin vérifiée, 10/h par IP, 500/h au total) → page Stripe Checkout, sans compte (`metadata.taply_flow = signup`).
+2. Retour sur `activer.html?paiement={CHECKOUT_SESSION_ID}` : le serveur relit la session chez Stripe et mémorise le paiement dans `taply.signup_checkouts` (e-mail stocké uniquement en empreinte SHA-256). L'e-mail du payeur pré-remplit le formulaire ; l'identifiant est retiré de la barre d'adresse.
+3. Création du compte → e-mail de confirmation Supabase → connexion.
+4. **Rattachement au login** : uniquement si l'e-mail du compte est **confirmé** et identique à l'e-mail du paiement **relu chez Stripe**. Connaître l'identifiant de session ne suffit pas.
+5. Le webhook `checkout.session.completed` mémorise aussi le paiement (idempotent) : fermer la page de retour ne perd rien ; `activer.html` sans paramètre permet de finaliser plus tard.
+
+Garde-fous :
+- **Doublons** : réglage Stripe *Limiter à 1 abonnement par client* activé (Paramètres → Paiements → Checkout et Payment Links ; redirection vers `connexion.html`). Côté serveur, un commerce ayant déjà un abonnement en vigueur ne reçoit jamais le second : la ligne passe en `duplicate`, journal `billing.signup_checkout.duplicate` → **remboursement manuel** dans Stripe.
+- **Payé sans compte** : rappel par le lien « Finaliser l'inscription » ; après 14 jours, remboursement/résiliation manuels. Liste (SQL Supabase, rôle propriétaire) :
+
+```sql
+select checkout_session_id, stripe_customer_id, stripe_subscription_id, created_at
+  from taply.signup_checkouts
+ where status = 'paid' and created_at < now() - interval '14 days'
+ order by created_at;
+```
+
+- Inscription sans paiement toujours possible (« Préparer ma carte d'abord ») : espace en configuration seule, bouton **Activer — 20 € / mois** sur chaque bandeau du tableau de bord.
+- Clé restreinte inchangée (4 autorisations) : Checkout Sessions en écriture suffit pour relire les sessions.
+
+À faire par le titulaire : adresse de contact (support) et lien `activer.html` dans le **mémo par défaut** des factures, puis recette avec un e-mail réel non encore inscrit.

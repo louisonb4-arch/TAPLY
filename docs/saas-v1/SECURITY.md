@@ -19,6 +19,7 @@ Ce document dit ce qui est garanti, ce qui est seulement atténué, et ce qui ne
 | Force brute du code de secours | 10 essais/h par IP, 1 000/h global, comptés avant vérification | Test (11e et 12e essais → 429) |
 | CSRF | Origin exacte exigée sur toutes les mutations ; cookies SameSite | Tests + smoke staging |
 | Activation sans paiement | Statut écrit uniquement par webhook signé ou retour vérifié auprès de Stripe ; état relu par l'API Stripe | E2E (signature invalide refusée, succès seul insuffisant) |
+| Appropriation d'un paiement fait sans compte | Rattachement seulement au login d'un propriétaire dont l'e-mail **confirmé** égale l'e-mail relu chez Stripe ; e-mail jamais stocké en clair ; RLS par empreinte exacte ; verrou par session | E2E (intrus, doublon, client revenant) + PG17 réel (4 connexions simultanées → 1 rattachement) |
 | Webhook rejoué | `stripe_events` (clé primaire) + traitement transactionnel | 6 livraisons simultanées → 1 application (PG17 réel) |
 | Détournement d'abonnement | Un client Stripe différent de celui du commerce est ignoré | E2E |
 | Fuite de secrets | Clés NFC jamais stockées ni renvoyées ; clé Stripe uniquement serveur ; aucun jeton en `localStorage` ; QR/session jamais dans une URL | Tests de garde UI, revue |
@@ -36,3 +37,4 @@ Ce document dit ce qui est garanti, ce qui est seulement atténué, et ce qui ne
 8. **Protection des mots de passe divulgués** (Supabase Auth) désactivée : à activer dans le tableau de bord Supabase.
 9. **Sauvegardes.** Staging : export logique JSON avant migration (pas de PITR vérifié, pas de `pg_dump` faute de Docker). Production : à définir avant ouverture (plan Supabase avec PITR recommandé).
 10. **Audit externe.** Aucun test d'intrusion indépendant n'a été réalisé.
+11. **Paiement sans compte.** Un paiement jamais rattaché (compte non créé) ou en double (autre e-mail) n'est ni résilié ni remboursé automatiquement : traitement manuel (requête dans `STRIPE_SETUP.md`). La page de retour renvoie l'e-mail du payeur à quiconque détient l'identifiant de session Checkout (identifiant long et aléatoire, retiré de la barre d'adresse).
