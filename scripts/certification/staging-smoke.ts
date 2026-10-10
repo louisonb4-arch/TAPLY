@@ -3,7 +3,7 @@
  * créée hormis les journaux de refus) : pages, portes d'API, CSRF, et
  * vérification cryptographique SUN côté serveur avec la clé de staging.
  *
- *   STAGING_URL=https://… TAPLY_NFC_MASTER_KEY_FILE=~/.config/taply/nfc-master-staging-v1.hex \
+ *   STAGING_URL=https://… [STAGING_STRIPE=configured] TAPLY_NFC_MASTER_KEY_FILE=~/.config/taply/nfc-master-staging-v1.hex \
  *   node --import ./scripts/dev-ts-hooks.mjs scripts/certification/staging-smoke.ts
  */
 import { readFileSync } from 'node:fs';
@@ -49,8 +49,20 @@ await check('CSRF : Origin étrangère refusée', async () =>
   assert.equal((await post('/api/c/enroll', { publicToken: 'A'.repeat(32) }, 'https://evil.example')).status, 403));
 await check('GET sur l’API NFC ne crédite rien (route absente)', async () =>
   assert.equal((await get('/api/c/nfc/tap?e=' + '0'.repeat(32) + '&c=' + '0'.repeat(16))).status, 404));
-await check('webhook Stripe indisponible sans configuration', async () =>
-  assert.equal((await fetch(base + '/api/billing/webhook', { method: 'POST', body: '{}' })).status, 503));
+// STAGING_STRIPE=configured : clés Stripe présentes → un webhook non signé est refusé (401).
+const stripeConfigured = process.env['STAGING_STRIPE'] === 'configured';
+await check(stripeConfigured ? 'webhook Stripe non signé refusé' : 'webhook Stripe indisponible sans configuration', async () =>
+  assert.equal((await fetch(base + '/api/billing/webhook', { method: 'POST', body: '{}' })).status, stripeConfigured ? 401 : 503));
+if (stripeConfigured) {
+  await check('webhook Stripe : fausse signature refusée', async () => {
+    const t = Math.floor(Date.now() / 1000);
+    const r = await fetch(base + '/api/billing/webhook', {
+      method: 'POST', body: '{"id":"evt_fake","type":"invoice.paid","created":1,"data":{"object":{}}}',
+      headers: { 'stripe-signature': `t=${t},v1=${'0'.repeat(64)}` },
+    });
+    assert.equal(r.status, 401);
+  });
+}
 
 const keyFile = process.env['TAPLY_NFC_MASTER_KEY_FILE'];
 if (keyFile) {

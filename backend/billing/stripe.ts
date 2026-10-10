@@ -16,14 +16,36 @@ export interface StripeConfig {
   readonly priceId: string;
 }
 
+const STRIPE_ENV_FORMATS = {
+  STRIPE_SECRET_KEY: /^(sk|rk)_(test|live)_[A-Za-z0-9]+$/,
+  STRIPE_WEBHOOK_SECRET: /^whsec_[A-Za-z0-9+/=]+$/,
+  STRIPE_PRICE_ID: /^price_[A-Za-z0-9]+$/,
+} as const;
+type StripeEnvName = keyof typeof STRIPE_ENV_FORMATS;
+
+/** Valeur nettoyée des espaces/retours collés par erreur autour d'une variable. */
+function stripeEnv(env: Readonly<Record<string, string | undefined>>, name: StripeEnvName): string | undefined {
+  const value = env[name]?.trim();
+  return value && STRIPE_ENV_FORMATS[name].test(value) ? value : undefined;
+}
+
 export function stripeConfig(env: Readonly<Record<string, string | undefined>> = process.env): StripeConfig | undefined {
-  const secretKey = env['STRIPE_SECRET_KEY'];
-  const webhookSecret = env['STRIPE_WEBHOOK_SECRET'];
-  const priceId = env['STRIPE_PRICE_ID'];
-  if (!secretKey || !/^(sk|rk)_(test|live)_[A-Za-z0-9]+$/.test(secretKey)) return undefined;
-  if (!webhookSecret || !/^whsec_[A-Za-z0-9+/=]+$/.test(webhookSecret)) return undefined;
-  if (!priceId || !/^price_[A-Za-z0-9]+$/.test(priceId)) return undefined;
+  const secretKey = stripeEnv(env, 'STRIPE_SECRET_KEY');
+  const webhookSecret = stripeEnv(env, 'STRIPE_WEBHOOK_SECRET');
+  const priceId = stripeEnv(env, 'STRIPE_PRICE_ID');
+  if (!secretKey || !webhookSecret || !priceId) return undefined;
   return { secretKey, webhookSecret, priceId };
+}
+
+/**
+ * Diagnostic sans fuite : nom de la variable et nature du problème
+ * (« missing » ou « format »), jamais sa valeur ni sa longueur.
+ */
+export function stripeConfigProblems(env: Readonly<Record<string, string | undefined>> = process.env): string[] {
+  return (Object.keys(STRIPE_ENV_FORMATS) as StripeEnvName[]).flatMap((name) => {
+    if (!env[name]?.trim()) return [`${name}:missing`];
+    return stripeEnv(env, name) ? [] : [`${name}:format`];
+  });
 }
 
 export const WEBHOOK_TOLERANCE_SECONDS = 300;

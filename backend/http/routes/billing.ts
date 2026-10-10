@@ -8,7 +8,7 @@ import type { PoolClient } from 'pg';
 import { z } from 'zod';
 import { AppError } from '../../core/errors.js';
 import { merchantAccess } from '../../billing/access.js';
-import { httpStripeApi, stripeConfig, verifyStripeSignature, type StripeApi } from '../../billing/stripe.js';
+import { httpStripeApi, stripeConfig, stripeConfigProblems, verifyStripeSignature, type StripeApi } from '../../billing/stripe.js';
 import { parseStripeEvent, processStripeEvent, startCheckout, syncCheckoutSession } from '../../billing/service.js';
 import type { AuthenticatedPrincipal } from '../../auth/session.js';
 import { originCheck } from '../origin.js';
@@ -89,7 +89,10 @@ billingRoutes.post('/billing/portal', originCheck, async (c) => {
 
 billingRoutes.post('/billing/webhook', async (c) => {
   const s = stripe();
-  if (!s) throw new AppError('SERVICE_UNAVAILABLE');
+  if (!s) {
+    c.get('log').warn('billing.stripe.not_configured', { problems: stripeConfigProblems() });
+    throw new AppError('SERVICE_UNAVAILABLE');
+  }
   const rawBody = await c.req.text();
   if (!verifyStripeSignature(rawBody, c.req.header('stripe-signature'), s.webhookSecret)) {
     c.get('log').warn('billing.webhook.bad_signature', {});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { httpStripeApi, STRIPE_API_VERSION, StripeApiError } from '../../../backend/billing/stripe.js';
+import { httpStripeApi, STRIPE_API_VERSION, StripeApiError, stripeConfig, stripeConfigProblems } from '../../../backend/billing/stripe.js';
 
 const config = { secretKey: 'sk_test_abc123', webhookSecret: 'whsec_abc', priceId: 'price_abc' };
 
@@ -39,5 +39,22 @@ describe('httpStripeApi', () => {
     const { calls, impl } = recordingFetch({});
     await expect(httpStripeApi(config, impl).retrieveSubscription('../v1/customers')).rejects.toBeInstanceOf(StripeApiError);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('stripeConfig', () => {
+  const ok = { STRIPE_SECRET_KEY: 'rk_test_abc123', STRIPE_WEBHOOK_SECRET: 'whsec_abc123', STRIPE_PRICE_ID: 'price_abc123' };
+
+  it('tolère les espaces et retours collés autour des valeurs', () => {
+    const config = stripeConfig({ STRIPE_SECRET_KEY: ' rk_test_abc123\n', STRIPE_WEBHOOK_SECRET: 'whsec_abc123 ', STRIPE_PRICE_ID: '\tprice_abc123' });
+    expect(config).toEqual({ secretKey: 'rk_test_abc123', webhookSecret: 'whsec_abc123', priceId: 'price_abc123' });
+    expect(stripeConfigProblems(ok)).toEqual([]);
+  });
+
+  it('nomme la variable fautive sans jamais exposer sa valeur', () => {
+    const problems = stripeConfigProblems({ ...ok, STRIPE_SECRET_KEY: 'pk_test_secretvalue', STRIPE_PRICE_ID: undefined });
+    expect(problems).toEqual(['STRIPE_SECRET_KEY:format', 'STRIPE_PRICE_ID:missing']);
+    expect(problems.join()).not.toContain('secretvalue');
+    expect(stripeConfig({ ...ok, STRIPE_SECRET_KEY: 'pk_test_secretvalue' })).toBeUndefined();
   });
 });
