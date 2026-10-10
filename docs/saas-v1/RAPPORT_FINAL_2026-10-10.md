@@ -25,7 +25,7 @@ Règle appliquée partout : une fonctionnalité n'est dite « opérationnelle »
 | Récompenses multiples, choix client, remise confirmée, nouveau cycle, historique | Opérationnel | E2E + navigateur + PG17 (remises concurrentes → 1) |
 | Tableau de bord (statistiques réelles, clients, récompenses, supports, abonnement) | Opérationnel | Navigateur (desktop + mobile) ; aucune statistique fictive |
 | Abonnement Stripe 20 €/mois (Checkout, webhooks signés, portail, statuts) | **Opérationnel en staging, mode Test** | Paiement réel en mode Test le 10 oct. (voir §5) |
-| **Paiement d'abord** (Stripe avant le compte, rattachement par e-mail confirmé) | Opérationnel en staging, mode Test | E2E (payeur, intrus, doublon, client revenant), PG17 réel 37/37, smoke 29/29, navigateur (redirection Stripe, desktop + mobile) ; recette avec un vrai e-mail à faire |
+| **Paiement d'abord** (Stripe avant le compte, rattachement par e-mail confirmé) + suivi quotidien (rappel 48 h, signalement 14 j) | Opérationnel en staging, mode Test ; e-mails en attente de Resend | E2E (payeur, intrus, doublon, client revenant), PG17 réel 37/37, smoke 29/29, navigateur (redirection Stripe, desktop + mobile) ; recette avec un vrai e-mail à faire |
 | Outil de programmation NTAG 424 (plan, NDEF, EV2, clés) | Prêt, vérifié hors ligne | 92 tests (vecteurs AN12196 octet pour octet, puce simulée) ; transport lecteur PC/SC non écrit (matériel absent) |
 | Apple / Google Wallet | Préparé, non livré | `WALLET_ET_NOTIFICATIONS.md` (comptes développeur requis) |
 | Notifications Web Push | Préparé, non livré | File `notification_outbox` alimentée et dédoublonnée ; envoi non actif (clés VAPID, tâche planifiée) |
@@ -55,6 +55,7 @@ Exécutées sur **staging uniquement** (`supabase db push`, après sauvegarde lo
 | `20261009100004_nfc_tags` | Puces, appairages, journal des taps, contrainte d'acteur du journal de passages |
 | `20261009100005_billing_and_notifications` | Abonnements, événements Stripe, abonnements push, file de notifications |
 | `20261010100001_signup_checkouts` (10 oct.) | Paiements « sans compte » en attente de rattachement (37 tables, RLS forcée 37/37) |
+| `20261010100002_signup_checkout_followups` (10 oct.) | Rappel 48 h / signalement 14 j / dossier clos |
 
 Après migration : 36 tables `taply`, RLS activée **et forcée** sur 36/36, données existantes intactes, `db lint` sans erreur, advisors sans ERROR.
 Retour arrière d'urgence (destructif, **non exécuté**) : `supabase/rollback/20261009_saas_v1_down.sql`.
@@ -74,10 +75,10 @@ Variables Preview présentes (valeurs jamais affichées) : `STRIPE_SECRET_KEY`, 
 
 | Suite | Résultat |
 |---|---|
-| `npm run check` (types + unitaires + intégration, dont E2E SaaS PGlite 15 scénarios) | **731 / 731** (45 fichiers) |
-| Certification PostgreSQL 17.10 réel (`db:loyalty:cert`, concurrence, RLS) | **37 / 37** |
+| `npm run check` (types + unitaires + intégration, dont E2E SaaS PGlite 15 scénarios) | **736 / 736** (46 fichiers) |
+| Certification PostgreSQL 17.10 réel (`db:loyalty:cert`, concurrence, RLS) | **38 / 38** (3 exécutions consécutives) |
 | GitHub Actions (PostgreSQL 17 isolé) | Succès sur le dernier commit de code `3e73896` (run 38043690957) et les 4 précédents |
-| Smoke staging (`STAGING_STRIPE=configured`) | **29 / 29** : démarrage du paiement sans compte (CSRF), session inconnue → 404, pages, portes d'API, CSRF, GET NFC inerte, webhook non signé / mal signé → 401, SUN authentique / falsifié / autre clé |
+| Smoke staging (`STAGING_STRIPE=configured`) | **31 / 31** : tâche planifiée sans secret / mauvais secret → 401, démarrage du paiement sans compte (CSRF), session inconnue → 404, pages, portes d'API, CSRF, GET NFC inerte, webhook non signé / mal signé → 401, SUN authentique / falsifié / autre clé |
 | NFC hors ligne | 164 tests : vecteurs RFC 4493 et NXP AN12196 reproduits octet pour octet, parcours sur puce simulée |
 | Parcours navigateur complet (banc local) | Réussi : assistant, carte 0/4, QR décodé par la caméra, validation, délai 2 h, appairage NFC, NFC après QR refusé (délai), rejeu « Déjà enregistré », choix de récompense, remise, cycle 2, vues mobiles |
 | **Paiement Stripe réel en mode Test** (carte 4242 saisie par le titulaire) | Abonnement Stripe actif 20 €/mois ; en base `active`, bon prix, fin de période 10 nov. 2026 ; 4 événements reçus et appliqués **une fois chacun** ; aucun doublon |
@@ -108,14 +109,14 @@ Détail dans `docs/saas-v1/SECURITY.md`. Principales :
 
 | Élément | Valeur |
 |---|---|
-| Staging actuel | `taply-ay6hyb24a-louisondu44000-7822.vercel.app` (alias `taply-staging-…`) |
+| Staging actuel | `taply-e7z4u52w3-louisondu44000-7822.vercel.app` (alias `taply-staging-…`) |
 | Cible de retour arrière staging | `taply-pxsynh21w` (avant « paiement d'abord »), `taply-phywngggb` (même code sans le diagnostic Stripe), puis `taply-bejj6cq25`, puis `taply-lgy5dc9x4` (avant SaaS V1) |
 | Production | Inchangée (`taply-theta.vercel.app`) |
 | Dernier commit | voir `git log` de la branche (rapport rédigé après `e08554d`) |
 
 ## 9. Blocages nécessitant une intervention humaine
 
-1. **Paiement d'abord** : livré en staging (migration `20261010100001_signup_checkouts` appliquée, réglage Stripe « 1 abonnement par client » activé). Reste : adresse de contact + lien `activer.html` dans le mémo des factures Stripe, recette avec un e-mail réel, CGV (règle de remboursement des paiements non rattachés).
+1. **Paiement d'abord** : livré en staging (migration `20261010100001_signup_checkouts` appliquée, réglage Stripe « 1 abonnement par client » activé). Suivi quotidien livré (migration `20261010100002` appliquée, `CRON_SECRET` en Preview, tâche testée à la main). Reste : installer **Resend** (Vercel Marketplace) et renseigner `TAPLY_EMAIL_FROM` / `TAPLY_SUPPORT_EMAIL` / `TAPLY_OPS_EMAIL` ; domaine d'envoi vérifié (lié au domaine de production) ; recette avec un e-mail réel ; CGV (règle de remboursement des paiements non rattachés).
 2. Recette manuelle sur vrais téléphones (`RECETTE_STAGING.md`) et URL de redirection Supabase pour la réinitialisation du mot de passe.
 3. Activer la protection des mots de passe divulgués (Supabase → Authentication).
 4. Stripe : compléter les informations d'entreprise (nom + « EI », adresse, SIRET) ; recette §6.3–6.5 ; refaire produit, webhook, portail, clé restreinte et bas de page **en mode production** le moment venu.

@@ -84,12 +84,19 @@ npx vercel env add TAPLY_BILLING_MODE preview
 
 Garde-fous :
 - **Doublons** : réglage Stripe *Limiter à 1 abonnement par client* activé (Paramètres → Paiements → Checkout et Payment Links ; redirection vers `connexion.html`). Côté serveur, un commerce ayant déjà un abonnement en vigueur ne reçoit jamais le second : la ligne passe en `duplicate`, journal `billing.signup_checkout.duplicate` → **remboursement manuel** dans Stripe.
-- **Payé sans compte** : rappel par le lien « Finaliser l'inscription » ; après 14 jours, remboursement/résiliation manuels. Liste (SQL Supabase, rôle propriétaire) :
+- **Payé sans compte — suivi automatique** (tâche Vercel Cron quotidienne, 08:00 UTC, `GET /api/cron/signup-followups` protégée par `CRON_SECRET`) :
+  - **48 h** après le paiement sans espace créé : **un** e-mail de rappel au payeur (adresse relue chez Stripe, jamais stockée), lien `activer.html`, réponse vers `TAPLY_SUPPORT_EMAIL` ;
+  - **14 jours** : dossier **signalé** (journal `billing.signup_checkout.refund_due` + e-mail à `TAPLY_OPS_EMAIL` avec le lien de l'abonnement dans Stripe) pour **annulation et remboursement manuels** ;
+  - abonnement déjà annulé/remboursé dans Stripe : dossier **clos** au passage suivant, plus aucun e-mail.
+  - Chaque envoi est réservé en base avant l'envoi (jamais deux fois, même avec des exécutions simultanées) et libéré en cas d'échec (nouvel essai le lendemain) ; clé d'idempotence Resend par dossier.
+  - Vercel Cron ne s'exécute que sur les déploiements de **production** ; en staging, lancer la tâche à la main : `curl -H "Authorization: Bearer $(cat ~/.config/taply/cron-secret-staging)" https://taply-staging-louisondu44000-7822.vercel.app/api/cron/signup-followups`.
+  - E-mails : intégration **Resend** (Vercel Marketplace) + variables `RESEND_API_KEY`, `TAPLY_EMAIL_FROM`, `TAPLY_SUPPORT_EMAIL`, `TAPLY_OPS_EMAIL`. Sans elles, la tâche ne rappelle personne mais signale quand même (journal + `flagged_at`).
+- Liste des dossiers à traiter (SQL Supabase, rôle propriétaire) :
 
 ```sql
-select checkout_session_id, stripe_customer_id, stripe_subscription_id, created_at
+select checkout_session_id, stripe_customer_id, stripe_subscription_id, created_at, reminder_sent_at, flagged_at
   from taply.signup_checkouts
- where status = 'paid' and created_at < now() - interval '14 days'
+ where status = 'paid' and flagged_at is not null
  order by created_at;
 ```
 
