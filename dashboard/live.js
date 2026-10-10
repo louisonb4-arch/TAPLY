@@ -168,8 +168,13 @@
     if (b.mode === 'disabled') return note(`${ico('help')} Préproduction : la facturation Stripe n’est pas appliquée sur cet environnement.`, 'info');
     if (b.level === 'full') return b.cancelAtPeriodEnd ? note(`Votre abonnement se termine le ${fmtDate(b.currentPeriodEnd)}. ${link('Gérer', 'abonnement', 'link')}`, 'warn') : '';
     if (b.level === 'grace') return note(`Paiement en échec : mettez à jour votre moyen de paiement pour éviter l’interruption. ${link('Régulariser', 'abonnement', 'link')}`, 'warn');
-    if (b.level === 'setup_only') return note(`Activez votre abonnement (20 € / mois) pour publier votre carte et valider des passages. ${link('S’abonner', 'abonnement', 'link')}`, 'warn');
-    return note(`Abonnement inactif : votre espace est en lecture seule. Les cartes de vos clients restent consultables. ${link('Réactiver', 'abonnement', 'link')}`, 'danger');
+    if (b.level === 'setup_only') return payNow('Activez votre abonnement pour publier votre carte et valider des passages.', 'warn', 'abonnement');
+    return payNow('Abonnement inactif : votre espace est en lecture seule. Les cartes de vos clients restent consultables.', 'danger', 'abonnement');
+  }
+  /** Paiement en un clic depuis le bandeau (propriétaire uniquement). */
+  function payNow(text, kind, route) {
+    if (s.me?.role !== 'owner') return note(`${text} ${link('Abonnement', route, 'link')}`, kind);
+    return `<div class="note note--${kind} paywall"><p>${text}</p><button class="btn btn--brand" type="button" data-checkout>Activer — 20 € / mois</button></div>`;
   }
 
   /* ---- Accueil ---------------------------------------------------------- */

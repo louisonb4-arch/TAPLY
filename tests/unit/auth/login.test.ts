@@ -82,6 +82,18 @@ describe('loginWithPassword', () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it('e-mail confirmé transmis (rattachement d’un paiement fait avant le compte), jamais un e-mail non confirmé', async () => {
+    const pool = () => fakePool({ merchantUser: { id: MERCHANT_USER_ID, merchant_id: MERCHANT_ID, role: 'owner', status: 'active' } });
+    signInWithPassword.mockResolvedValueOnce({ data: { user: { id: AUTH_USER_ID, email: 'patron@commerce.fr',
+      email_confirmed_at: new Date().toISOString() } }, error: null });
+    signOut.mockResolvedValueOnce({ error: null });
+    expect((await loginWithPassword(pool(), captureLogger().logger, PARAMS)).confirmedEmail).toBe('patron@commerce.fr');
+    signInWithPassword.mockResolvedValueOnce({ data: { user: { id: AUTH_USER_ID, email: 'patron@commerce.fr',
+      email_confirmed_at: null } }, error: null });
+    signOut.mockResolvedValueOnce({ error: null });
+    expect((await loginWithPassword(pool(), captureLogger().logger, PARAMS)).confirmedEmail).toBeNull();
+  });
+
   it('succès : signInWithPassword puis signOut({scope:"local"}) puis session créée, jamais de token Supabase renvoyé', async () => {
     signInWithPassword.mockResolvedValueOnce({ data: { user: { id: AUTH_USER_ID } }, error: null });
     signOut.mockResolvedValueOnce({ error: null });
@@ -90,8 +102,9 @@ describe('loginWithPassword', () => {
 
     const result = await loginWithPassword(pool, logger, PARAMS);
 
-    expect(result).toEqual({ rawToken: expect.any(String), merchantId: MERCHANT_ID, role: 'owner' });
-    expect(Object.keys(result)).toEqual(['rawToken', 'merchantId', 'role']); // jamais access_token/refresh_token
+    // E-mail non confirmé (ou absent) : jamais utilisé pour rattacher un paiement.
+    expect(result).toEqual({ rawToken: expect.any(String), merchantId: MERCHANT_ID, role: 'owner', confirmedEmail: null });
+    expect(Object.keys(result)).toEqual(['rawToken', 'merchantId', 'role', 'confirmedEmail']); // jamais access_token/refresh_token
     expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
     expect(signOut).not.toHaveBeenCalledWith({});
     expect(signOut).not.toHaveBeenCalledWith(undefined);

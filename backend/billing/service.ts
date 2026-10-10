@@ -90,10 +90,15 @@ export async function startCheckout(
 /** Applique l'état relu d'un abonnement au commerce (transaction tenant fournie). */
 export async function applySubscription(
   client: PoolClient, merchantId: string, sub: StripeSubscription,
+  options: { readonly replaceInactiveCustomer?: boolean } = {},
 ): Promise<'applied' | 'customer_mismatch' | 'duplicate_subscription' | 'invalid'> {
   if (!isSubscriptionStatus(sub.status) || !/^sub_/.test(sub.id) || !/^cus_/.test(sub.customer)) return 'invalid';
   const current = await readSub(client, merchantId);
-  if (current?.stripe_customer_id && current.stripe_customer_id !== sub.customer) return 'customer_mismatch';
+  const currentOperating = current !== undefined && isSubscriptionStatus(current.status) && OPERATING.includes(current.status);
+  // Parcours « paiement d'abord » : un nouveau client Stripe peut remplacer
+  // celui d'un abonnement terminé, jamais celui d'un abonnement en vigueur.
+  if (current?.stripe_customer_id && current.stripe_customer_id !== sub.customer
+      && !(options.replaceInactiveCustomer === true && !currentOperating)) return 'customer_mismatch';
   if (current?.stripe_subscription_id && current.stripe_subscription_id !== sub.id
       && isSubscriptionStatus(current.status) && OPERATING.includes(current.status)
       && sub.status !== 'canceled' && sub.status !== 'incomplete_expired') {

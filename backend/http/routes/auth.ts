@@ -17,6 +17,7 @@ import { revokeSession, withAuthenticatedTx } from '../../auth/session.js';
 import { AppError } from '../../core/errors.js';
 import { originCheck } from '../origin.js';
 import { dbPool, loyaltyEnabled } from '../gates.js';
+import { claimPaidSignupOnLogin } from './billing.js';
 import type { AppEnvBindings } from '../types.js';
 
 export const authRoutes = new Hono<AppEnvBindings>();
@@ -98,6 +99,8 @@ authRoutes.post('/auth/login', originCheck, async (c) => {
     });
 
     setSessionCookie(c, config.appEnv, result.rawToken, config.auth.sessionAbsoluteSeconds);
+    // Paiement fait avant la création du compte : rattaché ici, e-mail confirmé.
+    await claimPaidSignupOnLogin(c, result);
 
     return c.json({ authenticated: true, merchantId: result.merchantId, role: result.role }, 200);
   } catch (error) {

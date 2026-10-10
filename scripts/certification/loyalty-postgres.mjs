@@ -29,6 +29,7 @@ import { deriveTagKeys } from '../../backend/nfc/keys.ts';
 import { ensureIdentity, issueRecoveryCode, recoverIdentity } from '../../backend/customer/identity.ts';
 import { enrollCard, presentCardQr } from '../../backend/customer/cards.ts';
 import { processStripeEvent } from '../../backend/billing/service.ts';
+import { checkoutEmailHash, claimSignupCheckouts, recordSignupCheckout } from '../../backend/billing/signup-checkout.ts';
 import { simulateSunUrlParams } from '../../tests/helpers/ntag424-sim.ts';
 import { scanWalletQrAndCredit } from '../../backend/loyalty/scan.ts';
 import { rotateWalletQr } from '../../backend/loyalty/rotation.ts';
@@ -1051,6 +1052,36 @@ async function certify() {
     assert.ok(outcomes.every((o) => o === 'applied' || o === 'duplicate'));
     const row = await admin.query('select status, stripe_customer_id from taply.merchant_subscriptions where merchant_id = $1', [C.merchant]);
     assert.deepEqual(row.rows[0], { status: 'active', stripe_customer_id: 'cus_Cert1' });
+  });
+
+  await test('Paiement d’abord : 4 connexions simultanées du payeur = 1 rattachement ; invisible pour un autre e-mail', async () => {
+    const D = await seed(admin, 'fleuriste-paiement-dabord');
+    const now = Math.floor(Date.now() / 1000);
+    const session = { id: 'cs_test_CertSignup1', url: null, status: 'complete', clientReferenceId: null, customer: 'cus_CertS1',
+      subscription: 'sub_CertS1', expiresAt: null, paymentStatus: 'paid', customerEmail: 'Payeur@Cert.test', flow: 'signup' };
+    const sub = { id: 'sub_CertS1', customer: 'cus_CertS1', status: 'active', metadata: { taply_flow: 'signup' },
+      priceId: 'price_cert', currentPeriodEnd: now + 2592000, cancelAtPeriodEnd: false };
+    const stripe = { retrieveCheckoutSession: async () => session, retrieveSubscription: async () => sub };
+    const log = { info() {}, warn() {}, error() {}, debug() {}, child() { return log; } };
+    // Webhook et page de retour enregistrent en parallèle : une seule ligne.
+    const recorded = await Promise.all([0, 1, 2].map(() => recordSignupCheckout(app, stripe, session.id, log)));
+    assert.ok(recorded.every((r) => r.status === 'paid' && r.email === 'payeur@cert.test'));
+    assert.equal((await admin.query('select count(*)::integer n from taply.signup_checkouts')).rows[0].n, 1);
+    // Sans contexte, ou avec l'empreinte d'un autre e-mail : rien n'est visible.
+    const hidden = await withTx(app, async (client) => {
+      const none = (await client.query('select 1 from taply.signup_checkouts')).rowCount;
+      await client.query('select set_config($1, $2, true)', ['app.checkout_email_hash', checkoutEmailHash('intrus@cert.test')]);
+      return none + (await client.query('select 1 from taply.signup_checkouts')).rowCount;
+    });
+    assert.equal(hidden, 0);
+    const results = await Promise.all(Array.from({ length: 4 }, () =>
+      claimSignupCheckouts(app, stripe, { merchantId: D.merchant, confirmedEmail: 'payeur@cert.test' }, log)));
+    assert.equal(results.flat().filter((o) => o === 'claimed').length, 1);
+    assert.ok(results.flat().every((o) => o === 'claimed'));
+    const row = await admin.query('select status, stripe_subscription_id from taply.merchant_subscriptions where merchant_id = $1', [D.merchant]);
+    assert.deepEqual(row.rows[0], { status: 'active', stripe_subscription_id: 'sub_CertS1' });
+    const claim = await admin.query('select status, merchant_id from taply.signup_checkouts where checkout_session_id = $1', [session.id]);
+    assert.deepEqual(claim.rows[0], { status: 'claimed', merchant_id: D.merchant });
   });
 
   await test('RLS identité : une identité ne voit jamais les cartes d’une autre', async () => {

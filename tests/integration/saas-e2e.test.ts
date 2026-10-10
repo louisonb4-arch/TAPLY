@@ -16,7 +16,10 @@ import { hashSessionToken } from '../../backend/auth/token.js';
 import { derivePin } from '../../backend/auth/staff-device.js';
 import { deriveTagKeys } from '../../backend/nfc/keys.js';
 import { setStripeApiForTests } from '../../backend/http/routes/billing.js';
-import { signStripePayload, type StripeApi, type StripeSubscription } from '../../backend/billing/stripe.js';
+import {
+  signStripePayload, StripeApiError, type StripeApi, type StripeCheckoutSession, type StripeSubscription,
+} from '../../backend/billing/stripe.js';
+import { claimSignupCheckouts } from '../../backend/billing/signup-checkout.js';
 import { simulateSunUrlParams } from '../helpers/ntag424-sim.js';
 import { createTestDb, type TestDb } from '../helpers/pglite-db.js';
 import { TestBrowser } from '../helpers/http-client.js';
@@ -438,8 +441,8 @@ describe('Taply SaaS — parcours de bout en bout (PostgreSQL + RLS)', () => {
       priceId: 'price_taply20', currentPeriodEnd: Math.floor(Date.now() / 1000) + 30 * 86400, cancelAtPeriodEnd: false };
     const checkouts: string[] = [];
     const fake: StripeApi = {
-      createCheckoutSession: async (_p, key) => { checkouts.push(key); return { id: 'cs_test_1', url: 'https://checkout.stripe.test/cs_test_1', status: 'open', clientReferenceId: m1.merchantId, customer: null, subscription: null, expiresAt: Math.floor(Date.now() / 1000) + 3600 }; },
-      retrieveCheckoutSession: async (id) => ({ id, url: 'https://checkout.stripe.test/' + id, status: 'open', clientReferenceId: m1.merchantId, customer: null, subscription: null, expiresAt: null }),
+      createCheckoutSession: async (_p, key) => { checkouts.push(key); return { id: 'cs_test_1', url: 'https://checkout.stripe.test/cs_test_1', status: 'open', clientReferenceId: m1.merchantId, customer: null, subscription: null, expiresAt: Math.floor(Date.now() / 1000) + 3600, paymentStatus: null, customerEmail: null, flow: null }; },
+      retrieveCheckoutSession: async (id) => ({ id, url: 'https://checkout.stripe.test/' + id, status: 'open', clientReferenceId: m1.merchantId, customer: null, subscription: null, expiresAt: null, paymentStatus: null, customerEmail: null, flow: null }),
       retrieveSubscription: async () => sub,
       createPortalSession: async () => ({ url: 'https://billing.stripe.test/portal' }),
     };
@@ -484,6 +487,112 @@ describe('Taply SaaS — parcours de bout en bout (PostgreSQL + RLS)', () => {
     // Réabonnement : le même client Stripe est réutilisé (pas de doublon de compte).
     expect((await m1.browser.post('/api/billing/checkout')).status).toBe(200);
     expect((await m1.browser.post('/api/billing/portal')).json.redirect).toBe('https://billing.stripe.test/portal');
+    vi.stubEnv('TAPLY_BILLING_MODE', 'disabled');
+  });
+
+  it('paiement d’abord : payé sans compte → compte au même e-mail confirmé → abonnement rattaché ; intrus et doublon refusés', async () => {
+    vi.stubEnv('TAPLY_BILLING_MODE', 'enforced');
+    const secret = 'whsec_' + 'd'.repeat(32);
+    vi.stubEnv('STRIPE_SECRET_KEY', 'rk_test_' + 'y'.repeat(24));
+    vi.stubEnv('STRIPE_WEBHOOK_SECRET', secret);
+    vi.stubEnv('STRIPE_PRICE_ID', 'price_taply20');
+    const now = Math.floor(Date.now() / 1000);
+    const sessions = new Map<string, StripeCheckoutSession>();
+    const subs = new Map<string, StripeSubscription>();
+    const created: Record<string, string>[] = [];
+    const fake: StripeApi = {
+      createCheckoutSession: async (params) => {
+        created.push(params);
+        const id = 'cs_test_signup' + created.length;
+        const session: StripeCheckoutSession = { id, url: 'https://checkout.stripe.test/' + id, status: 'open', clientReferenceId: null,
+          customer: null, subscription: null, expiresAt: now + 3600, paymentStatus: 'unpaid', customerEmail: null,
+          flow: params['metadata[taply_flow]'] ?? null };
+        sessions.set(id, session);
+        return session;
+      },
+      retrieveCheckoutSession: async (id) => { const found = sessions.get(id); if (!found) throw new StripeApiError(404); return found; },
+      retrieveSubscription: async (id) => { const found = subs.get(id); if (!found) throw new StripeApiError(404); return found; },
+      createPortalSession: async () => ({ url: 'https://billing.stripe.test/portal' }),
+    };
+    setStripeApiForTests(fake);
+    /** Le visiteur termine la page Stripe avec cet e-mail. */
+    const pay = (n: number, email: string) => {
+      const id = 'cs_test_signup' + n;
+      sessions.set(id, { ...sessions.get(id)!, status: 'complete', paymentStatus: 'paid', customer: 'cus_S' + n,
+        subscription: 'sub_S' + n, customerEmail: email });
+      subs.set('sub_S' + n, { id: 'sub_S' + n, customer: 'cus_S' + n, status: 'active', metadata: { taply_flow: 'signup' },
+        priceId: 'price_taply20', currentPeriodEnd: now + 30 * 86400, cancelAtPeriodEnd: false });
+    };
+    const send = (event: object) => {
+      const body = JSON.stringify(event);
+      return new TestBrowser(app, ORIGIN).request('POST', '/api/billing/webhook', body,
+        { 'stripe-signature': signStripePayload(body, secret, now), Origin: '' });
+    };
+    const { logger } = captureLogger();
+    const claim = (m: Merchant, email: string) =>
+      claimSignupCheckouts(t.pool, fake, { merchantId: m.merchantId, confirmedEmail: email }, logger);
+    const subOf = async (m: Merchant) => (await t.admin<{ stripe_subscription_id: string }>(
+      'select stripe_subscription_id from taply.merchant_subscriptions where merchant_id = $1', [m.merchantId]))[0]?.stripe_subscription_id;
+    const visitor = new TestBrowser(app, ORIGIN, '203.0.113.77');
+
+    // 1. Sans compte : Origin étrangère refusée, puis redirection directe vers Stripe.
+    expect((await new TestBrowser(app, 'https://evil.example', '203.0.113.78').post('/api/billing/start')).status).toBe(403);
+    expect((await visitor.post('/api/billing/start')).json.redirect).toBe('https://checkout.stripe.test/cs_test_signup1');
+    expect(created[0]).toMatchObject({ mode: 'subscription', 'line_items[0][price]': 'price_taply20',
+      'metadata[taply_flow]': 'signup', 'subscription_data[metadata][taply_flow]': 'signup',
+      success_url: ORIGIN + '/activer.html?paiement={CHECKOUT_SESSION_ID}' });
+    expect(created[0]!['customer']).toBeUndefined();
+    expect(created[0]!['client_reference_id']).toBeUndefined();
+
+    // 2. Retour avant paiement : rien n'est mémorisé ; session inconnue → 404.
+    expect((await visitor.get('/api/billing/start/cs_test_signup1')).json).toEqual({ paid: false });
+    expect((await visitor.get('/api/billing/start/cs_test_inconnue')).status).toBe(404);
+    pay(1, 'Nouveau@Taply.test');
+    const completed = { id: 'evt_s1', type: 'checkout.session.completed', created: now, data: { object: {
+      id: 'cs_test_signup1', metadata: { taply_flow: 'signup' }, client_reference_id: null, customer: 'cus_S1', subscription: 'sub_S1' } } };
+    expect((await send(completed)).json.outcome).toBe('unmatched');
+    expect((await send(completed)).json.outcome).toBe('duplicate');
+    // Page de retour : e-mail du payeur pour pré-remplir ; enregistrement idempotent.
+    expect((await visitor.get('/api/billing/start/cs_test_signup1')).json).toEqual({ paid: true, email: 'nouveau@taply.test' });
+    const pending = await t.admin<{ status: string; merchant_id: string | null; email_hash: string }>(
+      'select status, merchant_id, email_hash from taply.signup_checkouts');
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({ status: 'paid', merchant_id: null });
+    expect(pending[0]!.email_hash).toMatch(/^[0-9a-f]{64}$/);
+
+    // 3. Un autre compte (autre e-mail confirmé) ne récupère rien.
+    const intrus = await provisionMerchant('Intrus', 'intrus@taply.test');
+    expect(await claim(intrus, 'intrus@taply.test')).toEqual([]);
+
+    // 4. Le payeur crée son compte au même e-mail, confirmé → rattaché au login.
+    const payer = await provisionMerchant('Fleuriste Sud', 'nouveau@taply.test');
+    expect((await payer.browser.get('/api/billing/status')).json.level).toBe('setup_only');
+    expect(await claim(payer, ' NOUVEAU@taply.test ')).toEqual(['claimed']);
+    expect((await payer.browser.get('/api/billing/status')).json).toMatchObject({ level: 'full', status: 'active' });
+    expect(await claim(payer, 'nouveau@taply.test')).toEqual([]);
+    // Les événements suivants retrouvent le commerce par son client Stripe.
+    subs.set('sub_S1', { ...subs.get('sub_S1')!, status: 'past_due' });
+    expect((await send({ id: 'evt_s2', type: 'invoice.payment_failed', created: now,
+      data: { object: { subscription: 'sub_S1', customer: 'cus_S1' } } })).json.outcome).toBe('applied');
+    expect((await payer.browser.get('/api/billing/status')).json.level).toBe('grace');
+
+    // 5. Le même payeur repaie : jamais un second abonnement en vigueur (remboursement manuel).
+    expect((await visitor.post('/api/billing/start')).status).toBe(200);
+    pay(2, 'nouveau@taply.test');
+    await visitor.get('/api/billing/start/cs_test_signup2');
+    expect(await claim(payer, 'nouveau@taply.test')).toEqual(['duplicate']);
+    expect(await subOf(payer)).toBe('sub_S1');
+    expect((await t.admin<{ status: string }>(
+      `select status from taply.signup_checkouts where checkout_session_id = 'cs_test_signup2'`))[0]!.status).toBe('duplicate');
+
+    // 6. Commerce résilié (m1) qui repaie par le parcours public : nouveau client Stripe accepté.
+    expect((await m1.browser.get('/api/billing/status')).json.status).toBe('canceled');
+    expect((await visitor.post('/api/billing/start')).status).toBe(200);
+    pay(3, 'owner1@taply.test');
+    await visitor.get('/api/billing/start/cs_test_signup3');
+    expect(await claim(m1, 'owner1@taply.test')).toEqual(['claimed']);
+    expect((await m1.browser.get('/api/billing/status')).json).toMatchObject({ level: 'full', status: 'active' });
+    expect(await subOf(m1)).toBe('sub_S3');
     vi.stubEnv('TAPLY_BILLING_MODE', 'disabled');
   });
 

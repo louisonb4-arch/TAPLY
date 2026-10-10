@@ -32,6 +32,7 @@ export const PUBLIC_ENTRIES = Object.freeze([
   'confidentialite.html',
   'connexion.html',
   'creer-compte.html',
+  'activer.html',
   'cookies.html',
   'index.html',
   'join.html',

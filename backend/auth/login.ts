@@ -23,6 +23,8 @@ export interface LoginResult {
   readonly rawToken: string;
   readonly merchantId: string;
   readonly role: MerchantRole;
+  /** E-mail du compte, seulement s'il est confirmé par Supabase. */
+  readonly confirmedEmail: string | null;
 }
 
 export async function loginWithPassword(pool: Pool, log: Logger, params: LoginParams): Promise<LoginResult> {
@@ -39,6 +41,7 @@ export async function loginWithPassword(pool: Pool, log: Logger, params: LoginPa
   }
 
   const authUserId = data.user.id;
+  const confirmedEmail = data.user.email_confirmed_at && data.user.email ? data.user.email : null;
 
   let merchantUser;
   try {
@@ -82,5 +85,5 @@ export async function loginWithPassword(pool: Pool, log: Logger, params: LoginPa
 
   log.info('auth.login.success', { merchantId: merchantUser.merchantId, role: merchantUser.role });
 
-  return { rawToken, merchantId: merchantUser.merchantId, role: merchantUser.role };
+  return { rawToken, merchantId: merchantUser.merchantId, role: merchantUser.role, confirmedEmail };
 }

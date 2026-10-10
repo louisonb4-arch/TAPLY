@@ -23,7 +23,7 @@ const post = (p: string, body: unknown, origin: string | null = base) => fetch(b
 });
 
 await check('API vivante', async () => assert.equal((await get('/api/health')).status, 200));
-for (const page of ['/', '/join.html', '/carte.html', '/t', '/dashboard/', '/connexion.html', '/creer-compte.html',
+for (const page of ['/', '/join.html', '/carte.html', '/t', '/dashboard/', '/connexion.html', '/creer-compte.html', '/activer.html', '/js/merchant-signup.js',
   '/mot-de-passe-oublie.html', '/reinitialiser-mot-de-passe.html', '/dashboard/vendor/jsQR.js', '/js/carte.js']) {
   await check(`page ${page}`, async () => assert.equal((await get(page)).status, 200));
 }
@@ -62,6 +62,15 @@ if (stripeConfigured) {
     });
     assert.equal(r.status, 401);
   });
+}
+
+await check('paiement sans compte : démarrage refusé sans Origin (CSRF)', async () =>
+  assert.equal((await post('/api/billing/start', {}, null)).status, 403));
+await check('paiement sans compte : Origin étrangère refusée', async () =>
+  assert.equal((await post('/api/billing/start', {}, 'https://evil.example')).status, 403));
+if (stripeConfigured) {
+  await check('paiement sans compte : session Stripe inconnue → 404 (aucune donnée)', async () =>
+    assert.equal((await get('/api/billing/start/cs_test_inconnue0000000000')).status, 404));
 }
 
 const keyFile = process.env['TAPLY_NFC_MASTER_KEY_FILE'];

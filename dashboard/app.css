@@ -20,6 +20,9 @@
 .note--info { background: #EEF3EC; }
 .note--warn { background: #FFF4DF; color: #6B4A06; }
 .note--danger { background: #FDECEA; color: #8A1C12; }
+.paywall { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.paywall p { margin: 0; flex: 1 1 16rem; }
+.paywall .btn { flex: none; }
 
 /* Accueil */
 .hello__logo--initial { background: var(--brand); color: #fff; font-size: 1.6rem; font-weight: 700; }

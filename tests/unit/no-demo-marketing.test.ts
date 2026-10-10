@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const read=(f:string)=>readFileSync(join(process.cwd(),f),'utf8');
-const SITE=['index.html','connexion.html','creer-compte.html','404.html','cgu.html','cgv.html','confidentialite.html','cookies.html','mentions-legales.html'];
+const SITE=['index.html','connexion.html','creer-compte.html','activer.html','404.html','cgu.html','cgv.html','confidentialite.html','cookies.html','mentions-legales.html'];
 
 describe('Espace Taply sans offres de démonstration',()=>{
   it('aucune demande ni contenu fictif dans le tunnel marketing',()=>{
@@ -17,7 +17,12 @@ describe('Espace Taply sans offres de démonstration',()=>{
   it('inscription et connexion réellement branchées au serveur, sans fallback fictif',()=>{
     expect(read('connexion.html')).toContain('href="creer-compte.html"');
     expect(read('connexion.html')).toContain("fetch('/api/auth/login'");
-    expect(read('creer-compte.html')).toContain("fetch('/api/auth/signup'");
+    // Paiement d'abord : Stripe via le serveur, puis compte (même e-mail) ; inscription seule toujours possible.
+    expect(read('creer-compte.html')).toContain('src="js/merchant-signup.js"');
+    expect(read('activer.html')).toContain('src="js/merchant-signup.js"');
+    expect(read('js/merchant-signup.js')).toContain("postJson('/api/auth/signup'");
+    expect(read('js/merchant-signup.js')).toContain("postJson('/api/billing/start')");
+    expect(read('js/merchant-signup.js')).not.toMatch(/localStorage|sessionStorage|sk_(test|live)|rk_(test|live)/);
     expect(read('dashboard/live.js')).toContain("api('auth/me')");
     expect(read('dashboard/live.js')).not.toContain('window.TAPLY_DEMO');
   });

@@ -98,6 +98,11 @@ export interface StripeCheckoutSession {
   readonly customer: string | null;
   readonly subscription: string | null;
   readonly expiresAt: number | null;
+  readonly paymentStatus: string | null;
+  /** E-mail saisi par le payeur sur la page Stripe (customer_details.email). */
+  readonly customerEmail: string | null;
+  /** metadata.taply_flow : 'signup' pour le parcours « paiement d'abord ». */
+  readonly flow: string | null;
 }
 
 /** Interface injectable (tests : faux client ; prod : HTTP). */
@@ -155,6 +160,9 @@ function toCheckout(raw: Record<string, unknown>): StripeCheckoutSession {
     customer: idOf(raw['customer']),
     subscription: idOf(raw['subscription']),
     expiresAt: typeof raw['expires_at'] === 'number' ? raw['expires_at'] : null,
+    paymentStatus: str(raw['payment_status']),
+    customerEmail: str((raw['customer_details'] as { email?: unknown } | null | undefined)?.email),
+    flow: str((raw['metadata'] as { taply_flow?: unknown } | null | undefined)?.taply_flow),
   };
 }
 
